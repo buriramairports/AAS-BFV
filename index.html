@@ -640,6 +640,43 @@
            <p class="text-sm text-gray-500 mt-2"><span class="font-bold text-orange-600">คำแนะนำ:</span> เมื่อเปิดใช้งาน ระบบจะตรวจสอบผู้ที่มีสถานะ 'เข้า (IN)' ค้างไว้ และสร้างประวัติบังคับออก 'OUT' ให้อัตโนมัติทุกๆ คืนเวลา ตี 3 - ตี 4 (ตั้งค่าเวลาในทริกเกอร์ของ Google)</p>
        </div>
 
+<!-- Settings: AI Face Scan -->
+       <div class="bg-white rounded-2xl card-shadow p-6">
+           <h3 class="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-gray-700">
+               <i data-lucide="scan-face" class="w-5 h-5 text-indigo-500"></i> ตั้งค่าระบบแสกนใบหน้า (AI)
+           </h3>
+           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+               
+               <!-- ตั้งค่าความเข้มงวด -->
+               <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                   <label class="block text-sm font-bold mb-2 text-indigo-900">ความเข้มงวดในการตรวจจับใบหน้า</label>
+                   <div class="flex items-center gap-3 mb-2">
+                       <input type="number" id="aiThreshold" step="0.01" min="0.30" max="0.60" class="w-24 border p-2.5 rounded-lg focus:ring-2 outline-none focus:ring-indigo-500 bg-white text-center font-black text-indigo-700 shadow-inner">
+                       <span class="text-sm font-bold text-gray-600">ค่าน้อย = เข้มงวดมาก</span>
+                   </div>
+                   <p class="text-xs text-gray-500 leading-relaxed">
+                       <span class="font-bold text-red-500">คำแนะนำ:</span> ค่ามาตรฐานคือ <b>0.38</b><br>
+                       • แสกนยากเกินไป (หน้าตรงตัวจริงยังไม่ค่อยผ่าน) <span class="text-green-600 font-bold">👉 ให้ปรับเพิ่ม (เช่น 0.40 หรือ 0.42)</span><br>
+                       • แสกนง่ายเกินไป (มั่วไปโดนคนหน้าคล้าย) <span class="text-red-600 font-bold">👉 ให้ปรับลด (เช่น 0.36 หรือ 0.35)</span>
+                   </p>
+               </div>
+
+               <!-- ตั้งค่า Cooldown -->
+               <div class="bg-orange-50/50 p-4 rounded-xl border border-orange-100">
+                   <label class="block text-sm font-bold mb-2 text-orange-900">หน่วงเวลาแสกนซ้ำ (Cooldown)</label>
+                   <div class="flex items-center gap-3 mb-2">
+                       <input type="number" id="aiCooldown" min="1" max="60" class="w-24 border p-2.5 rounded-lg focus:ring-2 outline-none focus:ring-orange-500 bg-white text-center font-black text-orange-700 shadow-inner">
+                       <span class="text-sm font-bold text-gray-600">วินาที</span>
+                   </div>
+                   <p class="text-xs text-gray-500 leading-relaxed">
+                       <span class="font-bold text-red-500">คำแนะนำ:</span> ป้องกันระบบแสกนคนเดิมเข้า-ออกซ้ำรัวๆ เวลาคนยืนแช่อยู่หน้ากล้องนานเกินไป<br>
+                       • ค่ามาตรฐานคือ <b>10 วินาที</b> (ปรับได้ตามความเหมาะสมของหน้างาน)
+                   </p>
+               </div>
+
+           </div>
+       </div>
+
        <!-- Settings: Banner -->
        <div class="bg-white rounded-2xl card-shadow p-6">
            <div class="flex flex-wrap justify-between items-center mb-4 gap-4 border-b pb-2">
@@ -895,7 +932,7 @@
     const thaiMonths = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
     let offlineQueue = JSON.parse(localStorage.getItem('aac_offlineQueue') || '[]');
     let currentUser = null, currentPage = 'home';
-    let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true };
+    let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true , aiThreshold: 0.38, aiCooldown: 10 };
     
     // Data Caches
     let allGates = [], typeCards = [], allCards = [], allSystemUsers = [];
@@ -2505,6 +2542,8 @@
         document.getElementById('loginBgUrl').value = systemSettings.loginBgUrl || '';
         document.getElementById('faviconUrl').value = systemSettings.faviconUrl || '';
         document.getElementById('autoCheckoutEnabled').checked = systemSettings.autoCheckoutEnabled;
+		document.getElementById('aiThreshold').value = systemSettings.aiThreshold || 0.38;
+        document.getElementById('aiCooldown').value = systemSettings.aiCooldown || 10;
         renderBannerList();
     }
     
@@ -2534,6 +2573,8 @@
         systemSettings.logoUrl = document.getElementById('logoUrl').value;
         systemSettings.loginBgUrl = document.getElementById('loginBgUrl').value;
         systemSettings.faviconUrl = document.getElementById('faviconUrl').value;
+		systemSettings.aiThreshold = parseFloat(document.getElementById('aiThreshold').value) || 0.38;
+        systemSettings.aiCooldown = parseInt(document.getElementById('aiCooldown').value) || 10;
         
         // --- เพิ่มบรรทัดนี้เข้าไป เพื่อดึงสถานะติ๊กถูกจากหน้าเว็บ ---
         systemSettings.autoCheckoutEnabled = document.getElementById('autoCheckoutEnabled').checked;
@@ -3166,8 +3207,9 @@ async function initFaceMatcherForWebcam() {
     }
 
    // ค่าความแม่นยำ (0.38 = เข้มงวดมาก ป้องกันหน้าคล้าย, 0.45 = ปานกลาง, 0.6 = หละหลวม)
-    // ถ้ารู้สึกว่า 0.38 แสกนยากไป ให้ขยับเป็น 0.40 ครับ
-    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.42);
+    // ดึงค่าความเข้มงวดจากที่แอดมินตั้งไว้ (ถ้าไม่มีให้ใช้ 0.38)
+    const currentThreshold = systemSettings.aiThreshold || 0.38;
+    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, currentThreshold);
     
     document.getElementById('faceScanStatus').innerHTML = `<span class="text-green-600"><i data-lucide="scan-face" class="w-4 h-4 inline mr-1"></i> พร้อมแสกนแล้ว! (${countFaces} ใบหน้า)</span>`;
     lucide.createIcons();
@@ -3282,7 +3324,10 @@ function triggerFaceScanSuccess(cardId) {
     
     lastScannedFaceId = cardId;
     clearTimeout(faceScanCooldownTimer);
-    faceScanCooldownTimer = setTimeout(() => { lastScannedFaceId = null; }, 10000);
+    //ดึงเวลา Cooldown จากที่แอดมินตั้งไว้แปลงเป็นมิลลิวินาที (ถ้าไม่มีให้ใช้ 10 วิ)
+    
+	const cooldownMs = (systemSettings.aiCooldown || 10) * 1000;
+    faceScanCooldownTimer = setTimeout(() => { lastScannedFaceId = null; }, cooldownMs);
 
     // แจ้งเตือนกระพริบ
     document.getElementById('faceScanStatus').innerHTML = `<span class="text-green-600 font-black"><i data-lucide="check-circle" class="w-4 h-4 inline mr-1"></i> พบใบหน้า: ${cardId}</span>`;
