@@ -673,6 +673,21 @@
                        • ค่ามาตรฐานคือ <b>10 วินาที</b> (ปรับได้ตามความเหมาะสมของหน้างาน)
                    </p>
                </div>
+			   
+			   <!-- ตั้งค่าความถี่การสแกน (Interval) -->
+               <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100 md:col-span-2">
+                   <label class="block text-sm font-bold mb-2 text-blue-900">ความถี่ในการตรวจจับใบหน้า (Interval)</label>
+                   <div class="flex items-center gap-3 mb-2">
+                       <input type="number" id="aiInterval" min="200" max="2000" step="100" class="w-24 border p-2.5 rounded-lg focus:ring-2 outline-none focus:ring-blue-500 bg-white text-center font-black text-blue-700 shadow-inner">
+                       <span class="text-sm font-bold text-gray-600">มิลลิวินาที (1000 มิลลิวินาที = 1 วินาที)</span>
+                   </div>
+                   <p class="text-xs text-gray-500 leading-relaxed">
+                       <span class="font-bold text-red-500">คำแนะนำ:</span> กำหนดความเร็วที่ AI จะดึงภาพจากกล้องมาประมวลผล<br>
+                       • ค่ามาตรฐานคือ <b>1000 มิลลิวินาที</b> (1 วิ/ครั้ง)<br>
+                       • เครื่องสเปกต่ำ/มือถือเก่า <span class="text-orange-600 font-bold">👉 ให้ปรับเพิ่มเป็น 1500 - 2000 (ลดอาการกระตุก)</span><br>
+                       • เครื่องสเปกสูง/ต้องการความไว <span class="text-green-600 font-bold">👉 ให้ปรับลดเหลือ 400 - 800 (จับภาพได้ไวขึ้น)</span>
+                   </p>
+               </div>
 
            </div>
        </div>
@@ -932,7 +947,7 @@
     const thaiMonths = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
     let offlineQueue = JSON.parse(localStorage.getItem('aac_offlineQueue') || '[]');
     let currentUser = null, currentPage = 'home';
-    let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true , aiThreshold: 0.38, aiCooldown: 10 };
+    let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true , aiThreshold: 0.38, aiCooldown: 10, aiInterval: 1000 };
     
     // Data Caches
     let allGates = [], typeCards = [], allCards = [], allSystemUsers = [];
@@ -2544,6 +2559,7 @@
         document.getElementById('autoCheckoutEnabled').checked = systemSettings.autoCheckoutEnabled;
 		document.getElementById('aiThreshold').value = systemSettings.aiThreshold || 0.38;
         document.getElementById('aiCooldown').value = systemSettings.aiCooldown || 10;
+		document.getElementById('aiInterval').value = systemSettings.aiInterval || 1000;
         renderBannerList();
     }
     
@@ -2575,6 +2591,7 @@
         systemSettings.faviconUrl = document.getElementById('faviconUrl').value;
 		systemSettings.aiThreshold = parseFloat(document.getElementById('aiThreshold').value) || 0.38;
         systemSettings.aiCooldown = parseInt(document.getElementById('aiCooldown').value) || 10;
+		systemSettings.aiInterval = parseInt(document.getElementById('aiInterval').value) || 1000;
         
         // --- เพิ่มบรรทัดนี้เข้าไป เพื่อดึงสถานะติ๊กถูกจากหน้าเว็บ ---
         systemSettings.autoCheckoutEnabled = document.getElementById('autoCheckoutEnabled').checked;
@@ -3314,7 +3331,8 @@ async function startFaceDetectionLoop() {
                 }
             });
         }
-    }, 1000); // <-- คงค่าหน่วงเวลา 1000 (1 วินาที) ไว้เหมือนเดิมครับ
+    // --- เปลี่ยนตรงนี้: ดึงค่าความถี่จากที่แอดมินตั้งไว้ (ค่าเริ่มต้น 1000 ms) ---
+    }, systemSettings.aiInterval || 1000); 
 }
 
 // ฟังก์ชันเมื่อจับคู่หน้าผ่านแล้ว ส่งเข้ากระบวนการแสกน
