@@ -688,6 +688,32 @@
                        • เครื่องสเปกสูง/ต้องการความไว <span class="text-green-600 font-bold">👉 ให้ปรับลดเหลือ 400 - 800 (จับภาพได้ไวขึ้น)</span>
                    </p>
                </div>
+			   
+			   <!-- ตั้งค่าขนาดกรอบใบหน้า (Bounding Box Padding) -->
+               <div class="bg-teal-50/50 p-4 rounded-xl border border-teal-100 md:col-span-2">
+                   <label class="block text-sm font-bold mb-2 text-teal-900">ปรับขนาดกรอบใบหน้าขณะแสกน (Bounding Box)</label>
+                   
+                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
+                       <!-- ด้านข้าง (X) -->
+                       <div class="flex items-center gap-3">
+                           <span class="text-sm font-bold text-gray-600 w-24">เผื่อด้านข้าง:</span>
+                           <input type="number" id="aiPadX" min="0" max="50" step="1" class="w-20 border p-2 rounded-lg focus:ring-2 outline-none focus:ring-teal-500 bg-white text-center font-black text-teal-700 shadow-inner">
+                           <span class="text-xs text-gray-500">%</span>
+                       </div>
+                       
+                       <!-- ด้านบน/หน้าผาก (Top) -->
+                       <div class="flex items-center gap-3">
+                           <span class="text-sm font-bold text-gray-600 w-24">เผื่อหน้าผาก:</span>
+                           <input type="number" id="aiPadTop" min="0" max="100" step="1" class="w-20 border p-2 rounded-lg focus:ring-2 outline-none focus:ring-teal-500 bg-white text-center font-black text-teal-700 shadow-inner">
+                           <span class="text-xs text-gray-500">%</span>
+                       </div>
+                   </div>
+                   
+                   <p class="text-xs text-gray-500 leading-relaxed mt-2">
+                       <span class="font-bold text-red-500">คำแนะนำ:</span> AI จับภาพแค่คิ้วถึงคาง จึงต้องเผื่อพื้นที่กรอบให้ครอบคลุมทั้งศีรษะเพื่อความสวยงาม<br>
+                       • ค่ามาตรฐาน: <b>ด้านข้าง 15%, หน้าผาก 35%</b> (ถ้าใส่ 0 กรอบจะรัดแน่นพอดีโครงหน้าเป๊ะ)
+                   </p>
+               </div>
 
            </div>
        </div>
@@ -947,7 +973,7 @@
     const thaiMonths = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
     let offlineQueue = JSON.parse(localStorage.getItem('aac_offlineQueue') || '[]');
     let currentUser = null, currentPage = 'home';
-    let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true , aiThreshold: 0.38, aiCooldown: 10, aiInterval: 1000 };
+    let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true , aiThreshold: 0.38, aiCooldown: 10, aiInterval: 1000, aiPadX: 15, aiPadTop: 35 };
     
     // Data Caches
     let allGates = [], typeCards = [], allCards = [], allSystemUsers = [];
@@ -2560,6 +2586,8 @@
 		document.getElementById('aiThreshold').value = systemSettings.aiThreshold || 0.38;
         document.getElementById('aiCooldown').value = systemSettings.aiCooldown || 10;
 		document.getElementById('aiInterval').value = systemSettings.aiInterval || 1000;
+		document.getElementById('aiPadX').value = systemSettings.aiPadX !== undefined ? systemSettings.aiPadX : 15;
+        document.getElementById('aiPadTop').value = systemSettings.aiPadTop !== undefined ? systemSettings.aiPadTop : 35;
         renderBannerList();
     }
     
@@ -2592,6 +2620,8 @@
 		systemSettings.aiThreshold = parseFloat(document.getElementById('aiThreshold').value) || 0.38;
         systemSettings.aiCooldown = parseInt(document.getElementById('aiCooldown').value) || 10;
 		systemSettings.aiInterval = parseInt(document.getElementById('aiInterval').value) || 1000;
+		systemSettings.aiPadX = parseInt(document.getElementById('aiPadX').value) || 0;
+        systemSettings.aiPadTop = parseInt(document.getElementById('aiPadTop').value) || 0;
         
         // --- เพิ่มบรรทัดนี้เข้าไป เพื่อดึงสถานะติ๊กถูกจากหน้าเว็บ ---
         systemSettings.autoCheckoutEnabled = document.getElementById('autoCheckoutEnabled').checked;
@@ -3275,8 +3305,41 @@ async function startFaceDetectionLoop() {
             const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
 
             results.forEach((result, i) => {
-                const box = resizedDetections[i].detection.box;
+                //const box = resizedDetections[i].detection.box;
+               
+// --- เริ่ม: คำนวณกรอบให้พอดีกับใบหน้าเป๊ะๆ ด้วย Face Landmarks ---
+                const landmarks = resizedDetections[i].landmarks.positions;
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
                 
+                // หาจุดซ้ายสุด ขวาสุด บนสุด ล่างสุด ของโครงหน้า
+                landmarks.forEach(pt => {
+                    if (pt.x < minX) minX = pt.x;
+                    if (pt.y < minY) minY = pt.y;
+                    if (pt.x > maxX) maxX = pt.x;
+                    if (pt.y > maxY) maxY = pt.y;
+                });
+
+                const exactWidth = maxX - minX;
+                const exactHeight = maxY - minY;
+
+                // ดึงค่า % Padding จาก Settings (ถ้าไม่มีให้ใช้ 15% และ 35%)
+                const padXPercent = (systemSettings.aiPadX !== undefined ? systemSettings.aiPadX : 15) / 100;
+                const padTopPercent = (systemSettings.aiPadTop !== undefined ? systemSettings.aiPadTop : 35) / 100;
+
+                // คำนวณระยะขอบ
+                const padX = exactWidth * padXPercent;
+                const padTop = exactHeight * padTopPercent;
+                const padBottom = exactHeight * 0.10; // เผื่อคางไว้ 10% เสมอ (ตายตัว ไม่ต้องตั้งค่า)
+
+                // สร้าง Box อันใหม่ที่พอดีกับหน้า
+                const box = {
+                    x: minX - padX,
+                    y: minY - padTop,
+                    width: exactWidth + (padX * 2),
+                    height: exactHeight + padTop + padBottom
+                };
+                // --- จบ: การคำนวณกรอบใหม่ ---
+			   
                 // --- เพิ่มการคำนวณเปอร์เซ็นต์ความเหมือน ---
                 // แปลงค่า distance เป็นเปอร์เซ็นต์ (ยิ่ง distance น้อย % ยิ่งสูง)
                 const matchPercent = Math.round((1 - result.distance) * 100);
