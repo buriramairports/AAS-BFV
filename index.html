@@ -1034,7 +1034,26 @@
     // ==========================================
     // Utils & Auto Focus (ฉบับอัปเดตสำหรับโฮสต์ภายนอก)
     // ==========================================
-    
+    // ==========================================
+    // ฟังก์ชันช่วยเรียงลำดับรหัสบัตร (รูปแบบ Prefix+Num/Year)
+    // ==========================================
+    function parseCardIdForSort(cardIdStr) {
+        if (!cardIdStr) return { year: 0, prefixNum: '' };
+        
+        const str = String(cardIdStr).trim();
+        const parts = str.split('/');
+        
+        // ถ้ามีเครื่องหมาย / ให้ถือว่าส่วนหลังคือ ปี พ.ศ.
+        if (parts.length >= 2) {
+            const yearPart = parseInt(parts[parts.length - 1]) || 0;
+            // ส่วนหน้า (เช่น A003) ให้รวมทุกอย่างที่อยู่หน้า / สุดท้าย
+            const prefixNumPart = parts.slice(0, parts.length - 1).join('/'); 
+            return { year: yearPart, prefixNum: prefixNumPart };
+        } 
+        
+        // ถ้าไม่มีเครื่องหมาย / (บัตรยุคเก่า หรือกรอกผิดรูปแบบ) ให้ถือว่าปีเป็น 0 แล้วเรียงตามตัวอักษร
+        return { year: 0, prefixNum: str };
+    }
     // 🔥 นำ URL ที่คัดลอกมาจาก Step 1 มาวางในเครื่องหมายคำพูดด้านล่างนี้เลยครับ
     const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw6CzipVCEniPpegkUjmv6_Xk97dqxOZSXauc6jxCGF4dOxkMIXgpNpFYQV3giRFZFe/exec'; 
 
@@ -1833,20 +1852,35 @@
         }
         lucide.createIcons();
 
-        // --- โค้ดเรียงลำดับ (เพิ่มเข้าไปตรงนี้) ---
+        // --- โค้ดเรียงลำดับ (อัปเดตแบบแยก ปี พ.ศ.) ---
         const sortBy = document.getElementById('cardSortFilter').value;
         if(sortBy === 'newest') {
-            currentFilteredCards.sort((a,b) => b.id - a.id); // ID ฐานข้อมูล (ใหม่ไปเก่า)
+            currentFilteredCards.sort((a,b) => b.id - a.id);
         } else if(sortBy === 'oldest') {
-            currentFilteredCards.sort((a,b) => a.id - b.id); // ID ฐานข้อมูล (เก่าไปใหม่)
+            currentFilteredCards.sort((a,b) => a.id - b.id);
         } else if(sortBy === 'name') {
             currentFilteredCards.sort((a,b) => String(a.firstName).localeCompare(String(b.firstName), 'th'));
-        } else if(sortBy === 'cardIdAsc') {
-            // เรียงรหัสบัตร น้อยไปมาก (ใช้ numeric: true เพื่อให้ A2 มาก่อน A10)
-            currentFilteredCards.sort((a,b) => String(a.cardId).localeCompare(String(b.cardId), 'th', {numeric: true}));
-        } else if(sortBy === 'cardIdDesc') {
-            // เรียงรหัสบัตร มากไปน้อย
-            currentFilteredCards.sort((a,b) => String(b.cardId).localeCompare(String(a.cardId), 'th', {numeric: true}));
+        } else if(sortBy === 'cardIdAsc' || sortBy === 'cardIdDesc') {
+            
+            currentFilteredCards.sort((a, b) => {
+                const parsedA = parseCardIdForSort(a.cardId);
+                const parsedB = parseCardIdForSort(b.cardId);
+                
+                // 1. เทียบปี พ.ศ. ก่อน (ถ้าปีต่างกัน)
+                if (parsedA.year !== parsedB.year) {
+                    // ปีน้อยกว่าขึ้นก่อน เสมอ (เรียงจากอดีตไปปัจจุบัน)
+                    return parsedA.year - parsedB.year;
+                }
+                
+                // 2. ถ้าปีเท่ากัน (หรือไม่มีปีทั้งคู่) ให้เทียบรหัสด้านหน้า (A003 vs A004)
+                // ใช้ numeric: true เพื่อให้ A2 มาก่อน A10
+                return parsedA.prefixNum.localeCompare(parsedB.prefixNum, 'th', { numeric: true });
+            });
+
+            // ถ้าเลือก มากไปน้อย (Desc) ให้พลิก Array ที่เรียงเสร็จแล้วกลับด้าน
+            if (sortBy === 'cardIdDesc') {
+                currentFilteredCards.reverse();
+            }
         }
         // ----------------------------------------
         
