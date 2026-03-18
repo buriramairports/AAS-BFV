@@ -353,6 +353,8 @@
                 <option value="newest">ใหม่ล่าสุดก่อน</option>
                 <option value="oldest">เก่าสุดก่อน</option>
                 <option value="name">เรียงตามชื่อ (ก-ฮ)</option>
+		<option value="cardIdAsc">เรียงตามรหัสบัตร (น้อยไปมาก)</option>
+                <option value="cardIdDesc">เรียงตามรหัสบัตร (มากไปน้อย)</option>
             </select>
          </div>
         
@@ -1834,11 +1836,17 @@
         // --- โค้ดเรียงลำดับ (เพิ่มเข้าไปตรงนี้) ---
         const sortBy = document.getElementById('cardSortFilter').value;
         if(sortBy === 'newest') {
-            currentFilteredCards.sort((a,b) => b.id - a.id);
+            currentFilteredCards.sort((a,b) => b.id - a.id); // ID ฐานข้อมูล (ใหม่ไปเก่า)
         } else if(sortBy === 'oldest') {
-            currentFilteredCards.sort((a,b) => a.id - b.id);
+            currentFilteredCards.sort((a,b) => a.id - b.id); // ID ฐานข้อมูล (เก่าไปใหม่)
         } else if(sortBy === 'name') {
             currentFilteredCards.sort((a,b) => String(a.firstName).localeCompare(String(b.firstName), 'th'));
+        } else if(sortBy === 'cardIdAsc') {
+            // เรียงรหัสบัตร น้อยไปมาก (ใช้ numeric: true เพื่อให้ A2 มาก่อน A10)
+            currentFilteredCards.sort((a,b) => String(a.cardId).localeCompare(String(b.cardId), 'th', {numeric: true}));
+        } else if(sortBy === 'cardIdDesc') {
+            // เรียงรหัสบัตร มากไปน้อย
+            currentFilteredCards.sort((a,b) => String(b.cardId).localeCompare(String(a.cardId), 'th', {numeric: true}));
         }
         // ----------------------------------------
         
