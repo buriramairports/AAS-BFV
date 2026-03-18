@@ -215,7 +215,7 @@
                                    <div class="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
                                        <div><span class="text-gray-500 block text-xs">ประเภทบัตร</span><span id="resCardType" class="font-bold text-gray-800 bg-gray-200 px-2 py-0.5 rounded">-</span></div>
                                        <div><span class="text-gray-500 block text-xs">ทะเบียนรถ</span><span id="resVehicle" class="font-medium text-gray-800">-</span></div>
-                                       <div><span class="text-gray-500 block text-xs">วันหมดอายุ</span><span id="resExpiry" class="font-medium text-gray-800">-</span></div>
+                                       <div><span class="text-gray-500 block text-xs">วันหมดอายุ (หมดอายุเวลา 23:59:59 น.)</span><span id="resExpiry" class="font-medium text-gray-800">-</span></div>
                                        <div><span class="text-gray-500 block text-xs">เวลาบันทึก</span><span id="resTime" class="font-bold text-green-600">-</span></div>
                                    </div>
 
@@ -389,7 +389,7 @@
                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-500 min-w-[150px]">ชื่อ - นามสกุล</th>
                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-500">หน่วยงาน</th>
                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-500">ประเภท</th>
-                           <th class="px-4 py-3 text-center text-sm font-bold text-gray-500">วันหมดอายุ</th>
+                           <th class="px-4 py-3 text-center text-sm font-bold text-gray-500">วันหมดอายุ (หมดอายุเวลา 23:59:59 น.)</th>
                            <th class="px-4 py-3 text-center text-sm font-bold text-gray-500">สถานะบัตร</th>
                            <th class="px-4 py-3 text-center text-sm font-bold text-gray-500">ปัจจุบัน</th>
                            <th class="px-4 py-3 text-center text-sm font-bold text-gray-500 min-w-[120px]">จัดการ</th>
@@ -877,7 +877,7 @@
             
             <div class="col-span-2 mt-2 pt-4 border-t border-gray-200 grid grid-cols-2 gap-4">
                 <div class="col-span-2 md:col-span-1"><label class="block text-sm font-bold mb-1 text-gray-600"><i data-lucide="calendar" class="w-4 h-4 inline"></i> วันออกบัตร <span class="text-red-500">*</span></label><input type="date" id="cardIssueDate" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white text-gray-700 font-medium" onchange="calcExpiryDate()"></div>
-                <div class="col-span-2 md:col-span-1"><label id="cardExpiryLabel" class="block text-sm font-bold mb-1 text-red-600"><i data-lucide="calendar-off" class="w-4 h-4 inline"></i> วันหมดอายุ (คำนวณอัตโนมัติ)</label><input type="date" id="cardExpiryDate" class="w-full border border-red-200 p-2.5 rounded-xl outline-none bg-red-50 font-bold text-red-700 cursor-not-allowed" readonly title="แก้ไขอัตโนมัติจากประเภทบัตร"></div>
+                <div class="col-span-2 md:col-span-1"><label id="cardExpiryLabel" class="block text-sm font-bold mb-1 text-red-600"><i data-lucide="calendar-off" class="w-4 h-4 inline"></i> วันหมดอายุ (คำนวณอัตโนมัติ) (หมดอายุเวลา 23:59:59 น. ของวันที่เลือก)</label><input type="date" id="cardExpiryDate" class="w-full border border-red-200 p-2.5 rounded-xl outline-none bg-red-50 font-bold text-red-700 cursor-not-allowed" readonly title="แก้ไขอัตโนมัติจากประเภทบัตร"></div>
             </div>
 
             <div class="col-span-2 mt-2"><label class="block text-sm font-bold mb-2 text-gray-700">สถานะบัตร</label><div class="flex gap-4 bg-white p-3 rounded-xl border border-gray-200"><label class="flex items-center gap-2 cursor-pointer font-medium text-green-700"><input type="radio" name="cardStatusInp" value="active" class="w-4 h-4 text-green-600" checked> เปิดใช้งาน (Active)</label><label class="flex items-center gap-2 cursor-pointer font-medium text-red-600"><input type="radio" name="cardStatusInp" value="inactive" class="w-4 h-4 text-red-600"> ระงับการใช้งาน (Inactive)</label></div></div>
@@ -2109,7 +2109,7 @@
             
             // --- เปลี่ยนป้ายชื่อเป็นสีส้ม "วันหมดอายุ (กำหนดเอง)" ---
             expLabel.className = "block text-sm font-bold mb-1 text-orange-600 transition";
-            expLabel.innerHTML = '<i data-lucide="calendar-check-2" class="w-4 h-4 inline"></i> วันหมดอายุ (กำหนดเอง) <span class="text-red-500">*</span>';
+            expLabel.innerHTML = '<i data-lucide="calendar-check-2" class="w-4 h-4 inline"></i> วันหมดอายุ (กำหนดเอง) (หมดอายุเวลา 23:59:59 น. ณ วันที่เลือก) <span class="text-red-500">*</span>';
             
             // ถ้าช่องยังว่างอยู่ ให้ใส่วันนี้เป็นค่าเริ่มต้นไปก่อน
             if(!expInput.value || expInput.hasAttribute('data-auto')) {
@@ -2128,7 +2128,7 @@
 
             // --- เปลี่ยนป้ายชื่อกลับเป็นสีแดง "วันหมดอายุ (คำนวณอัตโนมัติ)" ---
             expLabel.className = "block text-sm font-bold mb-1 text-red-600 transition";
-            expLabel.innerHTML = '<i data-lucide="calendar-off" class="w-4 h-4 inline"></i> วันหมดอายุ (คำนวณอัตโนมัติ)';
+            expLabel.innerHTML = '<i data-lucide="calendar-off" class="w-4 h-4 inline"></i> วันหมดอายุ (คำนวณอัตโนมัติ) (หมดอายุเวลา 23:59:59 น. ของวันที่เลือก)';
 
             let date = new Date(issueStr);
             const val = parseInt(typeInfo.durationValue);
