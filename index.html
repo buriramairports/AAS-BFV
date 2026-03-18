@@ -1564,6 +1564,8 @@
         if (card.status !== 'active') return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error');
 
         const expiryDate = new Date(card.expiryDate);
+        expiryDate.setHours(23, 59, 59, 999); // ปรับเวลาให้เป็น 23:59:59 ของวันนั้น
+        
         const now = new Date();
         if (now > expiryDate) return showAlert('บัตรหมดอายุ', `บัตรหมายเลข ${cardId} หมดอายุแล้วเมื่อ ${formatDateOnly(card.expiryDate)}`, 'error');
 
@@ -1651,7 +1653,9 @@
         const compCard = allCards.find(c => String(c.cardId).toUpperCase() === compCardId);
         if (!compCard) return showAlert('ไม่พบข้อมูล', `ไม่พบบัตรผู้ติดตามหมายเลข ${compCardId} ในระบบ`, 'error');
         if (compCard.status !== 'active') return showAlert('ถูกระงับ', `บัตรผู้ติดตามถูกระงับการใช้งาน`, 'error');
-        if (new Date() > new Date(compCard.expiryDate)) return showAlert('บัตรหมดอายุ', `บัตรผู้ติดตามหมดอายุแล้ว`, 'error');
+        const compExpDate = new Date(compCard.expiryDate);
+        compExpDate.setHours(23, 59, 59, 999); // ปรับเวลาให้เป็น 23:59:59 ของวันนั้น
+        if (new Date() > compExpDate) return showAlert('บัตรหมดอายุ', `บัตรผู้ติดตามหมดอายุแล้ว`, 'error');
 
         const gate = allGates.find(g => parseInt(g.id) === parseInt(gateId));
         const mainCard = allCards.find(c => String(c.cardId).toUpperCase() === mainCardId);
@@ -1897,7 +1901,9 @@
 
         tbody.innerHTML = list.map(c => {
             const t = typeCards.find(x => parseInt(x.id) === parseInt(c.typeId)) || {typeName:'Unknown'};
-            const isExp = new Date(c.expiryDate) < new Date();
+            const expDateForBadge = new Date(c.expiryDate);
+            expDateForBadge.setHours(23, 59, 59, 999);
+            const isExp = expDateForBadge < new Date();
             let expBadge = isExp ? `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-bold border border-red-200">หมดอายุ</span>` : `<span class="text-gray-600 font-medium">${formatDateOnly(c.expiryDate)}</span>`;
             
             return `
@@ -3157,7 +3163,9 @@ let tempCardImageBase64 = null;
 
         latestCards.forEach(c => {
             const t = typeCards.find(x => parseInt(x.id) === parseInt(c.typeId)) || {typeName:'Unknown'};
-            const isExp = new Date(c.expiryDate) < new Date();
+            const expDateForExcel = new Date(c.expiryDate);
+            expDateForExcel.setHours(23, 59, 59, 999);
+            const isExp = expDateForExcel < new Date();
             const statusColor = c.status === 'active' ? '#16a34a' : '#dc2626';
             const expColor = isExp ? '#dc2626' : '#000000';
 
