@@ -993,7 +993,26 @@
     // Banner Timer
     let currentSlide = 0, slideInterval = null;
 
-
+// ==========================================
+    // ฟังก์ชันช่วยเรียงลำดับรหัสบัตร (รูปแบบ Prefix+Num/Year)
+    // ==========================================
+    function parseCardIdForSort(cardIdStr) {
+        if (!cardIdStr) return { year: 0, prefixNum: '' };
+        
+        const str = String(cardIdStr).trim();
+        const parts = str.split('/');
+        
+        // ถ้ามีเครื่องหมาย / ให้ถือว่าส่วนหลังคือ ปี พ.ศ.
+        if (parts.length >= 2) {
+            const yearPart = parseInt(parts[parts.length - 1]) || 0;
+            // ส่วนหน้า (เช่น A003) ให้รวมทุกอย่างที่อยู่หน้า / สุดท้าย
+            const prefixNumPart = parts.slice(0, parts.length - 1).join('/'); 
+            return { year: yearPart, prefixNum: prefixNumPart };
+        } 
+        
+        // ถ้าไม่มีเครื่องหมาย / (บัตรยุคเก่า หรือกรอกผิดรูปแบบ) ให้ถือว่าปีเป็น 0 แล้วเรียงตามตัวอักษร
+        return { year: 0, prefixNum: str };
+    }
 // ==========================================
     // ตัวแปรและฟังก์ชันระบบ AI Face Recognition
     // ==========================================
@@ -1034,26 +1053,7 @@
     // ==========================================
     // Utils & Auto Focus (ฉบับอัปเดตสำหรับโฮสต์ภายนอก)
     // ==========================================
-    // ==========================================
-    // ฟังก์ชันช่วยเรียงลำดับรหัสบัตร (รูปแบบ Prefix+Num/Year)
-    // ==========================================
-    function parseCardIdForSort(cardIdStr) {
-        if (!cardIdStr) return { year: 0, prefixNum: '' };
-        
-        const str = String(cardIdStr).trim();
-        const parts = str.split('/');
-        
-        // ถ้ามีเครื่องหมาย / ให้ถือว่าส่วนหลังคือ ปี พ.ศ.
-        if (parts.length >= 2) {
-            const yearPart = parseInt(parts[parts.length - 1]) || 0;
-            // ส่วนหน้า (เช่น A003) ให้รวมทุกอย่างที่อยู่หน้า / สุดท้าย
-            const prefixNumPart = parts.slice(0, parts.length - 1).join('/'); 
-            return { year: yearPart, prefixNum: prefixNumPart };
-        } 
-        
-        // ถ้าไม่มีเครื่องหมาย / (บัตรยุคเก่า หรือกรอกผิดรูปแบบ) ให้ถือว่าปีเป็น 0 แล้วเรียงตามตัวอักษร
-        return { year: 0, prefixNum: str };
-    }
+    
     // 🔥 นำ URL ที่คัดลอกมาจาก Step 1 มาวางในเครื่องหมายคำพูดด้านล่างนี้เลยครับ
     const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw6CzipVCEniPpegkUjmv6_Xk97dqxOZSXauc6jxCGF4dOxkMIXgpNpFYQV3giRFZFe/exec'; 
 
