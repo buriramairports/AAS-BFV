@@ -2109,7 +2109,7 @@
             
             // --- เปลี่ยนป้ายชื่อเป็นสีส้ม "วันหมดอายุ (กำหนดเอง)" ---
             expLabel.className = "block text-sm font-bold mb-1 text-orange-600 transition";
-            expLabel.innerHTML = '<i data-lucide="calendar-check-2" class="w-4 h-4 inline"></i> วันหมดอายุ (กำหนดเอง) (หมดอายุเวลา 23:59:59 น. ณ วันที่เลือก) <span class="text-red-500">*</span>';
+            expLabel.innerHTML = '<i data-lucide="calendar-check-2" class="w-4 h-4 inline"></i> วันหมดอายุ (กำหนดเอง) (หมดอายุเวลา 23:59:59 น. ของวันที่เลือก) <span class="text-red-500">*</span>';
             
             // ถ้าช่องยังว่างอยู่ ให้ใส่วันนี้เป็นค่าเริ่มต้นไปก่อน
             if(!expInput.value || expInput.hasAttribute('data-auto')) {
