@@ -1871,7 +1871,19 @@ gap: 1px !important;
         expiryDate.setHours(23, 59, 59, 999); // ปรับเวลาให้เป็น 23:59:59 ของวันนั้น
         
         const now = new Date();
-        if (now > expiryDate) return showAlert('บัตรหมดอายุ', `บัตรหมายเลข ${cardId} หมดอายุแล้ว\nเมื่อวันที่ ${formatDateOnly(card.expiryDate)}`, 'error');
+        if (now > expiryDate) {
+    // --- เริ่มต้นส่วนที่แก้ไข ---
+    mainInput.value = ''; // 1. เคลียร์ช่องแสกนทันที
+    mainInput.focus();     // 2. ให้เคอร์เซอร์กลับไปโฟกัสรอแสกนต่อ
+    
+    // 3. แสดงแจ้งเตือนโดยใช้ \n เพื่อขึ้นบรรทัดใหม่ (ทำงานร่วมกับ whitespace-pre-line)
+    return showAlert(
+        'บัตรหมดอายุ', 
+        `บัตรหมายเลข ${cardId} หมดอายุแล้ว\nเมื่อวันที่ ${formatDateOnly(card.expiryDate)}`, 
+        'error'
+    );
+    // --- สิ้นสุดส่วนที่แก้ไข ---
+}
 
         const typeInfo = typeCards.find(t => parseInt(t.id) === parseInt(card.typeId));
         if (!typeInfo) return showAlert('ผิดพลาด', 'ไม่พบข้อมูลประเภทของบัตรใบนี้', 'error');
