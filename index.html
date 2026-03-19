@@ -1871,7 +1871,7 @@ gap: 1px !important;
         expiryDate.setHours(23, 59, 59, 999); // ปรับเวลาให้เป็น 23:59:59 ของวันนั้น
         
         const now = new Date();
-        if (now > expiryDate) return showAlert('บัตรหมดอายุ', `บัตรหมายเลข ${cardId} หมดอายุแล้วเมื่อ ${formatDateOnly(card.expiryDate)}`, 'error');
+        if (now > expiryDate) return showAlert('บัตรหมดอายุ', `บัตรหมายเลข ${cardId} หมดอายุแล้ว\nเมื่อ ${formatDateOnly(card.expiryDate)}`, 'error');
 
         const typeInfo = typeCards.find(t => parseInt(t.id) === parseInt(card.typeId));
         if (!typeInfo) return showAlert('ผิดพลาด', 'ไม่พบข้อมูลประเภทของบัตรใบนี้', 'error');
