@@ -1865,7 +1865,11 @@ gap: 1px !important;
             document.getElementById('scanResultEmpty').classList.remove('hidden'); document.getElementById('scanResultData').classList.add('hidden');
             return showToast(`ไม่พบบัตรหมายเลข ${cardId} ในระบบ`, 'error');
         }
-        if (card.status !== 'active') return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error');
+        if (card.status !== 'active') {
+    mainInput.value = ''; // เคลียร์ค่า
+    mainInput.focus();
+    return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error');
+}
 
         const expiryDate = new Date(card.expiryDate);
         expiryDate.setHours(23, 59, 59, 999); // ปรับเวลาให้เป็น 23:59:59 ของวันนั้น
