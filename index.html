@@ -1353,38 +1353,42 @@ gap: 1px !important;
     const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw6CzipVCEniPpegkUjmv6_Xk97dqxOZSXauc6jxCGF4dOxkMIXgpNpFYQV3giRFZFe/exec'; 
 
     function apiCall(action, data={}, showLoadingUI = true) {
-        if(showLoadingUI) showLoader();
-        
-        return fetch(GAS_WEB_APP_URL, {
-            method: 'POST',
-            // สำคัญมาก! ต้องใช้ text/plain เพื่อเลี่ยงการติด Block CORS ของ Google
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8', 
-            },
-            body: JSON.stringify({ action: action, data: data }),
-            mode: 'cors' 
-        })
-        .then(response => response.json())
-        .then(res => {
-            if(showLoadingUI) hideLoader(); 
-            if(!res.success) { 
-                if(res.data && res.data.requireCompanionAlert) { 
-                    return res.data; 
-                } else { 
-                    showAlert('เกิดข้อผิดพลาด', res.error, 'error'); 
-                    throw new Error(res.error); 
-                }
-            } else {
+    if(showLoadingUI) showLoader();
+    
+    return fetch(GAS_WEB_APP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: action, data: data }),
+        mode: 'cors' 
+    })
+    .then(response => response.json())
+    .then(res => {
+        if(showLoadingUI) hideLoader(); 
+        if(!res.success) { 
+            if(res.data && res.data.requireCompanionAlert) { 
                 return res.data; 
+            } else { 
+                // แสดง Error จริงจากระบบ (เช่น "บัตรหมดอายุแล้ว")
+                showAlert('เกิดข้อผิดพลาด', res.error, 'error'); 
+                // สร้าง Error ชนิดพิเศษเพื่อให้ .catch รู้ว่าไม่ต้องโชว์ "การเชื่อมต่อล้มเหลว" ซ้ำ
+                const systemError = new Error(res.error);
+                systemError.isSystemError = true;
+                throw systemError; 
             }
-        })
-        .catch(err => {
-            if(showLoadingUI) hideLoader(); 
+        } else {
+            return res.data; 
+        }
+    })
+    .catch(err => {
+        if(showLoadingUI) hideLoader(); 
+        // ถ้าไม่ใช่ Error ที่เราจงใจโยนออกมาจาก .then (ไม่ใช่ systemError) ค่อยโชว์แจ้งเตือนเน็ตหลุด
+        if (!err.isSystemError) {
             showAlert('การเชื่อมต่อล้มเหลว', 'โปรดตรวจสอบอินเทอร์เน็ตแล้วลองใหม่', 'error'); 
-            console.error(err);
-            throw err;
-        });
-    }
+        }
+        console.error(err);
+        throw err;
+    });
+}
 
     function showLoader(msg="กำลังโหลด..."){ 
         document.getElementById('loaderText').innerHTML=msg; 
