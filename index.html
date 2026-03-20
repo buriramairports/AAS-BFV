@@ -1867,7 +1867,7 @@ gap: 1px !important;
             document.getElementById('scanResultEmpty').classList.remove('hidden'); document.getElementById('scanResultData').classList.add('hidden');
             //return showToast(`ไม่พบบัตรหมายเลข ${cardId} ในระบบ`, 'error');
 			//return showAlert(`ไม่พบบัตรหมายเลข ${cardId} ในระบบ`, 'error');
-			return showAlert('ไม่พบบัตร', `บัตรหมายเลข ${cardId} ในระบบ`, 'error');
+			return showAlert('ไม่พบข้อมูลบัตร', `บัตรหมายเลข ${cardId} ไม่พบในระบบ กรุณากรอกใหม่`, 'error');
         }
         if (card.status !== 'active') {
     mainInput.value = ''; // เคลียร์ค่า
