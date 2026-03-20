@@ -1160,9 +1160,9 @@ gap: 1px !important;
                        <div class="absolute inset-0 z-10 flex flex-col">
                            
                            <!-- 1. โซนด้านบน (รูปถ่าย + สถานะ) -->
-                           <div class="absolute top-[80px] left-[5px] right-[20px] flex justify-between items-start h-[230px]">
+                           <div class="absolute top-[80px] left-[8px] right-[20px] flex justify-between items-start h-[230px]">
                                <!-- ขยายเป็น 165px (พื้นที่รวมคือ 300px: รูป 165 + พื้นที่ว่าง 5 + กรอบขวา 130) -->
-                               <div class="w-[165px] h-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm border border-gray-300">
+                               <div class="w-[175px] h-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm border border-gray-300">
                                    <img id="renderPhoto" src="" class="w-full h-full object-cover hidden" crossorigin="anonymous">
                                    <i id="renderPhotoIcon" data-lucide="user" class="w-12 h-12 text-gray-300"></i>
                                </div>
@@ -1186,7 +1186,7 @@ gap: 1px !important;
                            </div>
                            
                            <!-- 2. โซนข้อมูลส่วนตัว -->
-                           <div class="absolute top-[330px] left-[5px] right-[20px] flex flex-col text-indigo-900 font-bold text-[14px]">
+                           <div class="absolute top-[330px] left-[10px] right-[20px] flex flex-col text-indigo-900 font-bold text-[14px]">
                                <!-- ชื่อ-สกุล -->
                                <div id="renderName" class="text-[21px] font-black text-indigo-900 mb-2 leading-none line-clamp-2">ชื่อ นามสกุล</div>
                                
@@ -1229,7 +1229,7 @@ gap: 1px !important;
                            <div class="mt-3 flex flex-col items-center pb-4 pt-4 px-2 bg-white/90 rounded-xl backdrop-blur-sm shadow-sm border border-gray-100 w-full overflow-hidden shrink-0">
                                <div class="w-full flex justify-center">
                                    <!-- เปลี่ยน text-5xl เป็น text-6xl และปรับ scale-x เป็น 1.1 หรือ 1.2 เพื่อให้บาร์โค้ดกว้างขึ้น -->
-<div class="font-barcode text-6xl text-black leading-none transform scale-x-[1.1] origin-center" id="renderBarcode">*A001*</div>
+<div class="font-barcode text-6xl text-black leading-none transform scale-x-[1.0] origin-center" id="renderBarcode">*A001*</div>
                                </div>
                                <div class="font-bold text-[14px] text-gray-800 mt-1" id="renderBarcodeText">A001</div>
                                
