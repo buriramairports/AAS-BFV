@@ -233,13 +233,11 @@ gap: 1px !important;
 
     <!-- โซน 2: แสกนใบหน้า (เพิ่มใหม่) -->
     <div id="scanFaceSection" class="hidden flex flex-col items-center">
-        <div class="relative w-full aspect-[3/4] bg-gray-900 rounded-2xl overflow-hidden mb-3 border-4 border-gray-100 shadow-inner">
-            <video id="webcamVideo" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100" autoplay muted playsinline></video>
-            <canvas id="webcamCanvas" class="absolute inset-0 w-full h-full object-cover z-10 transform -scale-x-100"></canvas>
-            
-            <!-- กรอบโฟกัสใบหน้า -->
-            <div class="absolute inset-0 border-2 border-dashed border-white/30 m-8 rounded-xl pointer-events-none"></div>
-			<!-- เพิ่มกรอบโฟกัสสแกนบาร์โค้ด (Overlay) -->
+    <div class="relative w-full aspect-[3/4] bg-gray-900 rounded-2xl overflow-hidden mb-3 border-4 border-gray-100 shadow-inner">
+        <video id="webcamVideo" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100" autoplay muted playsinline></video>
+        <canvas id="webcamCanvas" class="absolute inset-0 w-full h-full object-cover z-10 transform -scale-x-100"></canvas>
+        
+        <!-- กรอบช่วยเล็งบาร์โค้ด (ช่วยให้ผู้ใช้ถือบัตรในระยะที่เหมาะสม) -->
         <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
             <div class="w-64 h-24 border-4 border-white/40 rounded-xl flex items-center justify-center relative bg-white/5">
                 <div class="absolute inset-0 border-2 border-red-500/50 scale-x-110"></div>
