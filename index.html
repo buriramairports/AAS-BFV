@@ -257,16 +257,17 @@ gap: 1px !important;
                        <p>รอการแสกนบาร์โค้ด...</p>
                    </div>
 
-                   <div id="scanResultData" class="hidden h-full">
-                       <div class="bg-gray-50 rounded-xl p-5 border border-gray-100 h-full relative overflow-hidden">
+                   <!-- ปรับเป็น min-h-full เพื่อให้ยืดได้ตามเนื้อหา และเพิ่ม pb-10 (padding-bottom) เพื่อไม่ให้เนื้อหาชิดขอบล่างเกินไป -->
+						<div id="scanResultData" class="hidden min-h-full">
+   						 <div class="bg-gray-50 rounded-xl p-6 pb-12 border border-gray-200 min-h-full relative overflow-hidden shadow-inner">
                            <!-- Badge IN/OUT -->
                            <div id="resIoBadge" class="absolute top-0 right-0 px-6 py-2 rounded-bl-2xl font-black text-xl text-white shadow-md z-10">IN</div>
                            
                            <div class="flex flex-col sm:flex-row gap-6">
                              <!-- ไอคอนโปรไฟล์ / รูปบัตร / บาร์โค้ด -->
                               <div class="flex flex-col items-center justify-start shrink-0">
-                                <!-- ปรับขนาดเป็น w-32 h-40 (หรือใหญ่กว่าตามจอ) ให้เป็นสี่เหลี่ยมผืนผ้าโค้งมน -->
-                                <div class="w-32 h-40 sm:w-40 sm:h-52 bg-gray-100 rounded-2xl border-4 border-white shadow-md flex items-center justify-center text-gray-400 mb-3 overflow-hidden relative">
+                                <!-- ขยายรูปพนักงานในหน้าสแกนให้กว้างขึ้นเล็กน้อย -->
+<div class="w-36 h-48 sm:w-44 sm:h-56 bg-gray-100 rounded-2xl border-4 border-white shadow-md flex items-center justify-center text-gray-400 mb-3 overflow-hidden relative">
                                     <img id="resCardImage" src="" class="w-full h-full object-cover hidden absolute inset-0 z-10">
                                     <i id="resCardIcon" data-lucide="user" class="w-16 h-16 relative z-0"></i>
                                 </div>
@@ -2003,9 +2004,15 @@ gap: 1px !important;
         document.getElementById('scanResultData').classList.remove('hidden');
         
         const badge = document.getElementById('resIoBadge');
-        badge.textContent = res.ioType;
-        if(res.ioType === 'IN') { badge.className = 'absolute top-0 right-0 px-8 py-2 rounded-bl-3xl font-black text-2xl text-white shadow-lg z-10 bg-green-500 tracking-widest'; }
-        else { badge.className = 'absolute top-0 right-0 px-8 py-2 rounded-bl-3xl font-black text-2xl text-white shadow-lg z-10 bg-orange-500 tracking-widest'; }
+badge.textContent = res.ioType;
+// ขยาย px (ซ้ายขวา) เป็น 12, py (บนล่าง) เป็น 4 และ text (ขนาดอักษร) เป็น 4xl
+const baseBadgeClass = 'absolute top-0 right-0 px-12 py-4 rounded-bl-[40px] font-black text-4xl text-white shadow-[0_4px_20px_rgba(0,0,0,0.2)] z-10 tracking-[0.2em] transition-all duration-300';
+
+if(res.ioType === 'IN') { 
+    badge.className = `${baseBadgeClass} bg-green-600 ring-4 ring-green-100`; 
+} else { 
+    badge.className = `${baseBadgeClass} bg-orange-600 ring-4 ring-orange-100`; 
+}
 
         document.getElementById('resCardId').textContent = res.cardInfo.cardId;
         
