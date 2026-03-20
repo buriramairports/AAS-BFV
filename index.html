@@ -21,7 +21,7 @@
   
   <style>
     * { font-family: 'Prompt', sans-serif; }
-    .font-barcode { font-family: 'Libre Barcode 39', cursive; font-size: 64px; line-height: 1; letter-spacing: 1px; }
+    .font-barcode { font-family: 'Libre Barcode 39', cursive; font-size: 58px; line-height: 1; letter-spacing: 1px; }
     .gradient-bg { background: linear-gradient(135deg, #f0fdf4 0%, #bbf7d0 50%, #86efac 100%); }
     .gradient-header { background: linear-gradient(135deg, #16a34a 0%, #15803d 50%, #166534 100%); }
     .card-shadow { box-shadow: 0 4px 20px rgba(22, 163, 74, 0.15); }
@@ -1160,7 +1160,7 @@ gap: 1px !important;
                        <div class="absolute inset-0 z-10 flex flex-col">
                            
                            <!-- 1. โซนด้านบน (รูปถ่าย + สถานะ) -->
-                           <div class="absolute top-[80px] left-[20px] right-[20px] flex justify-between items-start h-[230px]">
+                           <div class="absolute top-[80px] left-[5px] right-[20px] flex justify-between items-start h-[230px]">
                                <!-- ขยายเป็น 165px (พื้นที่รวมคือ 300px: รูป 165 + พื้นที่ว่าง 5 + กรอบขวา 130) -->
                                <div class="w-[165px] h-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm border border-gray-300">
                                    <img id="renderPhoto" src="" class="w-full h-full object-cover hidden" crossorigin="anonymous">
@@ -1186,7 +1186,7 @@ gap: 1px !important;
                            </div>
                            
                            <!-- 2. โซนข้อมูลส่วนตัว -->
-                           <div class="absolute top-[330px] left-[20px] right-[20px] flex flex-col text-indigo-900 font-bold text-[14px]">
+                           <div class="absolute top-[330px] left-[5px] right-[20px] flex flex-col text-indigo-900 font-bold text-[14px]">
                                <!-- ชื่อ-สกุล -->
                                <div id="renderName" class="text-[21px] font-black text-indigo-900 mb-2 leading-none line-clamp-2">ชื่อ นามสกุล</div>
                                
