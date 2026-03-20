@@ -4120,19 +4120,31 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         
         document.getElementById('renderRules').innerHTML = (systemSettings.cardTplRules || '').replace(/\n/g, '<br>');
         
-        // 7. ควบคุมป้ายสถานะ (Temp, Unescort, Drive)
+        // 7. ควบคุมป้ายสถานะ (ฉบับแก้ไขเพื่อให้แสดงผลใน PDF ชัวร์ขึ้น)
         const tempEl = document.getElementById('renderTemp');
         const escortEl = document.getElementById('renderEscort');
         const driveEl = document.getElementById('renderDrive');
         
-        // ป้ายบัตรชั่วคราว
-        if (t.isTemporary === true || t.isTemporary === 'TRUE') {
-            tempEl.classList.remove('opacity-0');
-            tempEl.classList.add('opacity-100');
+        // --- ส่วนแก้ไข บัตรชั่วคราว ---
+        // ตรวจสอบเงื่อนไขให้ครอบคลุมทุกรูปแบบข้อมูล
+        const isTemp = t.isTemporary === true || 
+                       t.isTemporary === 'TRUE' || 
+                       t.isTemporary === 'true' || 
+                       t.isTemporary === 1 || 
+                       t.isTemporary === '1';
+
+        if (isTemp) {
+            tempEl.textContent = "บัตรชั่วคราว"; // บังคับใส่ข้อความซ้ำเพื่อความชัวร์
+            tempEl.style.setProperty('opacity', '1', 'important');
+            tempEl.style.setProperty('visibility', 'visible', 'important');
+            tempEl.style.setProperty('background-color', 'rgba(255, 255, 255, 0.9)', 'important');
         } else {
-            tempEl.classList.remove('opacity-100');
-            tempEl.classList.add('opacity-0');
+            tempEl.textContent = ""; // ลบข้อความออกถ้าไม่ใช่บัตรชั่วคราว
+            tempEl.style.setProperty('opacity', '0', 'important');
+            tempEl.style.setProperty('visibility', 'hidden', 'important');
+            tempEl.style.setProperty('background-color', 'transparent', 'important');
         }
+        // -----------------------
         
         // เงื่อนไข UNESCORT (ถ้าไม่ต้องมีผู้ติดตาม ให้แสดงป้าย)
         if (t.requireCompanion === false || t.requireCompanion === 'FALSE') {
