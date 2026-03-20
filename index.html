@@ -4120,40 +4120,48 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         
         document.getElementById('renderRules').innerHTML = (systemSettings.cardTplRules || '').replace(/\n/g, '<br>');
         
-        // 7. ควบคุมป้ายสถานะ (Temp, Unescort, Drive) แบบล็อคตำแหน่งกรอบพื้นที่
+       // 7. ควบคุมป้ายสถานะ (Temp, Unescort, Drive) และระบบล็อคตำแหน่ง (Fixed Spacer)
         const tempEl = document.getElementById('renderTemp');
         const escortEl = document.getElementById('renderEscort');
         const driveEl = document.getElementById('renderDrive');
         
-        // --- กำหนดค่าตัวแปรเงื่อนไข ---
-        const isTemp = (t.isTemporary === true || t.isTemporary === 'TRUE' || t.isTemporary === 'true');
-        const noCompanion = (t.requireCompanion === false || t.requireCompanion === 'FALSE' || t.requireCompanion === 'false');
-        const canDrive = (c.canDrive === true || c.canDrive === 'TRUE' || c.canDrive === 'true');
+        // --- ตรวจสอบเงื่อนไขแบบยืดหยุ่น (แก้ป้ายไม่ขึ้น) ---
+        // ใช้ == เพื่อรองรับทั้งข้อมูลประเภท Boolean และข้อความจาก Google Sheets
+        const isTemp = (t.isTemporary == true || t.isTemporary == 'TRUE' || t.isTemporary == 'true');
+        const noCompanion = (t.requireCompanion == false || t.requireCompanion == 'FALSE' || t.requireCompanion == 'false');
+        const canDrive = (c.canDrive == true || c.canDrive == 'TRUE' || c.canDrive == 'true');
 
-        // 1. จัดการป้าย "บัตรชั่วคราว" (ส่วนบนสุด)
-        // ใช้เทคนิค visibility: hidden เพื่อให้กล่องยังคงอยู่ (จองที่ไว้) แต่ไม่เห็นตัวหนังสือ
+        // --- ส่วนที่ 1: จัดการป้าย "บัตรชั่วคราว" (ล็อคความสูง 28px เพื่อไม่ให้กรอบพื้นที่เลื่อนขึ้น) ---
+        // บังคับให้ป้ายนี้จองพื้นที่ 28px เสมอ (ห้ามใช้ display: none)
+        tempEl.style.setProperty('display', 'block', 'important'); 
+        tempEl.style.setProperty('min-height', '28px', 'important'); 
+        tempEl.style.setProperty('line-height', '28px', 'important'); // จัดตัวหนังสือกลางกล่อง
+
         if (isTemp) {
             tempEl.textContent = "บัตรชั่วคราว";
-            tempEl.style.setProperty('display', 'block', 'important');
             tempEl.style.setProperty('visibility', 'visible', 'important');
+            tempEl.style.setProperty('opacity', '1', 'important');
+            tempEl.style.setProperty('color', '#dc2626', 'important'); // บังคับตัวหนังสือสีแดง
+            tempEl.style.setProperty('background-color', 'rgba(255, 255, 255, 0.9)', 'important');
         } else {
-            // กรณีบัตรถาวร: จองพื้นที่ว่างไว้ (Placeholder) เพื่อไม่ให้กรอบพื้นที่ข้างล่างดีดขึ้นไปทับส่วนอื่น
+            // กรณีบัตรถาวร: ล้างข้อความทิ้ง แต่ "คงพื้นที่ว่าง 28px ไว้" เพื่อล็อคตำแหน่งกรอบพื้นที่
             tempEl.textContent = ""; 
-            tempEl.style.setProperty('display', 'block', 'important'); // ยังคงเป็นบล็อกเพื่อจองความสูง
-            tempEl.style.setProperty('visibility', 'hidden', 'important'); // ซ่อนให้เป็นที่ว่าง
+            tempEl.style.setProperty('visibility', 'hidden', 'important');
+            tempEl.style.setProperty('opacity', '0', 'important');
+            tempEl.style.setProperty('background-color', 'transparent', 'important');
         }
 
-        // 2. จัดการป้าย "UNESCORT" (ส่วนล่างสุด)
-        // แสดงเฉพาะ: บัตรชั่วคราว และ ไม่ต้องมีผู้ติดตาม
+        // --- ส่วนที่ 2: จัดการป้าย "UNESCORT" (แสดงเฉพาะบัตรชั่วคราวที่ไม่ต้องมีผู้ติดตาม) ---
+        // ป้ายด้านล่างนี้สามารถใช้ display: none ได้ เพราะไม่มีของอยู่ข้างล่างมันแล้ว
         if (isTemp && noCompanion) {
             escortEl.textContent = "UNESCORT";
             escortEl.style.setProperty('display', 'block', 'important');
         } else {
-            // ป้ายด้านล่างสุด สามารถใช้ display: none ได้เลย เพราะไม่กระทบตำแหน่งกรอบพื้นที่ด้านบน
+            // บัตรถาวร หรือ บัตรชั่วคราวที่มีผู้ติดตาม จะไม่เห็นป้ายนี้
             escortEl.style.setProperty('display', 'none', 'important'); 
         }
 
-        // 3. จัดการป้าย "DRIVE" (ส่วนล่าง)
+        // --- ส่วนที่ 3: จัดการป้าย "DRIVE" ---
         if (canDrive) {
             driveEl.style.setProperty('display', 'block', 'important');
         } else {
