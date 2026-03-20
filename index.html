@@ -4145,12 +4145,15 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         // ป้าย DRIVE
         c.canDrive === true || c.canDrive === 'TRUE' ? driveEl.classList.remove('hidden') : driveEl.classList.add('hidden');
         
-        // 8. ส่วนพื้นที่ (Area Boxes) 1-4 พื้นที่
+        // 8. ส่วนพื้นที่ (Area Boxes) 1-4 พื้นที่ (ฉบับแก้ไข Error .split)
         const areaContainer = document.getElementById('renderAreaBoxes');
         areaContainer.innerHTML = ''; 
 
-        if (c.areaAccessIds) {
-            const arr = c.areaAccessIds.split(',').filter(x => x);
+        if (c.areaAccessIds !== undefined && c.areaAccessIds !== null && c.areaAccessIds !== "") {
+            // บังคับให้เป็น String ก่อนเสมอเพื่อป้องกัน Error .split is not a function
+            const idsString = String(c.areaAccessIds); 
+            const arr = idsString.split(',').map(x => x.trim()).filter(x => x !== "");
+            
             let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
             aData.sort((a, b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
             
