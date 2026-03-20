@@ -3687,25 +3687,28 @@ async function initFaceMatcherForWebcam() {
 // ลูปตรวจจับใบหน้า และ บาร์โค้ด (Hybrid Mode)
 // ตั้งค่าตัวอ่านบาร์โค้ดให้เน้น Code 39 และ Code 128 (ที่เป็นแท่งๆ)
 // 1. ตั้งค่าการแสกนแบบเน้นบาร์โค้ดแท่ง (1D Barcode)
-const hints = new Map();
+/*const hints = new Map();
 hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
     ZXing.BarcodeFormat.CODE_39,
     ZXing.BarcodeFormat.CODE_128,
     ZXing.BarcodeFormat.EAN_13
 ]);
-hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+hints.set(ZXing.DecodeHintType.TRY_HARDER, true);*/
 
-const codeReader = new ZXing.BrowserMultiFormatReader(hints);
+// เตรียมตัวอ่านบาร์โค้ด
+const codeReader = new ZXing.BrowserMultiFormatReader();
 
 async function startFaceDetectionLoop() {
     const video = document.getElementById('webcamVideo');
     const canvas = document.getElementById('webcamCanvas');
+    
+    // ตั้งค่าขนาด Canvas ให้ตรงกับขนาดที่แสดงผลจริงบนหน้าจอ
     const displaySize = { width: video.clientWidth, height: video.clientHeight };
     faceapi.matchDimensions(canvas, displaySize);
 
-    // สร้าง Canvas รับภาพเพื่อทำ Grayscale (ช่วยให้ AI อ่านบาร์โค้ดง่ายขึ้น)
-    const scanCanvas = document.createElement('canvas');
-    const sCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+    // Canvas สำรองสำหรับดึงภาพส่งให้ตัวแสกนบาร์โค้ด (ความละเอียดสูง)
+    const hiddenCanvas = document.createElement('canvas');
+    const hCtx = hiddenCanvas.getContext('2d', { willReadFrequently: true });
 
     faceDetectionInterval = setInterval(async () => {
         if (!webcamStream || currentScanMode !== 'face') return;
@@ -3714,69 +3717,97 @@ async function startFaceDetectionLoop() {
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // --- เทคนิคพิเศษ: ขยายภาพและทำ Grayscale เฉพาะจุด ---
-        // เราจะตัดภาพเฉพาะบริเวณ "กรอบแดง" มาประมวลผลด้วยความละเอียดสูง
-        scanCanvas.width = 600; 
-        scanCanvas.height = 300;
+        // --- ส่วนที่ 1: การแสกนบาร์โค้ด (Barcode Scan) ---
+        hiddenCanvas.width = video.videoWidth;
+        hiddenCanvas.height = video.videoHeight;
+        hCtx.drawImage(video, 0, 0);
         
-        // วาดภาพวิดีโอลงใน Canvas เล็ก (ทำ Digital Zoom ไปในตัว)
-        sCtx.drawImage(video, 
-            video.videoWidth * 0.2, video.videoHeight * 0.4, // ตำแหน่งที่ตัด (กลางจอ)
-            video.videoWidth * 0.6, video.videoHeight * 0.2, // ขนาดที่ตัด
-            0, 0, scanCanvas.width, scanCanvas.height       // ขนาดที่จะวาง
-        );
-
-        // ทำภาพให้เป็นขาวดำ (เพิ่ม Contrast ให้เส้นบาร์โค้ด)
-        let pixels = sCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
-        for (let i = 0; i < pixels.data.length; i += 4) {
-            let avg = (pixels.data[i] + pixels.data[i + 1] + pixels.data[i + 2]) / 3;
-            pixels.data[i] = avg; pixels.data[i + 1] = avg; pixels.data[i + 2] = avg;
-        }
-        sCtx.putImageData(pixels, 0, 0);
-
         try {
-            // --- ส่วนที่ 1: แสกนบาร์โค้ดจากภาพที่ถูกปรับแต่งแล้ว ---
-            try {
-                const result = await codeReader.decodeFromCanvas(scanCanvas);
-                if (result) {
-                    const barcodeData = result.getText().trim().toUpperCase();
-                    if (lastScannedFaceId !== barcodeData) {
-                        triggerFaceScanSuccess(barcodeData);
-                        return; // เจอแล้วหยุดรอรอบหน้า
-                    }
+            // พยายามแสกนบาร์โค้ดจากภาพนิ่ง (รองรับ Code 39 และ /)
+            const result = await codeReader.decodeFromCanvas(hiddenCanvas);
+            if (result) {
+                const barcodeData = result.getText().trim().toUpperCase();
+                if (lastScannedFaceId !== barcodeData) {
+                    console.log("Barcode Found:", barcodeData);
+                    triggerFaceScanSuccess(barcodeData);
+                    return; // เจอแล้วข้ามไปรอบหน้าเลย
                 }
-            } catch (err) { /* ไม่เจอบาร์โค้ดข้ามไป */ }
-
-            // --- ส่วนที่ 2: แสกนใบหน้า (Face API) ทำงานปกติ ---
-            const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-                                            .withFaceLandmarks().withFaceDescriptors();
-            const resizedDetections = faceapi.resizeResults(detections, displaySize);
-
-            if (detections.length > 0 && faceMatcher) {
-                const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
-                results.forEach((result, i) => {
-                    const { box } = resizedDetections[i].detection;
-                    const isMatch = result.label !== 'unknown';
-                    const boxColor = isMatch ? '#22c55e' : '#ef4444';
-                    
-                    ctx.strokeStyle = boxColor;
-                    ctx.lineWidth = 3;
-                    ctx.strokeRect(box.x, box.y, box.width, box.height);
-
-                    // วาดชื่อ
-                    ctx.save();
-                    ctx.translate(box.x + (box.width / 2), box.y - 10);
-                    ctx.scale(-1, 1);
-                    ctx.font = 'bold 16px Prompt';
-                    ctx.textAlign = 'center';
-                    ctx.fillStyle = boxColor;
-                    ctx.fillText(isMatch ? `${result.label}` : 'ไม่รู้จัก', 0, 0);
-                    ctx.restore();
-
-                    if (isMatch) triggerFaceScanSuccess(result.label);
-                });
             }
-        } catch (e) { console.log(e); }
+        } catch (err) { /* ไม่เจอไม่เป็นไร */ }
+
+        // --- ส่วนที่ 2: การแสกนใบหน้า (Face AI) ---
+        const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+                                        .withFaceLandmarks()
+                                        .withFaceDescriptors();
+
+        const resizedDetections = faceapi.resizeResults(detections, displaySize);
+
+        if (detections.length > 0 && faceMatcher) {
+            const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
+
+            results.forEach((result, i) => {
+                // 1. คำนวณพิกัดกรอบ (ใช้วิธีละเอียดเพื่อให้ตรงกับใบหน้า)
+                const landmarks = resizedDetections[i].landmarks.positions;
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                landmarks.forEach(pt => {
+                    if (pt.x < minX) minX = pt.x; if (pt.y < minY) minY = pt.y;
+                    if (pt.x > maxX) maxX = pt.x; if (pt.y > maxY) maxY = pt.y;
+                });
+
+                // ปรับขนาดกรอบตามที่ตั้งค่าใน Settings
+                const boxW = maxX - minX;
+                const boxH = maxY - minY;
+                const padX = boxW * (systemSettings.aiPadX / 100);
+                const padTop = boxH * (systemSettings.aiPadTop / 100);
+
+                const box = {
+                    x: minX - padX,
+                    y: minY - padTop,
+                    width: boxW + (padX * 2),
+                    height: boxH + padTop + (boxH * 0.1)
+                };
+
+                // 2. คำนวณเปอร์เซ็นต์ความเหมือน
+                const matchPercent = Math.round((1 - result.distance) * 100);
+                const isMatch = result.label !== 'unknown';
+                const boxColor = isMatch ? '#22c55e' : '#ef4444';
+
+                // 3. ดึงข้อมูลพนักงานจากฐานข้อมูล
+                let displayName = "ไม่รู้จัก";
+                if (isMatch) {
+                    const card = allCards.find(c => String(c.cardId) === String(result.label));
+                    displayName = card ? `${card.firstName} (${matchPercent}%)` : `${result.label} (${matchPercent}%)`;
+                } else {
+                    displayName = `ไม่รู้จัก (${matchPercent}%)`;
+                }
+
+                // 4. วาดกรอบสี่เหลี่ยม (Canvas Mirror อยู่แล้วจึงวาดได้เลย)
+                ctx.strokeStyle = boxColor;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+                // 5. วาดป้ายชื่อและเปอร์เซ็นต์ (ต้องพลิกตัวอักษรกลับเพื่อให้คนอ่านออก)
+                ctx.save();
+                ctx.translate(box.x + (box.width / 2), box.y - 10);
+                ctx.scale(-1, 1); // พลิกตัวอักษรกลับด้านเฉพาะจุดนี้
+                
+                ctx.font = 'bold 16px Prompt';
+                ctx.textAlign = 'center';
+                const textWidth = ctx.measureText(displayName).width;
+                
+                // วาดพื้นหลังชื่อ
+                ctx.fillStyle = boxColor;
+                ctx.fillRect(-(textWidth / 2) - 8, -26, textWidth + 16, 30);
+                
+                // วาดตัวหนังสือ
+                ctx.fillStyle = 'white';
+                ctx.fillText(displayName, 0, 0);
+                ctx.restore();
+
+                // 6. ถ้าเจอคนในระบบ ให้สั่งแสกนสำเร็จ
+                if (isMatch) triggerFaceScanSuccess(result.label);
+            });
+        }
     }, systemSettings.aiInterval || 1000);
 }
 
