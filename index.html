@@ -21,7 +21,7 @@
   
   <style>
     * { font-family: 'Prompt', sans-serif; }
-    .font-barcode { font-family: 'Libre Barcode 39', cursive; font-size: 48px; line-height: 1; letter-spacing: 2px; }
+    .font-barcode { font-family: 'Libre Barcode 39', cursive; font-size: 64px; line-height: 1; letter-spacing: 1px; }
     .gradient-bg { background: linear-gradient(135deg, #f0fdf4 0%, #bbf7d0 50%, #86efac 100%); }
     .gradient-header { background: linear-gradient(135deg, #16a34a 0%, #15803d 50%, #166534 100%); }
     .card-shadow { box-shadow: 0 4px 20px rgba(22, 163, 74, 0.15); }
@@ -1161,8 +1161,8 @@ gap: 1px !important;
                            
                            <!-- 1. โซนด้านบน (รูปถ่าย + สถานะ) -->
                            <div class="absolute top-[80px] left-[20px] right-[20px] flex justify-between items-start h-[230px]">
-                               <!-- รูปโปรไฟล์ -->
-                               <div class="w-[155px] h-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm border border-gray-300">
+                               <!-- ขยายเป็น 165px (พื้นที่รวมคือ 300px: รูป 165 + พื้นที่ว่าง 5 + กรอบขวา 130) -->
+                               <div class="w-[165px] h-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm border border-gray-300">
                                    <img id="renderPhoto" src="" class="w-full h-full object-cover hidden" crossorigin="anonymous">
                                    <i id="renderPhotoIcon" data-lucide="user" class="w-12 h-12 text-gray-300"></i>
                                </div>
@@ -1228,7 +1228,8 @@ gap: 1px !important;
                            
                            <div class="mt-3 flex flex-col items-center pb-4 pt-4 px-2 bg-white/90 rounded-xl backdrop-blur-sm shadow-sm border border-gray-100 w-full overflow-hidden shrink-0">
                                <div class="w-full flex justify-center">
-                                   <div class="font-barcode text-5xl text-black leading-none transform scale-x-[0.9] origin-center" id="renderBarcode">*A001*</div>
+                                   <!-- เปลี่ยน text-5xl เป็น text-6xl และปรับ scale-x เป็น 1.1 หรือ 1.2 เพื่อให้บาร์โค้ดกว้างขึ้น -->
+<div class="font-barcode text-6xl text-black leading-none transform scale-x-[1.2] origin-center" id="renderBarcode">*A001*</div>
                                </div>
                                <div class="font-bold text-[14px] text-gray-800 mt-1" id="renderBarcodeText">A001</div>
                                
