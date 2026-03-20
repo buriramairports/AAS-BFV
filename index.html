@@ -2022,7 +2022,8 @@ if(res.ioType === 'IN') {
         const imgEl = document.getElementById('resCardImage');
         const iconEl = document.getElementById('resCardIcon');
         
-        if (res.cardInfo && res.cardInfo.imageUrl && res.cardInfo.imageUrl.trim() !== '') {
+        // บังคับ String ก่อน trim เพื่อกัน Error ถ้าข้อมูลใน Sheet เป็นตัวเลข
+if (res.cardInfo && res.cardInfo.imageUrl && String(res.cardInfo.imageUrl).trim() !== '') {
             // ถ้ารูปมีในฐานข้อมูล ให้บังคับโหลดรูปและโชว์
             imgEl.src = res.cardInfo.imageUrl;
             imgEl.style.display = 'block';     // ใช้ style บังคับการโชว์
@@ -4017,30 +4018,47 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         await origSaveGate();
         window.apiCall = oldApiCall;
     }
-    const origProcessMainScan = processMainScan;
-    processMainScan = function() {
-        const gateId = document.getElementById('scanGateSelect').value;
-        const mainInput = document.getElementById('scanInput');
-        const cardId = mainInput.value.trim().toUpperCase();
-        if(!gateId || !cardId) return origProcessMainScan(); 
-        const gate = allGates.find(g => parseInt(g.id) === parseInt(gateId));
-        const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
-        if(gate && card && gate.status === 'active' && gate.allowedAreas && gate.allowedAreas.trim() !== '') {
-            const currentStatus = card.currentStatus || 'OUT';
-            const newStatus = currentStatus === 'IN' ? 'OUT' : 'IN';
-            if(newStatus === 'IN') {
-                const requiredAreas = gate.allowedAreas.split(',').map(s => s.trim());
-                const userAreas = (card.areaAccessIds || '').split(',');
-                const hasAccess = requiredAreas.some(ra => userAreas.includes(ra));
-                if(!hasAccess) {
-                    mainInput.value = ''; mainInput.focus();
-                    try { const errSound = new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3'); errSound.play(); } catch(e){}
-                    return showAlert('ไม่อนุญาตให้เข้าพื้นที่', `บัตรหมายเลข ${cardId} ไม่มีสิทธิ์เข้าจุดนี้\n(ต้องการพื้นที่: ${gate.allowedAreas})`, 'error');
-                }
+    // --- แก้ไขฟังก์ชันตรวจสอบสิทธิ์พื้นที่ (เปลี่ยนยกเซตด้านล่างนี้) ---
+const origProcessMainScan = processMainScan;
+processMainScan = function() {
+    const gateId = document.getElementById('scanGateSelect').value;
+    const mainInput = document.getElementById('scanInput');
+    const cardId = mainInput.value.trim().toUpperCase();
+
+    // ถ้ายังกรอกไม่ครบ ให้เรียกฟังก์ชันดั้งเดิมไปจัดการ Alert เอง
+    if(!gateId || !cardId) return origProcessMainScan(); 
+
+    const gate = allGates.find(g => parseInt(g.id) === parseInt(gateId));
+    const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
+
+    // ตรวจสอบสิทธิ์เข้าพื้นที่ (ถ้ามีการตั้งค่าที่ประตู)
+    if(gate && card && gate.status === 'active' && gate.allowedAreas && String(gate.allowedAreas).trim() !== '') {
+        const currentStatus = card.currentStatus || 'OUT';
+        const newStatus = currentStatus === 'IN' ? 'OUT' : 'IN';
+
+        // ตรวจสอบเฉพาะขาเข้า (IN)
+        if(newStatus === 'IN') {
+            // บังคับข้อมูลเป็น String ก่อนใช้ split
+            const requiredAreas = String(gate.allowedAreas).split(',').map(s => s.trim());
+            const userAreas = String(card.areaAccessIds || '').split(',').map(s => s.trim());
+            
+            const hasAccess = requiredAreas.some(ra => userAreas.includes(ra));
+            
+            if(!hasAccess) {
+                mainInput.value = ''; 
+                mainInput.focus();
+                try { 
+                    const errSound = new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3'); 
+                    errSound.play(); 
+                } catch(e){}
+                return showAlert('ไม่อนุญาตให้เข้าพื้นที่', `บัตรหมายเลข ${cardId} ไม่มีสิทธิ์เข้าจุดนี้\n(สิทธิ์พื้นที่ที่ต้องการ: ${gate.allowedAreas})`, 'error');
             }
         }
-        origProcessMainScan();
     }
+    
+    // ถ้าผ่านเงื่อนไขทั้งหมด หรือเป็นขาออก ให้เรียกฟังก์ชันหลักทำงานต่อ
+    origProcessMainScan();
+}
 
 
     // ==========================================
