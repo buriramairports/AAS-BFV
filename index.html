@@ -233,10 +233,11 @@ gap: 1px !important;
 
     <!-- โซน 2: แสกนใบหน้า (เพิ่มใหม่) -->
     <div id="scanFaceSection" class="hidden flex flex-col items-center">
-    <div class="relative w-full aspect-[3/4] bg-gray-900 rounded-2xl overflow-hidden mb-3 border-4 border-gray-100 shadow-inner transform -scale-x-100">
+    <div class="relative w-full aspect-[3/4] bg-gray-900 rounded-2xl overflow-hidden mb-3 border-4 border-gray-100 shadow-inner">
+        <!-- ไม่ต้องใส่ class transform กลับด้านที่นี่แล้ว -->
         <video id="webcamVideo" class="absolute inset-0 w-full h-full object-cover" autoplay muted playsinline></video>
         <canvas id="webcamCanvas" class="absolute inset-0 w-full h-full object-cover z-10"></canvas>
-        </div>
+    </div>
         <!-- กรอบช่วยเล็งบาร์โค้ด (ช่วยให้ผู้ใช้ถือบัตรในระยะที่เหมาะสม) -->
         <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
             <div class="w-64 h-24 border-4 border-white/40 rounded-xl flex items-center justify-center relative bg-white/5">
@@ -3687,87 +3688,88 @@ async function initFaceMatcherForWebcam() {
 // ลูปตรวจจับใบหน้า และ บาร์โค้ด (Hybrid Mode)
 // ตั้งค่าตัวอ่านบาร์โค้ดให้เน้น Code 39 และ Code 128 (ที่เป็นแท่งๆ)
 // 1. ตั้งค่าการแสกนแบบเน้นบาร์โค้ดแท่ง (1D Barcode)
-const hints = new Map();
-hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-    ZXing.BarcodeFormat.CODE_39,
-    ZXing.BarcodeFormat.CODE_128,
-    ZXing.BarcodeFormat.EAN_13
-]);
-hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-
 // เตรียมตัวอ่านบาร์โค้ด
-const codeReader = new ZXing.BrowserMultiFormatReader();
+const hints = new Map();
+hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.QR_CODE]);
+hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+const codeReader = new ZXing.BrowserMultiFormatReader(hints);
 
 async function startFaceDetectionLoop() {
     const video = document.getElementById('webcamVideo');
     const canvas = document.getElementById('webcamCanvas');
     
-    // ตั้งค่าความละเอียดและพิกัดให้ตรงกันเป๊ะ
+    // ตั้งขนาด Canvas ให้ตรงกับพื้นที่แสดงผล
     const displaySize = { width: video.clientWidth, height: video.clientHeight };
     faceapi.matchDimensions(canvas, displaySize);
+
+    // สร้าง Canvas ลับสำหรับส่งภาพให้บาร์โค้ด (เพื่อไม่ให้รบกวนวิดีโอหลัก)
+    const hiddenCanvas = document.createElement('canvas');
+    const hCtx = hiddenCanvas.getContext('2d', { willReadFrequently: true });
 
     faceDetectionInterval = setInterval(async () => {
         if (!webcamStream || currentScanMode !== 'face') return;
         if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
 
         const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 1. วาดวิดีโอลงบน Canvas แบบกลับด้าน (Mirror Mode)
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, -displaySize.width, 0, displaySize.width, displaySize.height);
+        ctx.restore();
 
-        // --- ส่วนที่ 1: แสกนบาร์โค้ด (ส่งตัว Video Element ให้ ZXing โดยตรงจะแม่นยำกว่า) ---
+        // --- ส่วนที่ 1: แสกนบาร์โค้ด (ดึงภาพจากวิดีโอส่งไปแสกน) ---
+        hiddenCanvas.width = video.videoWidth;
+        hiddenCanvas.height = video.videoHeight;
+        hCtx.drawImage(video, 0, 0); // ส่งภาพแบบไม่กลับด้านให้ตัวแสกนเพื่อความแม่นยำ
+        
         try {
-            // ZXing มีฟังก์ชันแสกนจากวิดีโอที่ฉลาดมาก เราจะใช้ตัวนั้น
-            const result = await codeReader.decodeFromVideoElement(video);
+            const result = await codeReader.decodeFromCanvas(hiddenCanvas);
             if (result) {
                 const barcodeData = result.getText().trim().toUpperCase();
                 if (lastScannedFaceId !== barcodeData) {
                     triggerFaceScanSuccess(barcodeData);
-                    // ไม่ต้อง Return เพื่อให้ AI หน้ายังทำงานต่อได้
                 }
             }
-        } catch (err) { /* ไม่เจอบาร์โค้ดข้ามไป */ }
+        } catch (err) { /* ข้ามถ้าไม่เจอ */ }
 
         // --- ส่วนที่ 2: แสกนใบหน้า (Face AI) ---
         const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
                                         .withFaceLandmarks()
                                         .withFaceDescriptors();
 
-        const resizedDetections = faceapi.resizeResults(detections, displaySize);
-
         if (detections.length > 0 && faceMatcher) {
+            const resizedDetections = faceapi.resizeResults(detections, displaySize);
             const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
 
             results.forEach((result, i) => {
                 const box = resizedDetections[i].detection.box;
+                
+                // --- หัวใจสำคัญ: คำนวณจุดวาดกรอบแบบกลับด้าน (Flipped X) ---
+                const flippedX = displaySize.width - box.x - box.width;
 
-                // คำนวณเปอร์เซ็นต์
                 const matchPercent = Math.round((1 - result.distance) * 100);
                 const isMatch = result.label !== 'unknown';
                 const boxColor = isMatch ? '#22c55e' : '#ef4444';
 
-                // ดึงชื่อ
                 let matchedCard = allCards.find(c => String(c.cardId) === String(result.label));
-                const labelName = isMatch ? (matchedCard ? matchedCard.firstName : result.label) : "ไม่รู้จัก";
-                const displayFull = `${labelName} (${matchPercent}%)`;
+                const displayName = isMatch ? `${matchedCard ? matchedCard.firstName : result.label} (${matchPercent}%)` : `ไม่รู้จัก (${matchPercent}%)`;
 
-                // วาดกรอบ (ไม่ต้องห่วงเรื่อง Mirror เพราะเรากลับด้านที่ Div คลุมแล้ว)
+                // วาดกรอบสี่เหลี่ยม
                 ctx.strokeStyle = boxColor;
                 ctx.lineWidth = 3;
-                ctx.strokeRect(box.x, box.y, box.width, box.height);
+                ctx.strokeRect(flippedX, box.y, box.width, box.height);
 
-                // วาดชื่อ (เนื่องจาก Div คลุมถูกกลับด้าน ตัวหนังสือจะกลับด้าน เราจึงต้องกลับด้านตัวหนังสือคืน)
-                ctx.save();
-                ctx.translate(box.x + (box.width / 2), box.y - 10);
-                ctx.scale(-1, 1); // กลับด้านตัวหนังสือให้คนอ่านออก
-                
+                // วาดป้ายชื่อ (วาดแบบปกติ ไม่ต้อง scale เพราะ Canvas วาดภาพพื้นหลังเสร็จไปแล้ว)
                 ctx.font = 'bold 16px Prompt';
                 ctx.textAlign = 'center';
-                const textWidth = ctx.measureText(displayFull).width;
+                const textWidth = ctx.measureText(displayName).width;
                 
                 ctx.fillStyle = boxColor;
-                ctx.fillRect(-(textWidth/2) - 10, -25, textWidth + 20, 30);
+                ctx.fillRect(flippedX + (box.width/2) - (textWidth/2) - 10, box.y - 35, textWidth + 20, 30);
+                
                 ctx.fillStyle = 'white';
-                ctx.fillText(displayFull, 0, 0);
-                ctx.restore();
+                ctx.fillText(displayName, flippedX + (box.width/2), box.y - 15);
 
                 if (isMatch) triggerFaceScanSuccess(result.label);
             });
