@@ -2143,76 +2143,65 @@ gap: 1px !important;
     }
 
     function filterCardsTable() {
-        const txt = (document.getElementById('cardSearchInput').value||'').toLowerCase();
-        const tId = document.getElementById('cardTypeFilter').value;
-        const st = document.getElementById('cardStatusFilter').value;
-        const exp = document.getElementById('cardExpiryFilter').value; // ค่า Filter หมดอายุ
+    const searchInput = document.getElementById('cardSearchInput');
+    if (!searchInput) return;
+    
+    const txt = searchInput.value.trim().toLowerCase();
+    const tId = document.getElementById('cardTypeFilter').value;
+    const st = document.getElementById('cardStatusFilter').value;
+    const exp = document.getElementById('cardExpiryFilter').value; 
+    
+    const now = new Date();
+    now.setHours(0,0,0,0);
+
+    currentFilteredCards = allCards.filter(c => {
+        // แปลงข้อมูลเป็น String และเช็คค่าว่างก่อนทำ lowerCase
+        const cardId = (c.cardId || "").toString().toLowerCase();
+        const firstName = (c.firstName || "").toString().toLowerCase();
+        const lastName = (c.lastName || "").toString().toLowerCase();
+        const vehicle = (c.vehicleReg || "").toString().toLowerCase();
+
+        // กรองคำค้นหา
+        if (txt && !(cardId.includes(txt) || firstName.includes(txt) || lastName.includes(txt) || vehicle.includes(txt))) return false;
         
-        const now = new Date();
-        now.setHours(0,0,0,0); // รีเซ็ตเวลาให้เป็นเที่ยงคืนเพื่อเทียบวันที่เท่านั้น
+        // กรองประเภทบัตร
+        if (tId && parseInt(c.typeId) !== parseInt(tId)) return false;
+        
+        // กรองสถานะ Active/Inactive
+        if (st && c.status !== st) return false;
+        
+        // กรองวันหมดอายุ
+        if (exp) {
+            const cExp = new Date(c.expiryDate);
+            if (exp === 'expired' && cExp >= now) return false;
+            if (exp === 'valid' && cExp < now) return false;
+        }
+        
+        return true;
+    });
 
-        currentFilteredCards = allCards.filter(c => {
-            // กรองข้อความค้นหา
-            if(txt && !(c.cardId.toLowerCase().includes(txt) || c.firstName.toLowerCase().includes(txt) || c.lastName.toLowerCase().includes(txt) || (c.vehicleReg||'').toLowerCase().includes(txt))) return false;
-            // กรองประเภท
-            if(tId && parseInt(c.typeId) !== parseInt(tId)) return false;
-            // กรองสถานะ Active/Inactive
-            if(st && c.status !== st) return false;
-            
-            // กรองวันหมดอายุ
-            if(exp) {
-                const cExp = new Date(c.expiryDate);
-                if(exp === 'expired' && cExp >= now) return false; // อยากได้หมดอายุ แต่ยังไม่หมด = ทิ้ง
-                if(exp === 'valid' && cExp < now) return false;    // อยากได้ยังไม่หมด แต่หมดแล้ว = ทิ้ง
-            }
-            
-            return true;
-        });
-
-        // อัปเดตข้อความบอกจำนวน
-        const resText = document.getElementById('cardSearchResultText');
-        if(txt || tId || st || exp) {
-            resText.innerHTML = `<i data-lucide="filter" class="w-4 h-4 inline mr-1"></i> ผลการค้นหาพบ <span class="text-lg font-black text-sky-600 mx-1">${currentFilteredCards.length}</span> รายการ`;
+    // แสดงจำนวนผลลัพธ์
+    const resText = document.getElementById('cardSearchResultText');
+    if (resText) {
+        if (txt || tId || st || exp) {
+            resText.innerHTML = `<i data-lucide="filter" class="w-4 h-4 inline mr-1"></i> พบ <span class="text-lg font-black text-sky-600 mx-1">${currentFilteredCards.length}</span> รายการ`;
         } else {
-            resText.innerHTML = `<i data-lucide="database" class="w-4 h-4 inline mr-1"></i> ข้อมูลบัตรในระบบทั้งหมด <span class="text-lg font-black text-sky-600 mx-1">${currentFilteredCards.length}</span> รายการ`;
+            resText.innerHTML = `<i data-lucide="database" class="w-4 h-4 inline mr-1"></i> ทั้งหมด <span class="text-lg font-black text-sky-600 mx-1">${currentFilteredCards.length}</span> รายการ`;
         }
-        lucide.createIcons();
-
-        // --- โค้ดเรียงลำดับ (อัปเดตแบบแยก ปี พ.ศ.) ---
-        const sortBy = document.getElementById('cardSortFilter').value;
-        if(sortBy === 'newest') {
-            currentFilteredCards.sort((a,b) => b.id - a.id);
-        } else if(sortBy === 'oldest') {
-            currentFilteredCards.sort((a,b) => a.id - b.id);
-        } else if(sortBy === 'name') {
-            currentFilteredCards.sort((a,b) => String(a.firstName).localeCompare(String(b.firstName), 'th'));
-        } else if(sortBy === 'cardIdAsc' || sortBy === 'cardIdDesc') {
-            
-            currentFilteredCards.sort((a, b) => {
-                const parsedA = parseCardIdForSort(a.cardId);
-                const parsedB = parseCardIdForSort(b.cardId);
-                
-                // 1. เทียบปี พ.ศ. ก่อน (ถ้าปีต่างกัน)
-                if (parsedA.year !== parsedB.year) {
-                    // ปีน้อยกว่าขึ้นก่อน เสมอ (เรียงจากอดีตไปปัจจุบัน)
-                    return parsedA.year - parsedB.year;
-                }
-                
-                // 2. ถ้าปีเท่ากัน (หรือไม่มีปีทั้งคู่) ให้เทียบรหัสด้านหน้า (A003 vs A004)
-                // ใช้ numeric: true เพื่อให้ A2 มาก่อน A10
-                return parsedA.prefixNum.localeCompare(parsedB.prefixNum, 'th', { numeric: true });
-            });
-
-            // ถ้าเลือก มากไปน้อย (Desc) ให้พลิก Array ที่เรียงเสร็จแล้วกลับด้าน
-            if (sortBy === 'cardIdDesc') {
-                currentFilteredCards.reverse();
-            }
-        }
-        // ----------------------------------------
-        
-        cardsPagination.page = 1;
-        renderCardsTable();
     }
+
+    // เรียงลำดับ (Sort)
+    const sortBy = document.getElementById('cardSortFilter').value;
+    if (sortBy === 'newest') currentFilteredCards.sort((a,b) => b.id - a.id);
+    else if (sortBy === 'oldest') currentFilteredCards.sort((a,b) => a.id - b.id);
+    else if (sortBy === 'name') currentFilteredCards.sort((a,b) => (a.firstName || "").localeCompare((b.firstName || ""), 'th'));
+    else if (sortBy === 'cardIdAsc') currentFilteredCards.sort((a,b) => (a.cardId || "").localeCompare((b.cardId || ""), undefined, {numeric: true}));
+    else if (sortBy === 'cardIdDesc') currentFilteredCards.sort((a,b) => (b.cardId || "").localeCompare((a.cardId || ""), undefined, {numeric: true}));
+
+    if (window.lucide) lucide.createIcons();
+    cardsPagination.page = 1;
+    renderCardsTable();
+}
 
     function renderCardsTable() {
         const size = cardsPagination.size; const start = (cardsPagination.page - 1) * size;
@@ -4058,59 +4047,85 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
     }
 
    async function previewIdCard(id) {
-        showLoader('กำลังเตรียมข้อมูลรูปภาพบัตร...');
+    showLoader('กำลังเตรียมข้อมูลรูปภาพบัตร...');
+    
+    try {
+        // 1. ตรวจสอบข้อมูลบัตร
         const c = allCards.find(x => x.id === id);
+        if (!c) throw new Error('ไม่พบข้อมูลบัตรในฐานข้อมูล');
+        
         const t = typeCards.find(x => parseInt(x.id) === parseInt(c.typeId)) || {};
         
+        // 2. โหลดเทมเพลตบัตร
         document.getElementById('tplFrontImg').src = systemSettings.cardTplFront || '';
         document.getElementById('tplBackImg').src = systemSettings.cardTplBack || '';
         
+        // 3. จัดการรูปโปรไฟล์ (ดึง Base64 เพื่อให้ Print PDF ติดรูป)
         const imgEl = document.getElementById('renderPhoto');
         const iconEl = document.getElementById('renderPhotoIcon');
-        if(c.imageUrl) { 
+        
+        if (c.imageUrl && c.imageUrl.trim() !== '') { 
             try {
+                // เรียก API ดึงรูปเป็น Base64 (ใส่ false เพื่อไม่ให้โชว์ Loader ซ้ำซ้อน)
                 const b64 = await apiCall('getDriveImageBase64', { url: c.imageUrl }, false);
                 imgEl.src = b64 || c.imageUrl; 
-                imgEl.classList.remove('hidden'); iconEl.classList.add('hidden'); 
+                imgEl.classList.remove('hidden'); 
+                iconEl.classList.add('hidden'); 
             } catch(e) {
-                imgEl.src = c.imageUrl; imgEl.classList.remove('hidden'); iconEl.classList.add('hidden'); 
+                // หากดึง Base64 ไม่ได้ ให้ใช้ URL ตรงๆ เป็นแผนสำรอง
+                console.warn("ดึงรูป Base64 ไม่สำเร็จ ใช้ URL สำรอง:", e);
+                imgEl.src = c.imageUrl; 
+                imgEl.classList.remove('hidden'); 
+                iconEl.classList.add('hidden'); 
             }
         } else { 
-            imgEl.src = ''; imgEl.classList.add('hidden'); iconEl.classList.remove('hidden'); 
+            imgEl.src = ''; 
+            imgEl.classList.add('hidden'); 
+            iconEl.classList.remove('hidden'); 
         }
         
+        // 4. แสดงข้อความ Label และข้อมูลพนักงาน
         document.getElementById('renderLblPos').textContent = systemSettings.lblPos || 'ตำแหน่ง';
         document.getElementById('renderLblOrg').textContent = systemSettings.lblOrg || 'สังกัด';
         document.getElementById('renderLblExp').textContent = systemSettings.lblExp || 'หมดอายุ';
         
-        document.getElementById('renderName').textContent = `${c.firstName} ${c.lastName}`;
+        document.getElementById('renderName').textContent = `${c.firstName || ''} ${c.lastName || ''}`;
         document.getElementById('renderPos').textContent = c.position || '-';
         document.getElementById('renderOrg').textContent = c.organization || '-';
         
+        // 5. จัดการวันหมดอายุ
         let expText = '-';
-        if(c.expiryDate) {
+        if (c.expiryDate) {
             const d = new Date(c.expiryDate);
-            if(!isNaN(d.getTime())) {
-                expText = `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear()+543}`;
+            if (!isNaN(d.getTime())) {
+                expText = `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`;
             }
         }
         document.getElementById('renderExp').textContent = expText;
-        document.getElementById('renderCardId').textContent = c.cardId;
+        document.getElementById('renderCardId').textContent = c.cardId || '-';
         
+        // 6. ข้อความท้ายบัตรและกฎระเบียบ
         document.getElementById('renderFooter1').textContent = systemSettings.cardFooterLine1 || '-';
         document.getElementById('renderFooter2').textContent = systemSettings.cardFooterLine2 || '-';
         document.getElementById('renderFooter3').textContent = systemSettings.cardFooterLine3 || '';
         
         document.getElementById('renderRulesTitle1').textContent = systemSettings.cardRulesTitle1 || 'ข้อควรปฏิบัติ';
-        const rT2 = document.getElementById('renderRulesTitle2'); rT2.textContent = systemSettings.cardRulesTitle2 || ''; rT2.classList.toggle('hidden', !systemSettings.cardRulesTitle2);
-        const rT3 = document.getElementById('renderRulesTitle3'); rT3.textContent = systemSettings.cardRulesTitle3 || ''; rT3.classList.toggle('hidden', !systemSettings.cardRulesTitle3);
+        const rT2 = document.getElementById('renderRulesTitle2'); 
+        rT2.textContent = systemSettings.cardRulesTitle2 || ''; 
+        rT2.classList.toggle('hidden', !systemSettings.cardRulesTitle2);
+        
+        const rT3 = document.getElementById('renderRulesTitle3'); 
+        rT3.textContent = systemSettings.cardRulesTitle3 || ''; 
+        rT3.classList.toggle('hidden', !systemSettings.cardRulesTitle3);
+        
         document.getElementById('renderRules').innerHTML = (systemSettings.cardTplRules || '').replace(/\n/g, '<br>');
         
-       const tempEl = document.getElementById('renderTemp');
+        // 7. ควบคุมป้ายสถานะ (Temp, Unescort, Drive)
+        const tempEl = document.getElementById('renderTemp');
         const escortEl = document.getElementById('renderEscort');
         const driveEl = document.getElementById('renderDrive');
         
-        // 1. ควบคุมป้ายบัตรชั่วคราว (ใช้ opacity เพื่อรักษาตำแหน่ง Layout ไม่ให้กล่องพื้นที่เด้งขึ้น)
+        // ป้ายบัตรชั่วคราว
         if (t.isTemporary === true || t.isTemporary === 'TRUE') {
             tempEl.classList.remove('opacity-0');
             tempEl.classList.add('opacity-100');
@@ -4119,93 +4134,87 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
             tempEl.classList.add('opacity-0');
         }
         
-        // 2. ควบคุม ESCORT และ DRIVE (ใช้ hidden เพื่อให้กล่องที่เหลือเลื่อนมาแทนที่) 
-		
-		// ถ้า requireCompanion เป็น TRUE (ต้องมีผู้ติดตาม) ให้แสดงป้าย ESCORT
-       // t.requireCompanion === true || t.requireCompanion === 'TRUE' ? escortEl.classList.remove('hidden') : escortEl.classList.add('hidden');
-	   //////////////////////////////////////////////////////
-	   // ถ้า requireCompanion เป็น FALSE (ไม่ต้องมีผู้ติดตาม) ให้แสดงป้าย UNESCORT
-	   
-	    if (t.requireCompanion === false || t.requireCompanion === 'FALSE') {
-            escortEl.textContent = "UNESCORT"; // เปลี่ยนข้อความเป็น UNESCORT
-            escortEl.classList.remove('hidden'); // แสดงป้าย
+        // เงื่อนไข UNESCORT (ถ้าไม่ต้องมีผู้ติดตาม ให้แสดงป้าย)
+        if (t.requireCompanion === false || t.requireCompanion === 'FALSE') {
+            escortEl.textContent = "UNESCORT";
+            escortEl.classList.remove('hidden');
         } else {
-            // ถ้าต้องมีผู้ติดตาม (TRUE) ให้ซ่อนป้ายนี้ไปเลยตามเงื่อนไขใหม่
             escortEl.classList.add('hidden'); 
         }
-        // -----------------------
+        
+        // ป้าย DRIVE
         c.canDrive === true || c.canDrive === 'TRUE' ? driveEl.classList.remove('hidden') : driveEl.classList.add('hidden');
         
- // ==========================================
-// ส่วนพื้นที่ (Area Boxes) - แก้ไขการขึ้นคอลัมน์ใหม่สำหรับ 3-4 พื้นที่
-// ==========================================
-const areaContainer = document.getElementById('renderAreaBoxes');
-areaContainer.innerHTML = ''; 
+        // 8. ส่วนพื้นที่ (Area Boxes) 1-4 พื้นที่
+        const areaContainer = document.getElementById('renderAreaBoxes');
+        areaContainer.innerHTML = ''; 
 
-if(c.areaAccessIds) {
-    const arr = c.areaAccessIds.split(',').filter(x => x);
-    let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
-    aData.sort((a,b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
-    
-    const count = aData.length;
-    if(count > 0) {
-        let boxWidth, boxHeight, fontSize, compensation;
-        
-        // ล้างค่า Style เดิมก่อน
-        areaContainer.style.removeProperty('display');
-        areaContainer.style.removeProperty('flex-direction');
+        if (c.areaAccessIds) {
+            const arr = c.areaAccessIds.split(',').filter(x => x);
+            let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
+            aData.sort((a, b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
+            
+            const count = aData.length;
+            if (count > 0) {
+                let boxWidth, boxHeight, fontSize, compensation;
+                areaContainer.style.removeProperty('display');
+                areaContainer.style.removeProperty('flex-direction');
 
-        if (count === 1) {
-            // 1 พื้นที่: กล่องใหญ่ 130x130
-            areaContainer.style.setProperty('display', 'flex', 'important');
-            areaContainer.style.setProperty('flex-direction', 'column', 'important');
-            boxWidth = "130px"; boxHeight = "130px"; fontSize = "110px"; compensation = "0.24em";
-        } else if (count === 2) {
-            // 2 พื้นที่: เรียงแนวตั้ง (บน 1 ล่าง 2)
-            areaContainer.style.setProperty('display', 'flex', 'important');
-            areaContainer.style.setProperty('flex-direction', 'column', 'important');
-            boxWidth = "62px"; boxHeight = "62px"; fontSize = "55px"; compensation = "0.24em";
-        } else {
-            // 3-4 พื้นที่: ตาราง 2 คอลัมน์ (ซ้าย 1-2, ขวา 3-4)
-            areaContainer.style.setProperty('display', 'grid', 'important');
-            areaContainer.style.setProperty('grid-template-columns', '58px 58px', 'important');
-            areaContainer.style.setProperty('grid-template-rows', '58px 58px', 'important');
-            areaContainer.style.setProperty('grid-auto-flow', 'column', 'important'); // บังคับไหลลงคอลัมน์ก่อนค่อยขึ้นใหม่
-	    // --- เพิ่มบรรทัดนี้เพื่อจัดตารางให้อยู่กึ่งกลางแนวนอน ---
-            areaContainer.style.setProperty('justify-content', 'center', 'important');
-            // ----------------------------------------------
-            boxWidth = "58px"; boxHeight = "58px"; fontSize = "50px"; compensation = "0.23em";
+                if (count === 1) {
+                    areaContainer.style.setProperty('display', 'flex', 'important');
+                    areaContainer.style.setProperty('flex-direction', 'column', 'important');
+                    boxWidth = "130px"; boxHeight = "130px"; fontSize = "110px"; compensation = "0.24em";
+                } else if (count === 2) {
+                    areaContainer.style.setProperty('display', 'flex', 'important');
+                    areaContainer.style.setProperty('flex-direction', 'column', 'important');
+                    boxWidth = "62px"; boxHeight = "62px"; fontSize = "55px"; compensation = "0.24em";
+                } else {
+                    areaContainer.style.setProperty('display', 'grid', 'important');
+                    areaContainer.style.setProperty('grid-template-columns', '58px 58px', 'important');
+                    areaContainer.style.setProperty('grid-template-rows', '58px 58px', 'important');
+                    areaContainer.style.setProperty('grid-auto-flow', 'column', 'important');
+                    areaContainer.style.setProperty('justify-content', 'center', 'important');
+                    boxWidth = "58px"; boxHeight = "58px"; fontSize = "50px"; compensation = "0.23em";
+                }
+
+                const areaHtml = aData.slice(0, 4).map(a => `
+                    <div class="area-square-fixed" 
+                         style="background-color: ${a.colorCode}; 
+                                color: ${getContrastYIQ(a.colorCode)}; 
+                                width: ${boxWidth} !important;
+                                height: ${boxHeight} !important;
+                                font-size: ${fontSize} !important;
+                                display: flex !important;
+                                align-items: center !important;
+                                justify-content: center !important;
+                                line-height: 1 !important;
+                                padding-bottom: ${compensation} !important;
+                                box-sizing: border-box !important;
+                                border: 1px solid #1e1b4b !important;
+                                margin: 0 !important;">
+                        ${a.areaNumber}
+                    </div>
+                `).join('');
+                areaContainer.innerHTML = areaHtml;
+            }
         }
-
-        const areaHtml = aData.slice(0, 4).map(a => `
-            <div class="area-square-fixed" 
-                 style="background-color: ${a.colorCode}; 
-                        color: ${getContrastYIQ(a.colorCode)}; 
-                        width: ${boxWidth} !important;
-                        height: ${boxHeight} !important;
-                        font-size: ${fontSize} !important;
-                        display: flex !important;
-                        align-items: center !important;
-                        justify-content: center !important;
-                        line-height: 1 !important;
-                        padding-bottom: ${compensation} !important;
-                        box-sizing: border-box !important;
-                        border: 1px solid #1e1b4b !important;
-                        margin: 0 !important;">
-                ${a.areaNumber}
-            </div>
-        `).join('');
-        areaContainer.innerHTML = areaHtml;
-    }
-}
         
+        // 9. บาร์โค้ด
         document.getElementById('renderBarcode').textContent = `*${c.cardId}*`;
         document.getElementById('renderBarcodeText').textContent = c.cardId;
         
+        // 10. ปิด Loader และแสดง Modal
         hideLoader();
         document.getElementById('idCardModal').classList.remove('hidden');
-        lucide.createIcons();
+        if (window.lucide) lucide.createIcons();
+
+    } catch (err) {
+        // หากเกิด Error กลางคัน ให้ปิด Loader และแจ้งเตือน
+        hideLoader();
+        console.error("Preview Error:", err);
+        showToast("ไม่สามารถเตรียมข้อมูลบัตรได้: " + err.message, "error");
     }
+}
 	/////////////
     
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
