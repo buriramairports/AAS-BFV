@@ -872,14 +872,13 @@ gap: 1px !important;
            <button onclick="addBannerSlot()" class="px-4 py-3 border-2 border-dashed border-gray-300 mt-4 w-full text-gray-500 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition flex items-center justify-center gap-2 font-medium"><i data-lucide="plus" class="w-5 h-5"></i> เพิ่มรูป Banner</button>
        </div>
 
-		  <!-- Settings: AI Voice (TTS) -->
+		 <!-- Settings: AI Voice (TTS) -->
 <div class="bg-white rounded-2xl card-shadow p-6 mt-6">
     <h3 class="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-gray-700">
         <i data-lucide="volume-2" class="w-5 h-5 text-indigo-500"></i> ตั้งค่าเสียง AI ตอบรับ (Voice Announcement)
     </h3>
     
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- เลือกเสียง และ เปิด/ปิด -->
         <div class="space-y-4">
             <div class="flex items-center justify-between bg-indigo-50 p-3 rounded-xl border border-indigo-100">
                 <label class="font-bold text-indigo-900 text-sm">เปิดใช้งานเสียงตอบรับ</label>
@@ -887,21 +886,24 @@ gap: 1px !important;
             </div>
             
             <div>
-    <label class="block text-xs font-bold text-gray-500 mb-1">เลือกชุดเสียง (ภาษาไทย)</label>
-    <div class="flex gap-2">
-        <select id="ttsVoiceSelect" class="flex-1 border p-2.5 rounded-xl outline-none focus:ring-2 bg-white text-sm font-medium"></select>
-        
-        <!-- ปุ่มรีเฟรชโหลดเสียงใหม่ -->
-        <button onclick="initVoices()" class="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition" title="โหลดรายการเสียงใหม่">
-            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-        </button>
+                <label class="block text-xs font-bold text-gray-500 mb-1">เลือกชุดเสียง (ภาษาไทย)</label>
+                <div class="flex gap-2">
+                    <select id="ttsVoiceSelect" class="flex-1 border p-2.5 rounded-xl outline-none focus:ring-2 bg-white text-sm font-medium"></select>
+                    <button onclick="initVoices()" class="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="testVoice()" class="px-4 py-2 bg-indigo-100 text-indigo-600 rounded-xl hover:bg-indigo-200 transition">
+                        <i data-lucide="play" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
 
-        <button onclick="testVoice()" class="px-4 py-2 bg-indigo-100 text-indigo-600 rounded-xl hover:bg-indigo-200 transition">
-            <i data-lucide="play" class="w-4 h-4"></i>
-        </button>
-    </div>
-    <p class="text-[10px] text-orange-500 mt-1 font-medium">* หากมีให้เลือกน้อย ให้ใช้ Microsoft Edge หรือติดตั้ง Thai Voice ใน Windows Speech Settings</p>
-</div>
+            <!-- เพิ่มส่วนปรับความเร็ว -->
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">ความเร็วเสียง (Speed: <span id="ttsRateVal">1.0</span>)</label>
+                <input type="range" id="ttsRate" min="0.5" max="2" step="0.1" value="1.0" oninput="document.getElementById('ttsRateVal').textContent=this.value" class="w-full h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer">
+                <div class="flex justify-between text-[10px] text-gray-400 mt-1"><span>ช้า</span><span>ปกติ</span><span>เร็ว</span></div>
+            </div>
 
             <div>
                 <label class="block text-xs font-bold text-gray-500 mb-1">รูปแบบการเรียกชื่อ</label>
@@ -912,20 +914,21 @@ gap: 1px !important;
             </div>
         </div>
 
-        <!-- ตั้งค่าคำพูด -->
         <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-3">
+            <p class="text-[10px] text-indigo-500 font-bold uppercase tracking-widest bg-white px-2 py-1 rounded inline-block">กำหนดคำพูด</p>
             <div>
-                <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase">1. คำขึ้นต้น (Greeting)</label>
+                <label class="block text-[11px] font-bold text-gray-400 mb-1">1. คำขึ้นต้น</label>
                 <input type="text" id="ttsPrefix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น คุณ, สวัสดีคุณ">
             </div>
             <div>
-                <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase">2. คำต่อท้ายเมื่อ "เข้า" (IN Suffix)</label>
-                <input type="text" id="ttsInSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น เชิญค่ะ, เข้าพื้นที่สำเร็จ">
+                <label class="block text-[11px] font-bold text-gray-400 mb-1">2. คำต่อท้ายเมื่อ "เข้า"</label>
+                <input type="text" id="ttsInSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น เชิญค่ะ">
             </div>
             <div>
-                <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase">3. คำต่อท้ายเมื่อ "ออก" (OUT Suffix)</label>
-                <input type="text" id="ttsOutSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น ออกสำเร็จค่ะ, เดินทางปลอดภัยค่ะ">
+                <label class="block text-[11px] font-bold text-gray-400 mb-1">3. คำต่อท้ายเมื่อ "ออก"</label>
+                <input type="text" id="ttsOutSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น ออกสำเร็จค่ะ">
             </div>
+            <p class="text-[10px] text-gray-400 italic">* ระบบจะเว้นวรรคให้อัตโนมัติระหว่างคำ</p>
         </div>
     </div>
 </div>
@@ -1350,8 +1353,8 @@ gap: 1px !important;
 	  // เพิ่มค่าเริ่มต้นในตัวแปร systemSettings
 systemSettings.ttsEnabled = true;
 systemSettings.ttsPrefix = "คุณ";
-systemSettings.ttsInSuffix = "เชิญค่ะ";
-systemSettings.ttsOutSuffix = "ออกสำเร็จค่ะ";
+systemSettings.ttsInSuffix = "ยินดีต้อนรับ";
+systemSettings.ttsOutSuffix = "ออกสำเรียบร้อย";
 systemSettings.ttsNameMode = "first";
 systemSettings.ttsVoiceName = "";
 
@@ -4488,42 +4491,51 @@ document.addEventListener('change', function(e) {
     }
 });
 ////////////ฟังชั่น AI พูดชื่อ
-	  function speakStatus(firstName, lastName, type) {
+	systemSettings.ttsRate = 1.0; 
+
+function speakStatus(firstName, lastName, type) {
     if (!systemSettings.ttsEnabled || !('speechSynthesis' in window)) return;
 
-    // ยกเลิกเสียงที่กำลังพูดอยู่
-    window.speechSynthesis.cancel();
+    window.speechSynthesis.cancel(); // ตัดเสียงที่ค้างอยู่
 
     const msg = new SpeechSynthesisUtterance();
     
-    // ประกอบประโยค
+    // ดึงข้อมูลประโยค
     let nameToSpeak = (systemSettings.ttsNameMode === 'first') ? firstName : `${firstName} ${lastName}`;
     let prefix = systemSettings.ttsPrefix || "";
     let suffix = (type === 'IN') ? (systemSettings.ttsInSuffix || "") : (systemSettings.ttsOutSuffix || "");
     
-    msg.text = `${prefix} ${nameToSpeak} ${suffix}`;
+    /** 
+     * เทคนิคการเว้นวรรค: 
+     * การใส่เครื่องหมาย , (comma) ใน Web Speech API จะเป็นการสั่งให้ AI หยุดหายใจ/เว้นวรรคสั้นๆ 
+     */
+    msg.text = `${prefix}, ${nameToSpeak}, ${suffix}`;
     msg.lang = 'th-TH';
 
-    // เลือก Voice ตามที่ตั้งค่าไว้
+    // เลือกเสียงตามที่ตั้งค่า
     if (systemSettings.ttsVoiceName) {
         const voice = voices.find(v => v.name === systemSettings.ttsVoiceName);
         if (voice) msg.voice = voice;
     }
 
-    msg.rate = 1.0; // ความเร็ว (1.1 คือเร็วขึ้นนิดนึงให้ดูไม่หุ่นยนต์เกินไป)
-		  msg.volume = 1; // ความดัง 0-1
-		  msg.pitch = 1;  // ระดับเสียงสูงต่ำ
+    // ตั้งค่าความเร็วจากหน้าจอตั้งค่า
+    msg.rate = parseFloat(systemSettings.ttsRate) || 1.0;
+    msg.pitch = 1;
+    
     window.speechSynthesis.speak(msg);
 }
 
-// ฟังก์ชันทดสอบจากหน้าตั้งค่า
+// ฟังก์ชันทดสอบเสียงพร้อมเว้นวรรค
 function testVoice() {
     const prefix = document.getElementById('ttsPrefix').value;
     const voiceName = document.getElementById('ttsVoiceSelect').value;
+    const rate = document.getElementById('ttsRate').value;
     
     window.speechSynthesis.cancel();
-    const msg = new SpeechSynthesisUtterance(`${prefix} ทดสอบระบบเสียง`);
+    // ใส่เครื่องหมาย , เพื่อทดสอบจังหวะเว้นวรรค
+    const msg = new SpeechSynthesisUtterance(`${prefix}, คุณกำลังทดสอบระบบเสียง`);
     msg.lang = 'th-TH';
+    msg.rate = parseFloat(rate);
     const voice = voices.find(v => v.name === voiceName);
     if (voice) msg.voice = voice;
     window.speechSynthesis.speak(msg);
