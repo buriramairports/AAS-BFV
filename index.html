@@ -872,7 +872,7 @@ gap: 1px !important;
            <button onclick="addBannerSlot()" class="px-4 py-3 border-2 border-dashed border-gray-300 mt-4 w-full text-gray-500 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition flex items-center justify-center gap-2 font-medium"><i data-lucide="plus" class="w-5 h-5"></i> เพิ่มรูป Banner</button>
        </div>
 
-		 <!-- Settings: AI Voice & Notification Sound -->
+		<!-- Settings: AI Voice & Notification Sound -->
 <div class="bg-white rounded-2xl card-shadow p-6 mt-6">
     <h3 class="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-gray-700">
         <i data-lucide="megaphone" class="w-5 h-5 text-indigo-500"></i> ตั้งค่าเสียงแจ้งเตือนและ AI
@@ -908,6 +908,12 @@ gap: 1px !important;
             <div>
                 <label class="block text-xs font-bold text-gray-500 mb-1">ความเร็วเสียง AI (Speed: <span id="ttsRateVal">1.0</span>)</label>
                 <input type="range" id="ttsRate" min="0.5" max="2" step="0.1" value="1.0" oninput="document.getElementById('ttsRateVal').textContent=this.value" class="w-full h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            
+            <!-- เพิ่มส่วนนี้ที่ขาดไปเพื่อให้ JS ไม่ Error -->
+            <div class="hidden">
+                 <input type="checkbox" id="ttsEnabled" checked>
+                 <select id="ttsNameMode"><option value="first" selected></option></select>
             </div>
         </div>
 
@@ -1362,8 +1368,8 @@ systemSettings.ttsInSuffix = "ยินดีต้อนรับ";
 systemSettings.ttsOutSuffix = "ออกสำเรียบร้อย";
 systemSettings.ttsNameMode = "first";
 systemSettings.ttsVoiceName = "";
-//systemSettings.announcementMode = systemSettings.announcementMode || "both";
-//systemSettings.beepVolume = systemSettings.beepVolume !== undefined ? systemSettings.beepVolume : 0.5;	  
+systemSettings.announcementMode = systemSettings.announcementMode || "both";
+systemSettings.beepVolume = systemSettings.beepVolume !== undefined ? systemSettings.beepVolume : 0.5;	  
 
 let voices = [];
 
@@ -3083,35 +3089,53 @@ if(res.ioType === 'IN') {
     // 7. ตั้งค่า & Banner (Settings)
     // ==========================================
     function loadSettings() {
-        document.getElementById('bannerEnabled').checked = systemSettings.bannerEnabled;
-        document.getElementById('bannerSpeed').value = systemSettings.bannerSpeed || 4;
-        document.getElementById('systemName').value = systemSettings.systemName || '';
-        document.getElementById('systemSubName').value = systemSettings.systemSubName || '';
-        document.getElementById('footerText').value = systemSettings.footerText || '';
-        document.getElementById('logoUrl').value = systemSettings.logoUrl || '';
-        document.getElementById('loginBgUrl').value = systemSettings.loginBgUrl || '';
-        document.getElementById('faviconUrl').value = systemSettings.faviconUrl || '';
-        document.getElementById('autoCheckoutEnabled').checked = systemSettings.autoCheckoutEnabled;
-		document.getElementById('aiThreshold').value = systemSettings.aiThreshold || 0.38;
-        document.getElementById('aiCooldown').value = systemSettings.aiCooldown || 10;
-		document.getElementById('aiInterval').value = systemSettings.aiInterval || 1000;
-		document.getElementById('aiPadX').value = systemSettings.aiPadX !== undefined ? systemSettings.aiPadX : 15;
-        document.getElementById('aiPadTop').value = systemSettings.aiPadTop !== undefined ? systemSettings.aiPadTop : 35;
-		////////
-document.getElementById('ttsEnabled').checked = systemSettings.ttsEnabled;
-document.getElementById('ttsPrefix').value = systemSettings.ttsPrefix || "";
-document.getElementById('ttsInSuffix').value = systemSettings.ttsInSuffix || "";
-document.getElementById('ttsOutSuffix').value = systemSettings.ttsOutSuffix || "";
-document.getElementById('ttsNameMode').value = systemSettings.ttsNameMode || "first";
-document.getElementById('ttsRate').value = systemSettings.ttsRate || 1.0;
-document.getElementById('ttsRateVal').textContent = systemSettings.ttsRate || 1.0;
-		document.getElementById('announcementMode').value = systemSettings.announcementMode || "both";
-document.getElementById('beepVolume').value = systemSettings.beepVolume || 0.5;
-document.getElementById('beepVolVal').textContent = systemSettings.beepVolume || 0.5;
-initVoices(); // โหลดรายการเสียง
-	  ///////
-        renderBannerList();
+    // 1. ข้อมูลทั่วไป
+    document.getElementById('bannerEnabled').checked = systemSettings.bannerEnabled;
+    document.getElementById('bannerSpeed').value = systemSettings.bannerSpeed || 4;
+    document.getElementById('systemName').value = systemSettings.systemName || '';
+    document.getElementById('systemSubName').value = systemSettings.systemSubName || '';
+    document.getElementById('footerText').value = systemSettings.footerText || '';
+    document.getElementById('logoUrl').value = systemSettings.logoUrl || '';
+    document.getElementById('loginBgUrl').value = systemSettings.loginBgUrl || '';
+    document.getElementById('faviconUrl').value = systemSettings.faviconUrl || '';
+    document.getElementById('autoCheckoutEnabled').checked = systemSettings.autoCheckoutEnabled;
+    document.getElementById('aiThreshold').value = systemSettings.aiThreshold || 0.38;
+    document.getElementById('aiCooldown').value = systemSettings.aiCooldown || 10;
+    document.getElementById('aiInterval').value = systemSettings.aiInterval || 1000;
+    document.getElementById('aiPadX').value = systemSettings.aiPadX !== undefined ? systemSettings.aiPadX : 15;
+    document.getElementById('aiPadTop').value = systemSettings.aiPadTop !== undefined ? systemSettings.aiPadTop : 35;
+
+    // 2. รูปแบบบัตร (Card Template) - **ส่วนที่หายไปของคุณ**
+    document.getElementById('cardTplFront').value = systemSettings.cardTplFront || '';
+    document.getElementById('cardTplBack').value = systemSettings.cardTplBack || '';
+    document.getElementById('cardRulesTitle1').value = systemSettings.cardRulesTitle1 || 'ข้อควรปฏิบัติ';
+    document.getElementById('cardRulesTitle2').value = systemSettings.cardRulesTitle2 || '';
+    document.getElementById('cardRulesTitle3').value = systemSettings.cardRulesTitle3 || '';
+    document.getElementById('cardTplRules').value = systemSettings.cardTplRules || '';
+    document.getElementById('lblPos').value = systemSettings.lblPos || '';
+    document.getElementById('lblOrg').value = systemSettings.lblOrg || '';
+    document.getElementById('lblExp').value = systemSettings.lblExp || '';
+    document.getElementById('cardFooterLine1').value = systemSettings.cardFooterLine1 || '';
+    document.getElementById('cardFooterLine2').value = systemSettings.cardFooterLine2 || '';
+    document.getElementById('cardFooterLine3').value = systemSettings.cardFooterLine3 || '';
+
+    // 3. ตั้งค่าเสียง AI & แจ้งเตือน
+    if(document.getElementById('announcementMode')) document.getElementById('announcementMode').value = systemSettings.announcementMode || "both";
+    if(document.getElementById('beepVolume')) {
+        document.getElementById('beepVolume').value = systemSettings.beepVolume || 0.5;
+        document.getElementById('beepVolVal').textContent = systemSettings.beepVolume || 0.5;
     }
+    if(document.getElementById('ttsPrefix')) document.getElementById('ttsPrefix').value = systemSettings.ttsPrefix || "";
+    if(document.getElementById('ttsInSuffix')) document.getElementById('ttsInSuffix').value = systemSettings.ttsInSuffix || "";
+    if(document.getElementById('ttsOutSuffix')) document.getElementById('ttsOutSuffix').value = systemSettings.ttsOutSuffix || "";
+    if(document.getElementById('ttsRate')) {
+        document.getElementById('ttsRate').value = systemSettings.ttsRate || 1.0;
+        document.getElementById('ttsRateVal').textContent = systemSettings.ttsRate || 1.0;
+    }
+
+    initVoices(); // โหลดรายการเสียงไทย
+    renderBannerList();
+}
     
     function renderBannerList() { 
         document.getElementById('bannerList').innerHTML = (systemSettings.banners||[]).map((b,i) => `
@@ -3130,40 +3154,53 @@ initVoices(); // โหลดรายการเสียง
     }
     function addBannerSlot() { if(!systemSettings.banners) systemSettings.banners=[]; systemSettings.banners.push({id: Date.now(), url: '', active: true}); renderBannerList(); }
 
-    async function saveAllSettings() {
-        systemSettings.bannerEnabled = document.getElementById('bannerEnabled').checked;
-        systemSettings.bannerSpeed = parseFloat(document.getElementById('bannerSpeed').value) || 4;
-        systemSettings.systemName = document.getElementById('systemName').value;
-        systemSettings.systemSubName = document.getElementById('systemSubName').value;
-        systemSettings.footerText = document.getElementById('footerText').value;
-        systemSettings.logoUrl = document.getElementById('logoUrl').value;
-        systemSettings.loginBgUrl = document.getElementById('loginBgUrl').value;
-        systemSettings.faviconUrl = document.getElementById('faviconUrl').value;
-		systemSettings.aiThreshold = parseFloat(document.getElementById('aiThreshold').value) || 0.38;
-        systemSettings.aiCooldown = parseInt(document.getElementById('aiCooldown').value) || 10;
-		systemSettings.aiInterval = parseInt(document.getElementById('aiInterval').value) || 1000;
-		systemSettings.aiPadX = parseInt(document.getElementById('aiPadX').value) || 0;
-        systemSettings.aiPadTop = parseInt(document.getElementById('aiPadTop').value) || 0;
-        
-        // --- เพิ่มบรรทัดนี้เข้าไป เพื่อดึงสถานะติ๊กถูกจากหน้าเว็บ ---
-        systemSettings.autoCheckoutEnabled = document.getElementById('autoCheckoutEnabled').checked;
+   async function saveAllSettings() {
+    // 1. ข้อมูลทั่วไป
+    systemSettings.bannerEnabled = document.getElementById('bannerEnabled').checked;
+    systemSettings.bannerSpeed = parseFloat(document.getElementById('bannerSpeed').value) || 4;
+    systemSettings.systemName = document.getElementById('systemName').value;
+    systemSettings.systemSubName = document.getElementById('systemSubName').value;
+    systemSettings.footerText = document.getElementById('footerText').value;
+    systemSettings.logoUrl = document.getElementById('logoUrl').value;
+    systemSettings.loginBgUrl = document.getElementById('loginBgUrl').value;
+    systemSettings.faviconUrl = document.getElementById('faviconUrl').value;
+    systemSettings.autoCheckoutEnabled = document.getElementById('autoCheckoutEnabled').checked;
+    systemSettings.aiThreshold = parseFloat(document.getElementById('aiThreshold').value) || 0.38;
+    systemSettings.aiCooldown = parseInt(document.getElementById('aiCooldown').value) || 10;
+    systemSettings.aiInterval = parseInt(document.getElementById('aiInterval').value) || 1000;
+    systemSettings.aiPadX = parseInt(document.getElementById('aiPadX').value) || 15;
+    systemSettings.aiPadTop = parseInt(document.getElementById('aiPadTop').value) || 35;
 
-		// ----AI VOICE
-systemSettings.ttsEnabled = document.getElementById('ttsEnabled').checked;
-systemSettings.ttsPrefix = document.getElementById('ttsPrefix').value;
-systemSettings.ttsInSuffix = document.getElementById('ttsInSuffix').value;
-systemSettings.ttsOutSuffix = document.getElementById('ttsOutSuffix').value;
-systemSettings.ttsNameMode = document.getElementById('ttsNameMode').value;
-systemSettings.ttsVoiceName = document.getElementById('ttsVoiceSelect').value;
-systemSettings.ttsRate = document.getElementById('ttsRate').value;	
-		systemSettings.announcementMode = document.getElementById('announcementMode').value;
-systemSettings.beepVolume = document.getElementById('beepVolume').value;
-		// ----
+    // 2. รูปแบบบัตร (Card Template)
+    systemSettings.cardTplFront = document.getElementById('cardTplFront').value;
+    systemSettings.cardTplBack = document.getElementById('cardTplBack').value;
+    systemSettings.cardRulesTitle1 = document.getElementById('cardRulesTitle1').value.trim();
+    systemSettings.cardRulesTitle2 = document.getElementById('cardRulesTitle2').value.trim();
+    systemSettings.cardRulesTitle3 = document.getElementById('cardRulesTitle3').value.trim();
+    systemSettings.cardTplRules = document.getElementById('cardTplRules').value;
+    systemSettings.lblPos = document.getElementById('lblPos').value.trim();
+    systemSettings.lblOrg = document.getElementById('lblOrg').value.trim();
+    systemSettings.lblExp = document.getElementById('lblExp').value.trim();
+    systemSettings.cardFooterLine1 = document.getElementById('cardFooterLine1').value.trim();
+    systemSettings.cardFooterLine2 = document.getElementById('cardFooterLine2').value.trim();
+    systemSettings.cardFooterLine3 = document.getElementById('cardFooterLine3').value.trim();
 
-        await apiCall('saveSettings', systemSettings);
-        applySettingsToUI(); initBanner();
-        showToast('บันทึกการตั้งค่าระบบเรียบร้อย', 'success');
-    }
+    // 3. เสียง AI & แจ้งเตือน
+    systemSettings.announcementMode = document.getElementById('announcementMode').value;
+    systemSettings.beepVolume = document.getElementById('beepVolume').value;
+    systemSettings.ttsPrefix = document.getElementById('ttsPrefix').value;
+    systemSettings.ttsInSuffix = document.getElementById('ttsInSuffix').value;
+    systemSettings.ttsOutSuffix = document.getElementById('ttsOutSuffix').value;
+    systemSettings.ttsVoiceName = document.getElementById('ttsVoiceSelect').value;
+    systemSettings.ttsRate = document.getElementById('ttsRate').value;
+
+    showLoader('กำลังบันทึกการตั้งค่า...');
+    await apiCall('saveSettings', systemSettings);
+    applySettingsToUI(); 
+    initBanner();
+    hideLoader();
+    showToast('บันทึกการตั้งค่าระบบเรียบร้อย', 'success');
+}
 
     // --- Banner Logic ---
     function initBanner(){ 
