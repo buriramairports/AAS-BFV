@@ -887,15 +887,21 @@ gap: 1px !important;
             </div>
             
             <div>
-                <label class="block text-xs font-bold text-gray-500 mb-1">เลือกชุดเสียงพยากรณ์ (ภาษาไทย)</label>
-                <div class="flex gap-2">
-                    <select id="ttsVoiceSelect" class="flex-1 border p-2.5 rounded-xl outline-none focus:ring-2 bg-white text-sm font-medium"></select>
-                    <button onclick="testVoice()" class="px-4 py-2 bg-indigo-100 text-indigo-600 rounded-xl hover:bg-indigo-200 transition">
-                        <i data-lucide="play" class="w-4 h-4"></i>
-                    </button>
-                </div>
-                <p class="text-[10px] text-gray-400 mt-1">* รายการเสียงขึ้นอยู่กับระบบปฏิบัติการที่ใช้งาน</p>
-            </div>
+    <label class="block text-xs font-bold text-gray-500 mb-1">เลือกชุดเสียง (ภาษาไทย)</label>
+    <div class="flex gap-2">
+        <select id="ttsVoiceSelect" class="flex-1 border p-2.5 rounded-xl outline-none focus:ring-2 bg-white text-sm font-medium"></select>
+        
+        <!-- ปุ่มรีเฟรชโหลดเสียงใหม่ -->
+        <button onclick="initVoices()" class="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition" title="โหลดรายการเสียงใหม่">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        </button>
+
+        <button onclick="testVoice()" class="px-4 py-2 bg-indigo-100 text-indigo-600 rounded-xl hover:bg-indigo-200 transition">
+            <i data-lucide="play" class="w-4 h-4"></i>
+        </button>
+    </div>
+    <p class="text-[10px] text-orange-500 mt-1 font-medium">* หากมีให้เลือกน้อย ให้ใช้ Microsoft Edge หรือติดตั้ง Thai Voice ใน Windows Speech Settings</p>
+</div>
 
             <div>
                 <label class="block text-xs font-bold text-gray-500 mb-1">รูปแบบการเรียกชื่อ</label>
@@ -1352,20 +1358,31 @@ systemSettings.ttsVoiceName = "";
 let voices = [];
 
 function initVoices() {
+    // ดึงเสียงทั้งหมดจากระบบ
     voices = window.speechSynthesis.getVoices();
     const select = document.getElementById('ttsVoiceSelect');
     if(!select) return;
     
-    // กรองเอาเฉพาะเสียงไทย
-    const thaiVoices = voices.filter(v => v.lang.includes('th'));
-    select.innerHTML = thaiVoices.map(v => `<option value="${v.name}">${v.name}</option>`).join('');
-    
-    // เลือกตัวที่เคยบันทึกไว้
-    if(systemSettings.ttsVoiceName) select.value = systemSettings.ttsVoiceName;
+    // กรองเอาเฉพาะเสียงไทย (th-TH)
+    const thaiVoices = voices.filter(v => v.lang.includes('th') || v.lang === 'th-TH');
+
+    if (thaiVoices.length > 0) {
+        select.innerHTML = thaiVoices.map(v => `<option value="${v.name}">${v.name}</option>`).join('');
+        
+        // ถ้าเคยบันทึกเสียงไว้ ให้เลือกตัวเดิม
+        if (systemSettings.ttsVoiceName) {
+            select.value = systemSettings.ttsVoiceName;
+        }
+        showToast(`โหลดสำเร็จ: พบเสียงไทย ${thaiVoices.length} เสียง`, 'info');
+    } else {
+        select.innerHTML = '<option value="">ไม่พบเสียงภาษาไทยในเครื่อง</option>';
+    }
+    if(window.lucide) lucide.createIcons();
 }
 
-// ผูกเหตุการณ์โหลดเสียง
+// เรียกโหลดเสียงแบบหน่วงเวลานิดนึงเพื่อให้ระบบพร้อม
 window.speechSynthesis.onvoiceschanged = initVoices;
+setTimeout(initVoices, 1000);
 	  
 // ==========================================
     // ฟังก์ชันช่วยเรียงลำดับรหัสบัตร (รูปแบบ Prefix+Num/Year)
