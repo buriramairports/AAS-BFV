@@ -872,6 +872,58 @@ gap: 1px !important;
            <button onclick="addBannerSlot()" class="px-4 py-3 border-2 border-dashed border-gray-300 mt-4 w-full text-gray-500 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition flex items-center justify-center gap-2 font-medium"><i data-lucide="plus" class="w-5 h-5"></i> เพิ่มรูป Banner</button>
        </div>
 
+		  <!-- Settings: AI Voice (TTS) -->
+<div class="bg-white rounded-2xl card-shadow p-6 mt-6">
+    <h3 class="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-gray-700">
+        <i data-lucide="volume-2" class="w-5 h-5 text-indigo-500"></i> ตั้งค่าเสียง AI ตอบรับ (Voice Announcement)
+    </h3>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- เลือกเสียง และ เปิด/ปิด -->
+        <div class="space-y-4">
+            <div class="flex items-center justify-between bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                <label class="font-bold text-indigo-900 text-sm">เปิดใช้งานเสียงตอบรับ</label>
+                <input type="checkbox" id="ttsEnabled" class="w-6 h-6 text-indigo-600 rounded-lg">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">เลือกชุดเสียงพยากรณ์ (ภาษาไทย)</label>
+                <div class="flex gap-2">
+                    <select id="ttsVoiceSelect" class="flex-1 border p-2.5 rounded-xl outline-none focus:ring-2 bg-white text-sm font-medium"></select>
+                    <button onclick="testVoice()" class="px-4 py-2 bg-indigo-100 text-indigo-600 rounded-xl hover:bg-indigo-200 transition">
+                        <i data-lucide="play" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-1">* รายการเสียงขึ้นอยู่กับระบบปฏิบัติการที่ใช้งาน</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">รูปแบบการเรียกชื่อ</label>
+                <select id="ttsNameMode" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 bg-white font-medium">
+                    <option value="first">เฉพาะชื่อจริง</option>
+                    <option value="full">ชื่อ และ นามสกุล</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- ตั้งค่าคำพูด -->
+        <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-3">
+            <div>
+                <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase">1. คำขึ้นต้น (Greeting)</label>
+                <input type="text" id="ttsPrefix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น คุณ, สวัสดีคุณ">
+            </div>
+            <div>
+                <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase">2. คำต่อท้ายเมื่อ "เข้า" (IN Suffix)</label>
+                <input type="text" id="ttsInSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น เชิญค่ะ, เข้าพื้นที่สำเร็จ">
+            </div>
+            <div>
+                <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase">3. คำต่อท้ายเมื่อ "ออก" (OUT Suffix)</label>
+                <input type="text" id="ttsOutSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น ออกสำเร็จค่ะ, เดินทางปลอดภัยค่ะ">
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ------ -->
        <div class="sticky bottom-4 z-40 bg-white/90 backdrop-blur p-4 rounded-2xl shadow-2xl border border-gray-200 flex justify-end">
            <button onclick="saveAllSettings()" class="btn-primary text-white px-8 py-3.5 rounded-xl shadow-lg font-bold text-lg flex items-center gap-2 hover:-translate-y-1"><i data-lucide="save" class="w-6 h-6"></i> บันทึกการตั้งค่าทั้งหมด</button>
        </div>
@@ -1288,6 +1340,33 @@ gap: 1px !important;
     // Banner Timer
     let currentSlide = 0, slideInterval = null;
 
+	  // ------------- AI VOICE -----------------
+	  // เพิ่มค่าเริ่มต้นในตัวแปร systemSettings
+systemSettings.ttsEnabled = true;
+systemSettings.ttsPrefix = "คุณ";
+systemSettings.ttsInSuffix = "เชิญค่ะ";
+systemSettings.ttsOutSuffix = "ออกสำเร็จค่ะ";
+systemSettings.ttsNameMode = "first";
+systemSettings.ttsVoiceName = "";
+
+let voices = [];
+
+function initVoices() {
+    voices = window.speechSynthesis.getVoices();
+    const select = document.getElementById('ttsVoiceSelect');
+    if(!select) return;
+    
+    // กรองเอาเฉพาะเสียงไทย
+    const thaiVoices = voices.filter(v => v.lang.includes('th'));
+    select.innerHTML = thaiVoices.map(v => `<option value="${v.name}">${v.name}</option>`).join('');
+    
+    // เลือกตัวที่เคยบันทึกไว้
+    if(systemSettings.ttsVoiceName) select.value = systemSettings.ttsVoiceName;
+}
+
+// ผูกเหตุการณ์โหลดเสียง
+window.speechSynthesis.onvoiceschanged = initVoices;
+	  
 // ==========================================
     // ฟังก์ชันช่วยเรียงลำดับรหัสบัตร (รูปแบบ Prefix+Num/Year)
     // ==========================================
@@ -2015,13 +2094,13 @@ function toggleHybridCamera() {
 	// --- เพิ่มโค้ดเล่นเสียงตรงนี้ ---
         try {
             // เสียงติ๊ด (แสกนสำเร็จ)
-            const successSound = new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3');
-            successSound.play();
+            //const successSound = new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3');
+           // successSound.play();
         } catch(e) {}
         // -----------------------------
 // --- เพิ่มบรรทัดนี้ลงไป (ประมาณท้ายๆ ฟังก์ชัน) ---
-    const fullName = `${res.cardInfo.firstName}`; // ส่งชื่อเข้าไป
-    speakStatus(fullName, res.ioType); // สั่งให้ AI พูดชื่อและสถานะ
+    //const fullName = `${res.cardInfo.firstName}`; // ส่งชื่อเข้าไป
+    speakStatus(res.cardInfo.firstName, res.cardInfo.lastName, res.ioType);
     // ------------------------------------------
 		// -----------------------------
         showToast(`บันทึกสถานะ ${res.ioType} สำเร็จ`, 'success');
@@ -2983,6 +3062,14 @@ if(res.ioType === 'IN') {
 		document.getElementById('aiInterval').value = systemSettings.aiInterval || 1000;
 		document.getElementById('aiPadX').value = systemSettings.aiPadX !== undefined ? systemSettings.aiPadX : 15;
         document.getElementById('aiPadTop').value = systemSettings.aiPadTop !== undefined ? systemSettings.aiPadTop : 35;
+		////////
+document.getElementById('ttsEnabled').checked = systemSettings.ttsEnabled;
+document.getElementById('ttsPrefix').value = systemSettings.ttsPrefix || "";
+document.getElementById('ttsInSuffix').value = systemSettings.ttsInSuffix || "";
+document.getElementById('ttsOutSuffix').value = systemSettings.ttsOutSuffix || "";
+document.getElementById('ttsNameMode').value = systemSettings.ttsNameMode || "first";
+initVoices(); // โหลดรายการเสียง
+	  ///////
         renderBannerList();
     }
     
@@ -3020,6 +3107,15 @@ if(res.ioType === 'IN') {
         
         // --- เพิ่มบรรทัดนี้เข้าไป เพื่อดึงสถานะติ๊กถูกจากหน้าเว็บ ---
         systemSettings.autoCheckoutEnabled = document.getElementById('autoCheckoutEnabled').checked;
+
+		// ----
+systemSettings.ttsEnabled = document.getElementById('ttsEnabled').checked;
+systemSettings.ttsPrefix = document.getElementById('ttsPrefix').value;
+systemSettings.ttsInSuffix = document.getElementById('ttsInSuffix').value;
+systemSettings.ttsOutSuffix = document.getElementById('ttsOutSuffix').value;
+systemSettings.ttsNameMode = document.getElementById('ttsNameMode').value;
+systemSettings.ttsVoiceName = document.getElementById('ttsVoiceSelect').value;
+		// ----
 
         await apiCall('saveSettings', systemSettings);
         applySettingsToUI(); initBanner();
@@ -4375,30 +4471,43 @@ document.addEventListener('change', function(e) {
     }
 });
 ////////////ฟังชั่น AI พูดชื่อ
-	  function speakStatus(name, type) {
-    // ตรวจสอบว่าบราวเซอร์รองรับการออกเสียงหรือไม่
-    if ('speechSynthesis' in window) {
-        const msg = new SpeechSynthesisUtterance();
-        
-        // ดึงแค่ชื่อเล่นหรือชื่อจริง (ตัดนามสกุลออกเพื่อให้ประโยคไม่ยาวเกินไป)
-        const firstName = name.split(' ')[0];
-        
-        // กำหนดข้อความตามสถานะ
-        if (type === 'IN') {
-            msg.text = `คุณ ${firstName} เชิญค่ะ`;
-        } else {
-            msg.text = `คุณ ${firstName} ออกสำเร็จค่ะ`;
-        }
+	  function speakStatus(firstName, lastName, type) {
+    if (!systemSettings.ttsEnabled || !('speechSynthesis' in window)) return;
 
-        // ตั้งค่าภาษาเป็นไทย
-        msg.lang = 'th-TH';
-        msg.volume = 1; // ความดัง 0-1
-        msg.rate = 1.1;  // ความเร็ว (1.1 คือเร็วขึ้นนิดนึงให้ดูไม่หุ่นยนต์เกินไป)
-        msg.pitch = 1;  // ระดับเสียงสูงต่ำ
+    // ยกเลิกเสียงที่กำลังพูดอยู่
+    window.speechSynthesis.cancel();
 
-        // สั่งให้พูด
-        window.speechSynthesis.speak(msg);
+    const msg = new SpeechSynthesisUtterance();
+    
+    // ประกอบประโยค
+    let nameToSpeak = (systemSettings.ttsNameMode === 'first') ? firstName : `${firstName} ${lastName}`;
+    let prefix = systemSettings.ttsPrefix || "";
+    let suffix = (type === 'IN') ? (systemSettings.ttsInSuffix || "") : (systemSettings.ttsOutSuffix || "");
+    
+    msg.text = `${prefix} ${nameToSpeak} ${suffix}`;
+    msg.lang = 'th-TH';
+
+    // เลือก Voice ตามที่ตั้งค่าไว้
+    if (systemSettings.ttsVoiceName) {
+        const voice = voices.find(v => v.name === systemSettings.ttsVoiceName);
+        if (voice) msg.voice = voice;
     }
+
+    msg.rate = 1.1;
+    window.speechSynthesis.speak(msg);
+}
+
+// ฟังก์ชันทดสอบจากหน้าตั้งค่า
+function testVoice() {
+    const prefix = document.getElementById('ttsPrefix').value;
+    const voiceName = document.getElementById('ttsVoiceSelect').value;
+    
+    window.speechSynthesis.cancel();
+    const msg = new SpeechSynthesisUtterance(`${prefix} ทดสอบระบบเสียงค่ะ`);
+    msg.lang = 'th-TH';
+    const voice = voices.find(v => v.name === voiceName);
+    if (voice) msg.voice = voice;
+    window.speechSynthesis.speak(msg);
 }
 	  ////////////
   </script>
