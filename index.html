@@ -4533,7 +4533,7 @@ function testVoice() {
     
     window.speechSynthesis.cancel();
     // ใส่เครื่องหมาย , เพื่อทดสอบจังหวะเว้นวรรค
-    const msg = new SpeechSynthesisUtterance(`${prefix}, คุณกำลังทดสอบระบบเสียง`);
+    const msg = new SpeechSynthesisUtterance(`${prefix}, กำลังทดสอบระบบเสียง`);
     msg.lang = 'th-TH';
     msg.rate = parseFloat(rate);
     const voice = voices.find(v => v.name === voiceName);
