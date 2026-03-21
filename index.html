@@ -892,10 +892,17 @@ gap: 1px !important;
             </div>
 
             <!-- ปรับความดังเสียงติ๊ด -->
-            <div>
-                <label class="block text-xs font-bold text-gray-500 mb-1">ความดังเสียงติ๊ด (Beep Volume: <span id="beepVolVal">0.5</span>)</label>
-                <input type="range" id="beepVolume" min="0" max="1" step="0.1" value="0.5" oninput="document.getElementById('beepVolVal').textContent=this.value" class="w-full h-2 bg-green-200 rounded-lg appearance-none cursor-pointer">
-            </div>
+<div class="mt-4">
+    <label class="block text-xs font-bold text-gray-500 mb-1">ความดังเสียงติ๊ด (Beep Volume: <span id="beepVolVal">0.5</span>)</label>
+    <input type="range" id="beepVolume" min="0" max="1" step="0.1" value="0.5" oninput="document.getElementById('beepVolVal').textContent=this.value" class="w-full h-2 bg-green-200 rounded-lg appearance-none cursor-pointer">
+</div>
+
+			<!-- ปรับ Delay ระหว่างเสียงติ๊ดกับเสียงพูด -->
+<div class="mt-4">
+    <label class="block text-xs font-bold text-gray-500 mb-1">ดีเลย์ก่อน AI เริ่มพูด (Delay: <span id="beepDelayVal">0.6</span> วินาที)</label>
+    <input type="range" id="announcementDelay" min="0" max="2000" step="100" value="600" oninput="document.getElementById('beepDelayVal').textContent=(this.value/1000).toFixed(1)" class="w-full h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer">
+    <div class="flex justify-between text-[9px] text-gray-400 mt-1"><span>พูดทันที</span><span>1 วินาที</span><span>2 วินาที</span></div>
+</div>
 
             <div>
                 <label class="block text-xs font-bold text-gray-500 mb-1">เลือกชุดเสียง AI (ภาษาไทย)</label>
@@ -939,7 +946,7 @@ gap: 1px !important;
                     <input type="text" id="ttsOutSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น ออกสำเร็จค่ะ">
                 </div>
             </div>
-            <p class="text-[9px] text-gray-400 mt-2">* ระบบจะเล่นเสียงติ๊ดก่อน และตามด้วยเสียงพูดหลังจากเว้นวรรค 1 วินาที</p>
+            <p class="text-[9px] text-gray-400 mt-2">* ระบบจะเล่นเสียงติ๊ดก่อน และตามด้วยเสียงพูดหลังจากเว้นวรรคตามที่ตั้งค่า delay</p>
         </div>
     </div>
 </div>
@@ -2138,7 +2145,7 @@ function toggleHybridCamera() {
     // 2. เรียกเสียง AI (ถ้าตั้งค่าให้เล่น)
     if (mode === 'both' || mode === 'voice') {
         // ถ้าเล่นทั้งคู่ ให้รอเสียงติ๊ดจบก่อน (หน่วงเวลา 600ms)
-        const delay = (mode === 'both') ? 600 : 0;
+        const delayTime = (mode === 'both') ? parseInt(systemSettings.announcementDelay || 600) : 0;
         setTimeout(() => {
             speakStatus(res.cardInfo.firstName, res.cardInfo.lastName, res.ioType);
         }, delay);
@@ -3120,6 +3127,9 @@ if(res.ioType === 'IN') {
     document.getElementById('cardFooterLine3').value = systemSettings.cardFooterLine3 || '';
 
     // 3. ตั้งค่าเสียง AI & แจ้งเตือน
+	const delay = systemSettings.announcementDelay || 600;
+document.getElementById('announcementDelay').value = delay;
+document.getElementById('beepDelayVal').textContent = (delay / 1000).toFixed(1);	
     if(document.getElementById('announcementMode')) document.getElementById('announcementMode').value = systemSettings.announcementMode || "both";
     if(document.getElementById('beepVolume')) {
         document.getElementById('beepVolume').value = systemSettings.beepVolume || 0.5;
@@ -3193,6 +3203,7 @@ if(res.ioType === 'IN') {
     systemSettings.ttsOutSuffix = document.getElementById('ttsOutSuffix').value;
     systemSettings.ttsVoiceName = document.getElementById('ttsVoiceSelect').value;
     systemSettings.ttsRate = document.getElementById('ttsRate').value;
+	   systemSettings.announcementDelay = document.getElementById('announcementDelay').value;
 
     showLoader('กำลังบันทึกการตั้งค่า...');
     await apiCall('saveSettings', systemSettings);
@@ -4596,6 +4607,7 @@ function testVoice() {
 function testFullNotification() {
     const mode = document.getElementById('announcementMode').value;
     const vol = document.getElementById('beepVolume').value;
+    const delayVal = document.getElementById('announcementDelay').value; // ดึงค่าจากหน้าจอ
     
     if (mode === 'both' || mode === 'beep') {
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3');
@@ -4604,20 +4616,20 @@ function testFullNotification() {
     }
     
     if (mode === 'both' || mode === 'voice') {
-        const delay = (mode === 'both') ? 1000 : 0;
+        const actualDelay = (mode === 'both') ? parseInt(delayVal) : 0;
         setTimeout(() => {
             const prefix = document.getElementById('ttsPrefix').value;
             const voiceName = document.getElementById('ttsVoiceSelect').value;
             const rate = document.getElementById('ttsRate').value;
             
             window.speechSynthesis.cancel();
-            const msg = new SpeechSynthesisUtterance(`${prefix}, กำลังทดสอบระบบเสียง`);
+            const msg = new SpeechSynthesisUtterance(`${prefix}, ทดสอบระบบเสียงค่ะ`);
             msg.lang = 'th-TH';
             msg.rate = parseFloat(rate);
             const voice = voices.find(v => v.name === voiceName);
             if (voice) msg.voice = voice;
             window.speechSynthesis.speak(msg);
-        }, delay);
+        }, actualDelay);
     }
 }
 	  ////////////
