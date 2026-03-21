@@ -872,63 +872,68 @@ gap: 1px !important;
            <button onclick="addBannerSlot()" class="px-4 py-3 border-2 border-dashed border-gray-300 mt-4 w-full text-gray-500 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition flex items-center justify-center gap-2 font-medium"><i data-lucide="plus" class="w-5 h-5"></i> เพิ่มรูป Banner</button>
        </div>
 
-		 <!-- Settings: AI Voice (TTS) -->
+		 <!-- Settings: AI Voice & Notification Sound -->
 <div class="bg-white rounded-2xl card-shadow p-6 mt-6">
     <h3 class="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-gray-700">
-        <i data-lucide="volume-2" class="w-5 h-5 text-indigo-500"></i> ตั้งค่าเสียง AI ตอบรับ (Voice Announcement)
+        <i data-lucide="megaphone" class="w-5 h-5 text-indigo-500"></i> ตั้งค่าเสียงแจ้งเตือนและ AI
     </h3>
     
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="space-y-4">
-            <div class="flex items-center justify-between bg-indigo-50 p-3 rounded-xl border border-indigo-100">
-                <label class="font-bold text-indigo-900 text-sm">เปิดใช้งานเสียงตอบรับ</label>
-                <input type="checkbox" id="ttsEnabled" class="w-6 h-6 text-indigo-600 rounded-lg">
-            </div>
-            
+            <!-- เลือกรูปแบบการแจ้งเตือน -->
             <div>
-                <label class="block text-xs font-bold text-gray-500 mb-1">เลือกชุดเสียง (ภาษาไทย)</label>
+                <label class="block text-xs font-bold text-gray-500 mb-1">รูปแบบการแจ้งเตือนเมื่อสำเร็จ</label>
+                <select id="announcementMode" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 bg-white font-medium">
+                    <option value="both">ใช้ทั้งเสียงติ๊ด และ เสียงพูด AI</option>
+                    <option value="beep">เสียงติ๊ด (Beep) อย่างเดียว</option>
+                    <option value="voice">เสียงพูด AI อย่างเดียว</option>
+                    <option value="none">ปิดการแจ้งเตือนด้วยเสียงทั้งหมด</option>
+                </select>
+            </div>
+
+            <!-- ปรับความดังเสียงติ๊ด -->
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">ความดังเสียงติ๊ด (Beep Volume: <span id="beepVolVal">0.5</span>)</label>
+                <input type="range" id="beepVolume" min="0" max="1" step="0.1" value="0.5" oninput="document.getElementById('beepVolVal').textContent=this.value" class="w-full h-2 bg-green-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">เลือกชุดเสียง AI (ภาษาไทย)</label>
                 <div class="flex gap-2">
                     <select id="ttsVoiceSelect" class="flex-1 border p-2.5 rounded-xl outline-none focus:ring-2 bg-white text-sm font-medium"></select>
-                    <button onclick="initVoices()" class="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition">
-                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                    </button>
-                    <button onclick="testVoice()" class="px-4 py-2 bg-indigo-100 text-indigo-600 rounded-xl hover:bg-indigo-200 transition">
-                        <i data-lucide="play" class="w-4 h-4"></i>
-                    </button>
+                    <button onclick="initVoices()" class="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
                 </div>
             </div>
 
-            <!-- เพิ่มส่วนปรับความเร็ว -->
             <div>
-                <label class="block text-xs font-bold text-gray-500 mb-1">ความเร็วเสียง (Speed: <span id="ttsRateVal">1.0</span>)</label>
+                <label class="block text-xs font-bold text-gray-500 mb-1">ความเร็วเสียง AI (Speed: <span id="ttsRateVal">1.0</span>)</label>
                 <input type="range" id="ttsRate" min="0.5" max="2" step="0.1" value="1.0" oninput="document.getElementById('ttsRateVal').textContent=this.value" class="w-full h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer">
-                <div class="flex justify-between text-[10px] text-gray-400 mt-1"><span>ช้า</span><span>ปกติ</span><span>เร็ว</span></div>
-            </div>
-
-            <div>
-                <label class="block text-xs font-bold text-gray-500 mb-1">รูปแบบการเรียกชื่อ</label>
-                <select id="ttsNameMode" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 bg-white font-medium">
-                    <option value="first">เฉพาะชื่อจริง</option>
-                    <option value="full">ชื่อ และ นามสกุล</option>
-                </select>
             </div>
         </div>
 
+        <!-- ตั้งค่าคำพูด -->
         <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-3">
-            <p class="text-[10px] text-indigo-500 font-bold uppercase tracking-widest bg-white px-2 py-1 rounded inline-block">กำหนดคำพูด</p>
-            <div>
-                <label class="block text-[11px] font-bold text-gray-400 mb-1">1. คำขึ้นต้น</label>
-                <input type="text" id="ttsPrefix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น คุณ, สวัสดีคุณ">
+             <div class="flex justify-between items-center">
+                <p class="text-[10px] text-indigo-500 font-bold uppercase tracking-widest bg-white px-2 py-1 rounded inline-block">กำหนดประโยคพูด</p>
+                <button onclick="testFullNotification()" class="text-xs bg-indigo-600 text-white px-3 py-1 rounded-lg font-bold hover:bg-indigo-700 transition flex items-center gap-1">
+                    <i data-lucide="play" class="w-3 h-3"></i> ทดสอบแบบเต็ม
+                </button>
             </div>
-            <div>
-                <label class="block text-[11px] font-bold text-gray-400 mb-1">2. คำต่อท้ายเมื่อ "เข้า"</label>
-                <input type="text" id="ttsInSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น เชิญค่ะ">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2">
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1">คำขึ้นต้น</label>
+                    <input type="text" id="ttsPrefix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น คุณ">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1">คำลงท้าย (เข้า)</label>
+                    <input type="text" id="ttsInSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น เชิญค่ะ">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1">คำลงท้าย (ออก)</label>
+                    <input type="text" id="ttsOutSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น ออกสำเร็จค่ะ">
+                </div>
             </div>
-            <div>
-                <label class="block text-[11px] font-bold text-gray-400 mb-1">3. คำต่อท้ายเมื่อ "ออก"</label>
-                <input type="text" id="ttsOutSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น ออกสำเร็จค่ะ">
-            </div>
-            <p class="text-[10px] text-gray-400 italic">* ระบบจะเว้นวรรคให้อัตโนมัติระหว่างคำ</p>
+            <p class="text-[9px] text-gray-400 mt-2">* ระบบจะเล่นเสียงติ๊ดก่อน และตามด้วยเสียงพูดหลังจากเว้นวรรค 0.6 วินาที</p>
         </div>
     </div>
 </div>
@@ -1357,6 +1362,8 @@ systemSettings.ttsInSuffix = "ยินดีต้อนรับ";
 systemSettings.ttsOutSuffix = "ออกสำเรียบร้อย";
 systemSettings.ttsNameMode = "first";
 systemSettings.ttsVoiceName = "";
+systemSettings.announcementMode = systemSettings.announcementMode || "both";
+systemSettings.beepVolume = systemSettings.beepVolume !== undefined ? systemSettings.beepVolume : 0.5;	  
 
 let voices = [];
 
@@ -2111,17 +2118,25 @@ function toggleHybridCamera() {
     }
 
     function handleScanSuccess(res) {
-	// --- เพิ่มโค้ดเล่นเสียงตรงนี้ ---
+	const mode = systemSettings.announcementMode;
+
+    // 1. เล่นเสียงติ๊ด (ถ้าตั้งค่าให้เล่น)
+    if (mode === 'both' || mode === 'beep') {
         try {
-            // เสียงติ๊ด (แสกนสำเร็จ)
-            //const successSound = new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3');
-           // successSound.play();
+            const successSound = new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3');
+            successSound.volume = parseFloat(systemSettings.beepVolume); // ใช้ความดังตามที่ตั้งไว้
+            successSound.play();
         } catch(e) {}
-        // -----------------------------
-// --- เพิ่มบรรทัดนี้ลงไป (ประมาณท้ายๆ ฟังก์ชัน) ---
-    //const fullName = `${res.cardInfo.firstName}`; // ส่งชื่อเข้าไป
-    speakStatus(res.cardInfo.firstName, res.cardInfo.lastName, res.ioType);
-    // ------------------------------------------
+    }
+
+    // 2. เรียกเสียง AI (ถ้าตั้งค่าให้เล่น)
+    if (mode === 'both' || mode === 'voice') {
+        // ถ้าเล่นทั้งคู่ ให้รอเสียงติ๊ดจบก่อน (หน่วงเวลา 600ms)
+        const delay = (mode === 'both') ? 600 : 0;
+        setTimeout(() => {
+            speakStatus(res.cardInfo.firstName, res.cardInfo.lastName, res.ioType);
+        }, delay);
+    }
 		// -----------------------------
         showToast(`บันทึกสถานะ ${res.ioType} สำเร็จ`, 'success');
         
@@ -3088,6 +3103,11 @@ document.getElementById('ttsPrefix').value = systemSettings.ttsPrefix || "";
 document.getElementById('ttsInSuffix').value = systemSettings.ttsInSuffix || "";
 document.getElementById('ttsOutSuffix').value = systemSettings.ttsOutSuffix || "";
 document.getElementById('ttsNameMode').value = systemSettings.ttsNameMode || "first";
+document.getElementById('ttsRate').value = systemSettings.ttsRate || 1.0;
+document.getElementById('ttsRateVal').textContent = systemSettings.ttsRate || 1.0;
+		document.getElementById('announcementMode').value = systemSettings.announcementMode || "both";
+document.getElementById('beepVolume').value = systemSettings.beepVolume || 0.5;
+document.getElementById('beepVolVal').textContent = systemSettings.beepVolume || 0.5;
 initVoices(); // โหลดรายการเสียง
 	  ///////
         renderBannerList();
@@ -3128,13 +3148,16 @@ initVoices(); // โหลดรายการเสียง
         // --- เพิ่มบรรทัดนี้เข้าไป เพื่อดึงสถานะติ๊กถูกจากหน้าเว็บ ---
         systemSettings.autoCheckoutEnabled = document.getElementById('autoCheckoutEnabled').checked;
 
-		// ----
+		// ----AI VOICE
 systemSettings.ttsEnabled = document.getElementById('ttsEnabled').checked;
 systemSettings.ttsPrefix = document.getElementById('ttsPrefix').value;
 systemSettings.ttsInSuffix = document.getElementById('ttsInSuffix').value;
 systemSettings.ttsOutSuffix = document.getElementById('ttsOutSuffix').value;
 systemSettings.ttsNameMode = document.getElementById('ttsNameMode').value;
 systemSettings.ttsVoiceName = document.getElementById('ttsVoiceSelect').value;
+systemSettings.ttsRate = document.getElementById('ttsRate').value;	
+		systemSettings.announcementMode = document.getElementById('announcementMode').value;
+systemSettings.beepVolume = document.getElementById('beepVolume').value;
 		// ----
 
         await apiCall('saveSettings', systemSettings);
@@ -4494,34 +4517,25 @@ document.addEventListener('change', function(e) {
 	systemSettings.ttsRate = 1.0; 
 
 function speakStatus(firstName, lastName, type) {
-    if (!systemSettings.ttsEnabled || !('speechSynthesis' in window)) return;
+    if (!('speechSynthesis' in window)) return;
 
-    window.speechSynthesis.cancel(); // ตัดเสียงที่ค้างอยู่
+    window.speechSynthesis.cancel(); // ล้างคิวเก่า
 
     const msg = new SpeechSynthesisUtterance();
-    
-    // ดึงข้อมูลประโยค
     let nameToSpeak = (systemSettings.ttsNameMode === 'first') ? firstName : `${firstName} ${lastName}`;
     let prefix = systemSettings.ttsPrefix || "";
     let suffix = (type === 'IN') ? (systemSettings.ttsInSuffix || "") : (systemSettings.ttsOutSuffix || "");
     
-    /** 
-     * เทคนิคการเว้นวรรค: 
-     * การใส่เครื่องหมาย , (comma) ใน Web Speech API จะเป็นการสั่งให้ AI หยุดหายใจ/เว้นวรรคสั้นๆ 
-     */
+    // ใส่เครื่องหมาย , เพื่อให้ AI เว้นวรรคจังหวะพูด
     msg.text = `${prefix}, ${nameToSpeak}, ${suffix}`;
     msg.lang = 'th-TH';
 
-    // เลือกเสียงตามที่ตั้งค่า
     if (systemSettings.ttsVoiceName) {
         const voice = voices.find(v => v.name === systemSettings.ttsVoiceName);
         if (voice) msg.voice = voice;
     }
 
-    // ตั้งค่าความเร็วจากหน้าจอตั้งค่า
     msg.rate = parseFloat(systemSettings.ttsRate) || 1.0;
-    msg.pitch = 1;
-    
     window.speechSynthesis.speak(msg);
 }
 
@@ -4539,6 +4553,35 @@ function testVoice() {
     const voice = voices.find(v => v.name === voiceName);
     if (voice) msg.voice = voice;
     window.speechSynthesis.speak(msg);
+}
+
+	  // ฟังก์ชันทดสอบแบบรวม (เล่นเหมือนจริง)
+function testFullNotification() {
+    const mode = document.getElementById('announcementMode').value;
+    const vol = document.getElementById('beepVolume').value;
+    
+    if (mode === 'both' || mode === 'beep') {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3');
+        audio.volume = parseFloat(vol);
+        audio.play();
+    }
+    
+    if (mode === 'both' || mode === 'voice') {
+        const delay = (mode === 'both') ? 600 : 0;
+        setTimeout(() => {
+            const prefix = document.getElementById('ttsPrefix').value;
+            const voiceName = document.getElementById('ttsVoiceSelect').value;
+            const rate = document.getElementById('ttsRate').value;
+            
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(`${prefix}, ทดสอบระบบเสียงค่ะ`);
+            msg.lang = 'th-TH';
+            msg.rate = parseFloat(rate);
+            const voice = voices.find(v => v.name === voiceName);
+            if (voice) msg.voice = voice;
+            window.speechSynthesis.speak(msg);
+        }, delay);
+    }
 }
 	  ////////////
   </script>
