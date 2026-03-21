@@ -4604,7 +4604,7 @@ function testFullNotification() {
     }
     
     if (mode === 'both' || mode === 'voice') {
-        const delay = (mode === 'both') ? 900 : 0;
+        const delay = (mode === 'both') ? 1000 : 0;
         setTimeout(() => {
             const prefix = document.getElementById('ttsPrefix').value;
             const voiceName = document.getElementById('ttsVoiceSelect').value;
