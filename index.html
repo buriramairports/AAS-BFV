@@ -4604,14 +4604,14 @@ function testFullNotification() {
     }
     
     if (mode === 'both' || mode === 'voice') {
-        const delay = (mode === 'both') ? 600 : 0;
+        const delay = (mode === 'both') ? 900 : 0;
         setTimeout(() => {
             const prefix = document.getElementById('ttsPrefix').value;
             const voiceName = document.getElementById('ttsVoiceSelect').value;
             const rate = document.getElementById('ttsRate').value;
             
             window.speechSynthesis.cancel();
-            const msg = new SpeechSynthesisUtterance(`${prefix}, ทดสอบระบบเสียงค่ะ`);
+            const msg = new SpeechSynthesisUtterance(`${prefix}, กำลังทดสอบระบบเสียง`);
             msg.lang = 'th-TH';
             msg.rate = parseFloat(rate);
             const voice = voices.find(v => v.name === voiceName);
