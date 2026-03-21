@@ -4493,7 +4493,9 @@ document.addEventListener('change', function(e) {
         if (voice) msg.voice = voice;
     }
 
-    msg.rate = 1.1;
+    msg.rate = 1.0; // ความเร็ว (1.1 คือเร็วขึ้นนิดนึงให้ดูไม่หุ่นยนต์เกินไป)
+		  msg.volume = 1; // ความดัง 0-1
+		  msg.pitch = 1;  // ระดับเสียงสูงต่ำ
     window.speechSynthesis.speak(msg);
 }
 
@@ -4503,7 +4505,7 @@ function testVoice() {
     const voiceName = document.getElementById('ttsVoiceSelect').value;
     
     window.speechSynthesis.cancel();
-    const msg = new SpeechSynthesisUtterance(`${prefix} ทดสอบระบบเสียงค่ะ`);
+    const msg = new SpeechSynthesisUtterance(`${prefix} ทดสอบระบบเสียง`);
     msg.lang = 'th-TH';
     const voice = voices.find(v => v.name === voiceName);
     if (voice) msg.voice = voice;
