@@ -2019,7 +2019,11 @@ function toggleHybridCamera() {
             successSound.play();
         } catch(e) {}
         // -----------------------------
-	
+// --- เพิ่มบรรทัดนี้ลงไป (ประมาณท้ายๆ ฟังก์ชัน) ---
+    const fullName = `${res.cardInfo.firstName}`; // ส่งชื่อเข้าไป
+    speakStatus(fullName, res.ioType); // สั่งให้ AI พูดชื่อและสถานะ
+    // ------------------------------------------
+		// -----------------------------
         showToast(`บันทึกสถานะ ${res.ioType} สำเร็จ`, 'success');
         
         document.getElementById('scanResultEmpty').classList.add('hidden');
@@ -4370,7 +4374,33 @@ document.addEventListener('change', function(e) {
         }
     }
 });
-////////////
+////////////ฟังชั่น AI พูดชื่อ
+	  function speakStatus(name, type) {
+    // ตรวจสอบว่าบราวเซอร์รองรับการออกเสียงหรือไม่
+    if ('speechSynthesis' in window) {
+        const msg = new SpeechSynthesisUtterance();
+        
+        // ดึงแค่ชื่อเล่นหรือชื่อจริง (ตัดนามสกุลออกเพื่อให้ประโยคไม่ยาวเกินไป)
+        const firstName = name.split(' ')[0];
+        
+        // กำหนดข้อความตามสถานะ
+        if (type === 'IN') {
+            msg.text = `คุณ ${firstName} เชิญค่ะ`;
+        } else {
+            msg.text = `คุณ ${firstName} ออกสำเร็จค่ะ`;
+        }
+
+        // ตั้งค่าภาษาเป็นไทย
+        msg.lang = 'th-TH';
+        msg.volume = 1; // ความดัง 0-1
+        msg.rate = 1.1;  // ความเร็ว (1.1 คือเร็วขึ้นนิดนึงให้ดูไม่หุ่นยนต์เกินไป)
+        msg.pitch = 1;  // ระดับเสียงสูงต่ำ
+
+        // สั่งให้พูด
+        window.speechSynthesis.speak(msg);
+    }
+}
+	  ////////////
   </script>
 </body>
 </html>
