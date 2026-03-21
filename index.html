@@ -2133,22 +2133,23 @@ function toggleHybridCamera() {
     function handleScanSuccess(res) {
 	const mode = systemSettings.announcementMode;
 
-    // 1. เล่นเสียงติ๊ด (ถ้าตั้งค่าให้เล่น)
+    // 1. เล่นเสียงติ๊ด
     if (mode === 'both' || mode === 'beep') {
         try {
             const successSound = new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3');
-            successSound.volume = parseFloat(systemSettings.beepVolume); // ใช้ความดังตามที่ตั้งไว้
+            successSound.volume = parseFloat(systemSettings.beepVolume);
             successSound.play();
         } catch(e) {}
     }
 
-    // 2. เรียกเสียง AI (ถ้าตั้งค่าให้เล่น)
+    // 2. เรียกเสียง AI
     if (mode === 'both' || mode === 'voice') {
-        // ถ้าเล่นทั้งคู่ ให้รอเสียงติ๊ดจบก่อน (หน่วงเวลา 600ms)
+        // ดึงค่า Delay จากที่ตั้งค่าไว้ (แปลงเป็นตัวเลข)
         const delayTime = (mode === 'both') ? parseInt(systemSettings.announcementDelay || 600) : 0;
+        
         setTimeout(() => {
             speakStatus(res.cardInfo.firstName, res.cardInfo.lastName, res.ioType);
-        }, delay);
+        }, delayTime);
     }
 		// -----------------------------
         showToast(`บันทึกสถานะ ${res.ioType} สำเร็จ`, 'success');
