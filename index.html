@@ -4642,7 +4642,7 @@ function testFullNotification() {
             const rate = document.getElementById('ttsRate').value;
             
             window.speechSynthesis.cancel();
-            const msg = new SpeechSynthesisUtterance(`${prefix}, ทดสอบระบบเสียงค่ะ`);
+            const msg = new SpeechSynthesisUtterance(`${prefix}, กำลังทดสอบระบบเสียง`);
             msg.lang = 'th-TH';
             msg.rate = parseFloat(rate);
             
