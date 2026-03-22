@@ -1356,6 +1356,7 @@ gap: 1px !important;
     let currentUser = null, currentPage = 'home';
     let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true , aiThreshold: 0.38, aiCooldown: 10, aiInterval: 1000, aiPadX: 15, aiPadTop: 35 };
     let activeProcessingIds = new Set(); // เก็บ ID บัตรที่กำลังรอกระบวนการจากเซิร์ฟเวอร์
+	  let isGlobalProcessing = false; // ตัวล็อคระดับระบบ ไม่ให้ส่งคำขอซ้อนกันเกินไป
     // Data Caches
     let allGates = [], typeCards = [], allCards = [], allSystemUsers = [], allAreas = [];
     let recentLogs = []; // เก็บแค่ Array ของหน้าแรกเพื่อความเร็ว
@@ -2060,8 +2061,13 @@ function toggleHybridCamera() {
    function executeScanSuccessLocal(gate, card, typeInfo, newStatus, compCard) {
     const cardId = card.cardId;
     
-    // เริ่มล็อค ID นี้ เพื่อไม่ให้แสกนซ้ำระหว่างรอกระบวนการเซิร์ฟเวอร์
+    // ล็อคระบบรวม และ ล็อค ID บัตร
+    isGlobalProcessing = true;
     activeProcessingIds.add(cardId);
+    
+    // แสดงสถานะ "กำลังบันทึก" ที่แถบด้านบน
+    const statusEl = document.getElementById('faceScanStatus');
+    if(statusEl) statusEl.innerHTML = `<span class="text-orange-600 animate-pulse">⏳ กำลังบันทึกข้อมูล...</span>`;
 
     const now = new Date();
     const logTimeStr = now.toISOString();
@@ -2095,21 +2101,20 @@ function toggleHybridCamera() {
         offlineQueue.push(scanData);
         localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
         updateOfflineUI();
-        // ถ้าออฟไลน์ ให้ปลดล็อคทันทีเพราะไม่ได้รอเซิร์ฟเวอร์ตอบกลับ
+        isGlobalProcessing = false; // ออฟไลน์ไม่ต้องรอ ปลดล็อคได้เลย
         activeProcessingIds.delete(cardId);
 		showToast('บันทึกออฟไลน์แล้ว (รออินเทอร์เน็ต)', 'warning');
     } else {
-        // ส่งไปเซิร์ฟเวอร์
         apiCall('processScan', scanData, false)
-        .then(() => {
-            console.log("Sync success for " + cardId);
-        })
-        .catch(err => {
-            console.error("Sync failed, ID remained in queue", err);
-        })
+        .then(() => { console.log("Server sync ok: " + cardId); })
+        .catch(err => { console.error("Sync failed", err); })
         .finally(() => {
-            // เมื่อเซิร์ฟเวอร์ตอบกลับแล้ว (ไม่ว่าจะสำเร็จหรือ Error) ให้ปลดล็อค ID นี้เพื่อให้แสกนใหม่ได้
-            activeProcessingIds.delete(cardId);
+            // หน่วงเวลาเล็กน้อย (500ms) ให้เซิร์ฟเวอร์หายใจ ก่อนจะเริ่มรับแสกนคนถัดไป
+            setTimeout(() => {
+                isGlobalProcessing = false; 
+                activeProcessingIds.delete(cardId);
+                if(statusEl) statusEl.innerHTML = 'ระบบพร้อมทำงาน...';
+            }, 500);
         });
     }
 }
@@ -4108,8 +4113,9 @@ function triggerFaceScanSuccess(cardId) {
     const isAlertOpen = !document.getElementById('customAlertModal').classList.contains('hidden');
     const isCompModalOpen = !document.getElementById('companionModal').classList.contains('hidden');
     
-    // บล็อคไม่ให้แสกนเพิ่มถ้า: มีแจ้งเตือนเปิดอยู่ OR กำลังรอคำตอบจากเซิร์ฟเวอร์ของบัตรใบนี้
-    if (isAlertOpen || isCompModalOpen || activeProcessingIds.has(cardId)) return;
+    // --- [Perfect Lock] ถ้ามีแจ้งเตือนค้างอยู่ OR ระบบกำลังคุยกับเซิร์ฟเวอร์ OR บัตรใบนี้กำลังรอคิว ---
+    // เราจะหยุดรับแสกนทันที เพื่อป้องกันคิวที่เซิร์ฟเวอร์เต็ม
+    if (isAlertOpen || isCompModalOpen || isGlobalProcessing || activeProcessingIds.has(cardId)) return;
 
     if (lastScannedFaceId === cardId) return;
     
@@ -4119,14 +4125,14 @@ function triggerFaceScanSuccess(cardId) {
 
     const statusEl = document.getElementById('faceScanStatus');
     if (statusEl) {
-        statusEl.innerHTML = `<span class="text-green-600 font-black">✔ อ่านรหัสได้: ${cardId}</span>`;
+        statusEl.innerHTML = `<span class="text-green-600 font-black">✔ ตรวจพบ: ${cardId}</span>`;
         statusEl.classList.remove('bg-indigo-50', 'text-indigo-700');
         statusEl.classList.add('bg-green-50');
         
         setTimeout(() => {
             statusEl.classList.remove('bg-green-50');
             statusEl.classList.add('bg-indigo-50', 'text-indigo-700');
-            statusEl.innerHTML = 'ระบบพร้อมทำงาน...';
+            if(!isGlobalProcessing) statusEl.innerHTML = 'ระบบพร้อมทำงาน...';
         }, 2000);
     }
 
