@@ -2028,7 +2028,26 @@ function processMainScan() {
 }
 
 // 4. ฟังก์ชันแสดงผลข้อมูลทันที (Instant UI)
+/**
+ * 4. ปรับปรุงฟังก์ชันแสดงผลทันที: ล้างข้อมูลเก่า (Reset) ป้องกันบัค
+ */
 function showInstantUI(card, typeInfo, predictedStatus) {
+    // --- 1. ล้างข้อมูลภาพเก่าและไอคอนเก่าก่อนเสมอ (แก้บัค 2) ---
+    const imgEl = document.getElementById('resCardImage');
+    const iconEl = document.getElementById('resCardIcon');
+    
+    imgEl.src = ""; // ล้าง URL รูปเดิมทิ้ง
+    imgEl.classList.add('hidden'); // ซ่อนรูปเดิม
+    iconEl.classList.remove('hidden'); // โชว์ไอคอนเริ่มต้นแทน
+    
+    // --- 2. ล้างข้อมูลผู้ติดตามเดิมทิ้งก่อนเสมอ (แก้บัค 1) ---
+    const compBox = document.getElementById('resCompanionBox');
+    compBox.classList.add('hidden'); // ซ่อนกล่องผู้ติดตามเดิม
+    document.getElementById('resCompanionName').textContent = "-";
+    document.getElementById('resCompanionId').textContent = "-";
+    document.getElementById('resCompanionOrg').textContent = "-";
+
+    // --- 3. แสดงส่วนข้อมูลพนักงาน ---
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.remove('hidden');
     
@@ -2044,16 +2063,19 @@ function showInstantUI(card, typeInfo, predictedStatus) {
     document.getElementById('resCardType').textContent = typeInfo.typeName;
     document.getElementById('resVehicle').textContent = card.vehicleReg || '-';
     document.getElementById('resExpiry').textContent = formatDateOnly(card.expiryDate);
-    document.getElementById('resTime').innerHTML = "กำลังบันทึก...";
+    document.getElementById('resTime').innerHTML = "กำลังบันทึกข้อมูล...";
 
-    // จัดการรูปภาพ
-    const imgEl = document.getElementById('resCardImage');
-    const iconEl = document.getElementById('resCardIcon');
+    // หากคนใหม่นี้มีรูป ให้โหลดโชว์แทนไอคอน
     if (card.imageUrl && card.imageUrl.trim() !== '') {
         imgEl.src = card.imageUrl;
-        imgEl.classList.remove('hidden'); iconEl.classList.add('hidden');
-    } else {
-        imgEl.classList.add('hidden'); iconEl.classList.remove('hidden');
+        imgEl.onload = function() {
+            imgEl.classList.remove('hidden');
+            iconEl.classList.add('hidden');
+        };
+        imgEl.onerror = function() {
+            imgEl.classList.add('hidden');
+            iconEl.classList.remove('hidden');
+        };
     }
 }
 
@@ -2157,10 +2179,10 @@ function clearAllFailedScans() {
     if (box) box.remove();
 }
 /**
- * 6. ปรับปรุงการยืนยันสถานะ: เช็คว่าเป็นคนปัจจุบันหรือไม่
+ * 6. ปรับปรุงการยืนยันสถานะ: ตรวจสอบข้อมูลผู้ติดตาม (แก้บัค 1)
  */
 function confirmStatusUI(finalStatus, logTime, fullRes = null) {
-    // ถ้าข้อมูลที่กลับมา ไม่ตรงกับคนที่อยู่บนหน้าจอตอนนี้
+    // ตรวจสอบว่าคำตอบที่กลับมา เป็นของคนที่แสดงอยู่บนหน้าจอหรือไม่
     if (fullRes && String(fullRes.cardInfo.cardId).toUpperCase() !== currentDisplayCardId) {
         console.log(`ข้อมูลของ ${fullRes.cardInfo.cardId} กลับมาทีหลัง ไม่แสดงบนหน้าจอเพื่อป้องกันการสับสน`);
         return; 
@@ -2168,19 +2190,23 @@ function confirmStatusUI(finalStatus, logTime, fullRes = null) {
 
     const badge = document.getElementById('resIoBadge');
     badge.textContent = finalStatus;
-    badge.classList.remove('opacity-50', 'animate-pulse');
+    badge.classList.remove('opacity-50', 'animate-pulse'); // ปรับให้เข้มขึ้น (ยืนยันแล้ว)
     badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-xl z-10 tracking-widest transition-all duration-300 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
     
     document.getElementById('resTime').innerHTML = formatDateTime(logTime).replace(' | ', '<br>');
     
-    if (fullRes && fullRes.companionName) {
+    // --- จัดการข้อมูลผู้ติดตาม (เฉพาะเมื่อ Server ส่งมาจริงๆ) ---
+    const compBox = document.getElementById('resCompanionBox');
+    if (fullRes && fullRes.companionName && fullRes.companionName.trim() !== "") {
         document.getElementById('resCompanionName').textContent = fullRes.companionName;
         document.getElementById('resCompanionId').textContent = fullRes.companionCardId;
         document.getElementById('resCompanionOrg').textContent = fullRes.companionOrg || '-';
-        document.getElementById('resCompanionBox').classList.remove('hidden');
+        compBox.classList.remove('hidden'); // โชว์กล่อง
+    } else {
+        compBox.classList.add('hidden'); // ซ่อนกล่องหากคนนี้ไม่มีผู้ติดตาม
     }
 
-    // อัปเดตตารางด้านล่างเสมอ (เพราะเป็นข้อมูลจริงที่บันทึกแล้ว)
+    // อัปเดตตารางรายการด้านล่าง
     if (fullRes) {
         updateRecentLogsList(fullRes, logTime, finalStatus);
     }
