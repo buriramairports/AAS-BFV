@@ -2480,6 +2480,17 @@ if(res.ioType === 'IN') {
     const c = allCards.find(x => Number(x.id) == Number(id));
     if (!c) return showToast('ไม่พบข้อมูลบัตร', 'error');
 
+    // ฟังก์ชันช่วยแปลงวันที่ให้เข้ากับช่อง input type="date"
+    const formatDateForInput = (dateStr) => {
+        if (!dateStr) return "";
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return "";
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
     tempCardImageBase64 = null;
     isRemovingCardImage = false; 
     document.getElementById('cardImageInput').value = '';
@@ -2496,18 +2507,6 @@ if(res.ioType === 'IN') {
     document.getElementById('cardModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขข้อมูลบัตร';
     document.getElementById('editCardDbId').value = c.id;
     
-    const idParts = (c.cardId || '').split('/');
-    if(idParts.length === 2) {
-        document.getElementById('cardGenYear').value = idParts[1]; 
-        const prefixAndNum = idParts[0]; 
-        const numMatch = prefixAndNum.match(/\d+$/); 
-        if(numMatch) {
-            const n = numMatch[0];
-            document.getElementById('cardGenNum').value = parseInt(n); 
-            document.getElementById('cardGenPrefix').value = prefixAndNum.substring(0, prefixAndNum.length - n.length);
-        }
-    }
-
     document.getElementById('cardIdInp').value = c.cardId;
     document.getElementById('cardTypeInp').innerHTML = typeCards.map(t => `<option value="${t.id}" ${parseInt(t.id)===parseInt(c.typeId)?'selected':''}>${t.typeName}</option>`).join('');
     
@@ -2519,8 +2518,10 @@ if(res.ioType === 'IN') {
     document.getElementById('cardCanDrive').checked = (c.canDrive == true || c.canDrive == 'TRUE' || c.canDrive == 'true');
     
     document.querySelector(`input[name="cardStatusInp"][value="${c.status}"]`).checked = true;
-    document.getElementById('cardIssueDate').value = c.issueDate || '';
-    document.getElementById('cardExpiryDate').value = c.expiryDate || '';
+
+    // --- แก้ไขจุดนี้: บังคับฟอร์แมตวันที่ก่อนแสดงผล ---
+    document.getElementById('cardIssueDate').value = formatDateForInput(c.issueDate);
+    document.getElementById('cardExpiryDate').value = formatDateForInput(c.expiryDate);
 
     renderAreaCheckboxes(c.areaAccessIds || '');
     updateAreaCheckboxState();
@@ -4330,7 +4331,7 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         return (yiq >= 128) ? 'black' : 'white';
     }
 
-  async function previewIdCard(id) {
+ async function previewIdCard(id) {
     showLoader('กำลังเตรียมข้อมูลรูปภาพบัตร...');
     try {
         const c = allCards.find(x => Number(x.id) == Number(id));
@@ -4340,6 +4341,7 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         document.getElementById('tplFrontImg').src = systemSettings.cardTplFront || '';
         document.getElementById('tplBackImg').src = systemSettings.cardTplBack || '';
 
+        // จัดการรูปโปรไฟล์
         const imgEl = document.getElementById('renderPhoto');
         const iconEl = document.getElementById('renderPhotoIcon');
         if (c.imageUrl && c.imageUrl.trim() !== '') { 
@@ -4355,6 +4357,7 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
             imgEl.src = ''; imgEl.classList.add('hidden'); iconEl.classList.remove('hidden'); 
         }
 
+        // ข้อมูลหน้าบัตร
         document.getElementById('renderLblPos').textContent = systemSettings.lblPos || 'ตำแหน่ง';
         document.getElementById('renderLblOrg').textContent = systemSettings.lblOrg || 'สังกัด';
         document.getElementById('renderLblExp').textContent = systemSettings.lblExp || 'หมดอายุ';
@@ -4364,6 +4367,7 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         document.getElementById('renderExp').textContent = formatDateOnly(c.expiryDate);
         document.getElementById('renderCardId').textContent = c.cardId || '-';
 
+        // ป้ายสถานะ
         const tempEl = document.getElementById('renderTemp');
         const isTemp = (t.isTemporary == true || t.isTemporary == 'TRUE');
         const noComp = (t.requireCompanion == false || t.requireCompanion == 'FALSE');
@@ -4382,6 +4386,7 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         document.getElementById('renderEscort').style.display = (isTemp && noComp) ? "block" : "none";
         document.getElementById('renderDrive').style.display = canDrive ? "block" : "none";
 
+        // พื้นที่ Area Boxes
         const areaContainer = document.getElementById('renderAreaBoxes');
         areaContainer.innerHTML = ''; 
         if (c.areaAccessIds) {
@@ -4397,14 +4402,26 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
                 areaContainer.innerHTML = aData.slice(0, 4).map(a => `<div class="area-square-fixed" style="background-color:${a.colorCode}; color:${getContrastYIQ(a.colorCode)}; width:${boxW} !important; height:${boxH} !important; font-size:${fSize} !important; padding-bottom:${comp} !important; border:1px solid #1e1b4b !important;">${a.areaNumber}</div>`).join('');
             }
         }
+
+        // --- แก้ไขพรีวิวหลังบัตร (ดึงข้อมูลกฎระเบียบและส่วนท้าย) ---
+        document.getElementById('renderRulesTitle1').textContent = systemSettings.cardRulesTitle1 || 'ข้อควรปฏิบัติ';
+        document.getElementById('renderRulesTitle2').textContent = systemSettings.cardRulesTitle2 || '';
+        document.getElementById('renderRulesTitle3').textContent = systemSettings.cardRulesTitle3 || '';
+        document.getElementById('renderRules').innerHTML = (systemSettings.cardTplRules || '').replace(/\n/g, '<br>');
+        
+        document.getElementById('renderFooter1').textContent = systemSettings.cardFooterLine1 || '';
+        document.getElementById('renderFooter2').textContent = systemSettings.cardFooterLine2 || '';
+        document.getElementById('renderFooter3').textContent = systemSettings.cardFooterLine3 || '';
+
         document.getElementById('renderBarcode').textContent = `*${c.cardId}*`;
         document.getElementById('renderBarcodeText').textContent = c.cardId;
+
         hideLoader();
         document.getElementById('idCardModal').classList.remove('hidden');
         if (window.lucide) lucide.createIcons();
     } catch (err) {
         hideLoader();
-        showToast("เตรียมข้อมูลล้มเหลว: " + err.message, "error");
+        showToast("เตรียมข้อมูลพรีวิวไม่สำเร็จ: " + err.message, "error");
     }
 }
 	/////////////
