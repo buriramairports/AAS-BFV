@@ -1739,33 +1739,7 @@ function toggleHybridCamera() {
             });
     }
 
-    // 3. เปลี่ยนระบบอัปเดตข้อมูลเบื้องหลังอัตโนมัติ (Background Sync)
-    function startBackgroundSync() {
-        setInterval(() => {
-            if(currentUser && currentPage === 'home') { 
-                apiCall('getInitialData', {}, false)
-                    .then(data => {
-                        try {
-                            if(data) {
-                                allGates = data.gates || [];
-                                recentLogs = data.recentLogs || [];
-                                allCards = data.allCards || [];
-                                cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
-                                monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
-								allAreas = data.areas || [];
-                                
-                                updateGateSelects();
-                                renderHomeDashboard(); 
-                                renderRecentLogsTable();
-                            }
-                        } catch(e) {
-                            console.error("ข้อผิดพลาดตอนอัปเดตเบื้องหลัง:", e);
-                        }
-                    })
-                    .catch(e => console.log("Background sync failed:", e)); // ดักไว้เงียบๆ ไม่ต้องโชว์ Alert กวนใจผู้ใช้
-            }
-        }, 60000); // อัปเดตทุก 1 นาที
-    }
+    
 
 
 
@@ -1993,69 +1967,218 @@ function toggleHybridCamera() {
 
     // --- Core Scan Logic ---
     // --- ฟังก์ชันการสแกน ส่ง recordedBy ไปด้วย ---
-    function processMainScan() {
-        const gateId = document.getElementById('scanGateSelect').value;
-        const mainInput = document.getElementById('scanInput');
-        const cardId = mainInput.value.trim().toUpperCase();
+	// LOGIC ใหม่ /////////////////////
+	
+	// 3. ฟังก์ชันประมวลผลการแสกนหลัก (ฝั่งหน้าเว็บ)
+function processMainScan() {
+    const gateId = document.getElementById('scanGateSelect').value;
+    const mainInput = document.getElementById('scanInput');
+    const cardId = String(mainInput.value).trim().toUpperCase();
 
-        if(!gateId) return showAlert('ข้อมูลไม่ครบ', 'กรุณาเลือกจุดเข้าออกพื้นที่ก่อน', 'warning');
-        if(!cardId) return mainInput.focus();
+    if (!gateId) return showAlert('ข้อมูลไม่ครบ', 'กรุณาเลือกจุดเข้าออกพื้นที่ก่อน', 'warning');
+    if (!cardId) return mainInput.focus();
 
-        // 1. ตรวจสอบข้อมูลในเครื่องทันที (Local Validation) ไม่ต้องรอ Server
-        const gate = allGates.find(g => parseInt(g.id) === parseInt(gateId));
-        if (!gate || gate.status !== 'active') return showAlert('ผิดพลาด', 'จุดเข้าออกนี้ปิดให้บริการ', 'error');
-
-        const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
-        if (!card) {
-            mainInput.value = ''; mainInput.focus();
-            document.getElementById('scanResultEmpty').classList.remove('hidden'); document.getElementById('scanResultData').classList.add('hidden');
-            //return showToast(`ไม่พบบัตรหมายเลข ${cardId} ในระบบ`, 'error');
-			//return showAlert(`ไม่พบบัตรหมายเลข ${cardId} ในระบบ`, 'error');
-			return showAlert('ไม่พบข้อมูลบัตร', `บัตรหมายเลข ${cardId} ไม่พบในระบบ\nกรุณากรอกหมายเลขบัตรใหม่อีกครั้ง`, 'error');
-        }
-        if (card.status !== 'active') {
-    mainInput.value = ''; // เคลียร์ค่า
-    mainInput.focus();
-    return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error');
-}
-
-        const expiryDate = new Date(card.expiryDate);
-        expiryDate.setHours(23, 59, 59, 999); // ปรับเวลาให้เป็น 23:59:59 ของวันนั้น
-        
-        const now = new Date();
-        if (now > expiryDate) {
-    // --- เริ่มต้นส่วนที่แก้ไข ---
-    mainInput.value = ''; // 1. เคลียร์ช่องแสกนทันที
-    mainInput.focus();     // 2. ให้เคอร์เซอร์กลับไปโฟกัสรอแสกนต่อ
-    
-    // 3. แสดงแจ้งเตือนโดยใช้ \n เพื่อขึ้นบรรทัดใหม่ (ทำงานร่วมกับ whitespace-pre-line)
-    return showAlert(
-        'บัตรหมดอายุ', 
-        `บัตรหมายเลข ${cardId} หมดอายุแล้ว\nเมื่อวันที่ ${formatDateOnly(card.expiryDate)}`, 
-        'error'
-    );
-    // --- สิ้นสุดส่วนที่แก้ไข ---
-}
-
-        const typeInfo = typeCards.find(t => parseInt(t.id) === parseInt(card.typeId));
-        if (!typeInfo) return showAlert('ผิดพลาด', 'ไม่พบข้อมูลประเภทของบัตรใบนี้', 'error');
-
-        let currentStatus = card.currentStatus || 'OUT';
-        let newStatus = currentStatus === 'IN' ? 'OUT' : 'IN';
-
-        // 2. เช็คกรณีต้องใช้บัตรผู้ติดตาม (เฉพาะขาเข้า)
-        if (typeInfo.requireCompanion && newStatus === 'IN') {
-            document.getElementById('companionModalMainCardId').value = card.cardId;
-            document.getElementById('compBarcode').value = '';
-            document.getElementById('companionModal').classList.remove('hidden');
-            setTimeout(() => document.getElementById('compBarcode').focus(), 100);
-            return;
-        }
-
-        // 3. แสดงผลหน้าจอทันที (Optimistic UI)
+    // 1. ค้นหาข้อมูลในเครื่องเพื่อแสดงผลทันที (Instant UI)
+    const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
+    if (!card) {
         mainInput.value = ''; mainInput.focus();
-        executeScanSuccessLocal(gate, card, typeInfo, newStatus, null);
+        return showAlert('ไม่พบข้อมูลบัตร', `บัตรหมายเลข ${cardId} ไม่พบในระบบ`, 'error');
     }
+
+    // 2. ตรวจสอบเงื่อนไขเบื้องต้น (Validation)
+    if (card.status !== 'active') {
+        mainInput.value = ''; mainInput.focus();
+        return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error');
+    }
+
+    const now = new Date();
+    const expiryDate = new Date(card.expiryDate);
+    expiryDate.setHours(23, 59, 59, 999);
+    if (now > expiryDate) {
+        mainInput.value = ''; mainInput.focus();
+        return showAlert('บัตรหมดอายุ', `บัตรหมายเลข ${cardId} หมดอายุเมื่อ ${formatDateOnly(card.expiryDate)}`, 'error');
+    }
+
+    const typeInfo = typeCards.find(t => String(t.id) === String(card.typeId));
+    if (!typeInfo) return showAlert('ผิดพลาด', 'ไม่พบข้อมูลประเภทบัตร', 'error');
+
+    // 3. เตรียมข้อมูลแสกน
+    let predictedStatus = (card.currentStatus === 'IN') ? 'OUT' : 'IN';
+
+    // 4. กรณีต้องมีผู้ติดตาม (เฉพาะขาเข้า)
+    if (typeInfo.requireCompanion && predictedStatus === 'IN') {
+        document.getElementById('companionModalMainCardId').value = card.cardId;
+        document.getElementById('compBarcode').value = '';
+        document.getElementById('companionModal').classList.remove('hidden');
+        setTimeout(() => document.getElementById('compBarcode').focus(), 100);
+        return;
+    }
+
+    // 5. แสดงข้อมูลพนักงานทันที (แต่ยังไม่ยืนยันสถานะ IN/OUT)
+    mainInput.value = ''; mainInput.focus();
+    showInstantUI(card, typeInfo, predictedStatus);
+
+    // 6. ส่งไปให้ Server ตัดสินใจ
+    executeScanFinal(gateId, card.cardId, null, predictedStatus);
+}
+
+// 4. ฟังก์ชันแสดงผลข้อมูลทันที (Instant UI)
+function showInstantUI(card, typeInfo, predictedStatus) {
+    document.getElementById('scanResultEmpty').classList.add('hidden');
+    document.getElementById('scanResultData').classList.remove('hidden');
+    
+    // แสดงสถานะแบบ "กำลังยืนยัน..." (Opacity จางๆ)
+    const badge = document.getElementById('resIoBadge');
+    badge.textContent = predictedStatus;
+    badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-xl z-10 tracking-widest opacity-50 animate-pulse ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+    
+    // โชว์ข้อมูลพนักงาน (ดึงจาก Local ทันที)
+    document.getElementById('resCardId').textContent = card.cardId;
+    document.getElementById('resFullName').textContent = `${card.firstName} ${card.lastName}`;
+    document.getElementById('resOrg').textContent = card.organization || 'ไม่ระบุหน่วยงาน';
+    document.getElementById('resCardType').textContent = typeInfo.typeName;
+    document.getElementById('resVehicle').textContent = card.vehicleReg || '-';
+    document.getElementById('resExpiry').textContent = formatDateOnly(card.expiryDate);
+    document.getElementById('resTime').innerHTML = "กำลังบันทึก...";
+
+    // จัดการรูปภาพ
+    const imgEl = document.getElementById('resCardImage');
+    const iconEl = document.getElementById('resCardIcon');
+    if (card.imageUrl && card.imageUrl.trim() !== '') {
+        imgEl.src = card.imageUrl;
+        imgEl.classList.remove('hidden'); iconEl.classList.add('hidden');
+    } else {
+        imgEl.classList.add('hidden'); iconEl.classList.remove('hidden');
+    }
+}
+
+// 5. ฟังก์ชันส่งข้อมูลและรับคำยืนยันจาก Server
+async function executeScanFinal(gateId, cardId, companionCardId, predictedStatus) {
+    const recordedBy = `${currentUser.firstName} ${currentUser.lastName}`;
+    const scanData = {
+        gateId: gateId,
+        cardId: cardId,
+        companionCardId: companionCardId,
+        recordedBy: recordedBy
+    };
+
+    if (!navigator.onLine) {
+        // โหมดออฟไลน์: บันทึกตามที่เครื่องเดา (Predicted)
+        const logTime = new Date().toISOString();
+        const offlineData = { ...scanData, offlineTimestamp: logTime };
+        offlineQueue.push(offlineData);
+        localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
+        updateOfflineUI();
+        
+        // ยืนยันสถานะที่หน้าจอ (ดึงค่าจากที่เดา)
+        confirmStatusUI(predictedStatus, logTime);
+        showToast('บันทึกออฟไลน์แล้ว', 'warning');
+    } else {
+        // โหมดออนไลน์: รอ Server ตอบกลับ
+        try {
+            const res = await apiCall('processScan', scanData, false);
+            if (res.success) {
+                // อัปเดตข้อมูลใน Local เพื่อให้เครื่องอื่น/การแสกนครั้งหน้าถูกต้อง
+                const idx = allCards.findIndex(c => String(c.cardId) === String(cardId));
+                if (idx !== -1) {
+                    allCards[idx].currentStatus = res.newStatus;
+                    allCards[idx].lastLogTime = res.logTime;
+                }
+                // ยืนยันสถานะที่หน้าจอ (ใช้ค่าจริงจาก Server)
+                confirmStatusUI(res.newStatus, res.logTime, res);
+                
+                // เล่นเสียงและ AI
+                handleScanSounds(res.newStatus, res.cardInfo.firstName, res.cardInfo.lastName);
+            }
+        } catch (err) {
+            console.error("Scan Failed:", err);
+            showToast("เกิดข้อผิดพลาดในการบันทึก", "error");
+        }
+    }
+}
+
+// 6. ฟังก์ชันยืนยันสถานะบนหน้าจอ (Confirm UI)
+function confirmStatusUI(finalStatus, logTime, fullRes = null) {
+    const badge = document.getElementById('resIoBadge');
+    badge.textContent = finalStatus;
+    badge.classList.remove('opacity-50', 'animate-pulse'); // ทำให้เข้มขึ้น
+    badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-xl z-10 tracking-widest transition-all duration-300 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+    
+    document.getElementById('resTime').innerHTML = formatDateTime(logTime).replace(' | ', '<br>');
+    
+    // ถ้ามีข้อมูลผู้ติดตาม (จาก Server) ให้แสดง
+    if (fullRes && fullRes.companionName) {
+        document.getElementById('resCompanionName').textContent = fullRes.companionName;
+        document.getElementById('resCompanionId').textContent = fullRes.companionCardId;
+        document.getElementById('resCompanionOrg').textContent = fullRes.companionOrg || '-';
+        document.getElementById('resCompanionBox').classList.remove('hidden');
+    }
+
+    // เพิ่มลงตารางรายการล่าสุด (หน้าบ้าน)
+    if (fullRes) {
+        const newLog = {
+            timestamp: logTime, ioType: finalStatus, cardId: fullRes.cardInfo.cardId, 
+            cardTypeName: fullRes.typeInfo.typeName, firstName: fullRes.cardInfo.firstName, 
+            lastName: fullRes.cardInfo.lastName, organization: fullRes.cardInfo.organization,
+            gateName: fullRes.gateName, companionName: fullRes.companionName, recordedBy: fullRes.recordedBy
+        };
+        recentLogs.unshift(newLog);
+        if (recentLogs.length > 200) recentLogs.pop();
+        renderRecentLogsTable();
+        renderHomeDashboard();
+    }
+}
+
+// 7. ฟังก์ชันจัดการเสียง
+function handleScanSounds(status, fName, lName) {
+    const mode = systemSettings.announcementMode;
+    if (mode === 'both' || mode === 'beep') {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3');
+        audio.volume = parseFloat(systemSettings.beepVolume || 0.5);
+        audio.play();
+    }
+    if (mode === 'both' || mode === 'voice') {
+        const delay = (mode === 'both') ? parseInt(systemSettings.announcementDelay || 600) : 0;
+        setTimeout(() => speakStatus(fName, lName, status), delay);
+    }
+}
+
+// 8. ระบบตรวจสอบการเปลี่ยนแปลงเบื้องหลัง (Silent Background Sync)
+let lastKnownState = { cardCount: 0, lastLogId: 0 };
+
+function startBackgroundSync() {
+    setInterval(async () => {
+        if (!currentUser || currentPage !== 'home' || !navigator.onLine) return;
+
+        try {
+            // เช็คสถานะเบื้องต้น (กิน Data น้อยมาก)
+            const serverState = await apiCall('getDatabaseState', {}, false);
+            
+            // 1. ตรวจสอบว่ามีบัตรใหม่เพิ่มเข้ามาหรือไม่
+            if (serverState.cardCount !== lastKnownState.cardCount) {
+                console.log("Silent Sync: มีการเปลี่ยนแปลงจำนวนบัตร...");
+                const newData = await apiCall('getCards', {}, false);
+                allCards = newData;
+                lastKnownState.cardCount = serverState.cardCount;
+            }
+            
+            // 2. ตรวจสอบว่ามีการแสกนใหม่หรือไม่ (เพื่ออัปเดต Dashboard และ Logs)
+            if (serverState.lastLogId !== lastKnownState.lastLogId) {
+                console.log("Silent Sync: มีประวัติการแสกนใหม่...");
+                const data = await apiCall('getInitialData', {}, false);
+                recentLogs = data.recentLogs || [];
+                monthlyStats = data.monthlyStats || monthlyStats;
+                renderRecentLogsTable();
+                renderHomeDashboard();
+                lastKnownState.lastLogId = serverState.lastLogId;
+            }
+        } catch (e) {
+            console.log("Background sync error ignored.");
+        }
+    }, 15000); // เช็คทุก 15 วินาที
+}
+	
+    ////////////////////////////////////////
 
     function executeScanSuccessLocal(gate, card, typeInfo, newStatus, compCard) {
         const now = new Date();
