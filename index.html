@@ -2205,43 +2205,43 @@ function confirmStatusUI(finalStatus, logTime, fullRes = null) {
 
 /**
  * ระบบแจ้งเตือนบันทึกสำเร็จ (Success Toast) สำหรับคนที่แสกนผ่านไปแล้ว
- * ปรับปรุง: ย้ายมาวางด้านขวา (ใต้ Badge) และขยายขนาดให้ชัดเจน
+ * ปรับปรุง: เลื่อนตำแหน่งลงมาที่ top-64 เพื่อไม่ให้ทับกับ Badge ของคนล่าสุด
  */
 function showSuccessToast(cardId, name, status) {
     let container = document.getElementById('successToastContainer');
     
-    // หากยังไม่มี Container ให้สร้างใหม่ไว้ทางด้านขวา
+    // หากยังไม่มี Container ให้สร้างใหม่
     if (!container) {
         container = document.createElement('div');
         container.id = 'successToastContainer';
-        // วางไว้ที่ top-32 (ประมาณใต้ Badge) ทางขวา และใช้ flex-col เพื่อให้เรียงลงมา
-        container.className = 'fixed top-32 right-4 z-[180] flex flex-col gap-3 pointer-events-none w-72 sm:w-80';
+        // เปลี่ยนจาก top-32 เป็น top-64 (หรือปรับเป็น top-72 ถ้ายังทับอยู่)
+        // เพิ่ม margin-top เล็กน้อยเพื่อความสวยงาม
+        container.className = 'fixed top-64 right-4 z-[180] flex flex-col gap-3 pointer-events-none w-72 sm:w-80 mt-10';
         document.body.appendChild(container);
     }
 
     const toast = document.createElement('div');
-    // ปรับดีไซน์ให้ใหญ่และเด่นขึ้น พร้อมเงาสะท้อน (Shadow-2xl)
+    // ปรับสไตล์ให้ขอบมนและเงาฟุ้งขึ้น (shadow-2xl)
     toast.className = `animate-fadeIn flex items-center gap-4 px-5 py-4 rounded-2xl shadow-2xl border-2 text-white font-bold pointer-events-auto transition-all duration-500 transform translate-x-0 ${status === 'IN' ? 'bg-green-700 border-green-400' : 'bg-orange-700 border-orange-400'}`;
     
     toast.innerHTML = `
-        <div class="bg-white/20 p-2 rounded-full">
+        <div class="bg-white/20 p-2 rounded-full shrink-0">
             <i data-lucide="${status === 'IN' ? 'check-circle' : 'log-out'}" class="w-6 h-6"></i>
         </div>
-        <div class="flex-1">
-            <p class="text-[11px] uppercase tracking-widest opacity-80 mb-0.5">บันทึกสำเร็จ (รหัส: ${cardId})</p>
-            <p class="text-base truncate">${name}</p>
-            <p class="text-xl font-black mt-1">สถานะ: ${status}</p>
+        <div class="flex-1 overflow-hidden">
+            <p class="text-[10px] uppercase tracking-widest opacity-80 mb-0.5 truncate">บันทึกสำเร็จ (รหัส: ${cardId})</p>
+            <p class="text-base truncate leading-tight">${name}</p>
+            <p class="text-xl font-black mt-1 leading-none">สถานะ: ${status}</p>
         </div>
     `;
     
-    // เพิ่มเข้าไปในหน้าจอ
     container.appendChild(toast);
     lucide.createIcons();
 
     // ตั้งเวลาให้หายไป (4 วินาที)
     setTimeout(() => {
         toast.style.opacity = '0';
-        toast.style.transform = 'translateX(50px)'; // เลื่อนออกทางขวาตอนหาย
+        toast.style.transform = 'translateX(100px)'; // เลื่อนออกทางขวาตอนหาย
         setTimeout(() => toast.remove(), 500);
     }, 4000);
 }
