@@ -2061,24 +2061,28 @@ function toggleHybridCamera() {
    function executeScanSuccessLocal(gate, card, typeInfo, newStatus, compCard) {
     const cardId = card.cardId;
     
-    // ล็อคระบบรวม และ ล็อค ID บัตร
     isGlobalProcessing = true;
     activeProcessingIds.add(cardId);
     
-    // แสดงสถานะ "กำลังบันทึก" ที่แถบด้านบน
     const statusEl = document.getElementById('faceScanStatus');
     if(statusEl) statusEl.innerHTML = `<span class="text-orange-600 animate-pulse">⏳ กำลังบันทึกข้อมูล...</span>`;
+
+    // --- [เพิ่ม] ระบบป้องกันหน้าจอค้าง (Safety Timeout) ---
+    const safetyUnlock = setTimeout(() => {
+        if (isGlobalProcessing) {
+            isGlobalProcessing = false;
+            activeProcessingIds.delete(cardId);
+            if(statusEl) statusEl.innerHTML = 'การเชื่อมต่อช้า กำลังลองใหม่...';
+        }
+    }, 15000); 
+    // -----------------------------------------------
 
     const now = new Date();
     const logTimeStr = now.toISOString();
 
     const res = {
-        ioType: newStatus,
-        cardInfo: card,
-        typeInfo: typeInfo,
-        logTime: logTimeStr,
-        gateName: gate.name,
-        companionName: compCard ? `${compCard.firstName} ${compCard.lastName}` : '',
+        ioType: newStatus, cardInfo: card, typeInfo: typeInfo, logTime: logTimeStr,
+        gateName: gate.name, companionName: compCard ? `${compCard.firstName} ${compCard.lastName}` : '',
         companionCardId: compCard ? compCard.cardId : '',
         companionOrg: compCard ? (compCard.organization || '') : '',
         recordedBy: `${currentUser.firstName} ${currentUser.lastName}`
@@ -2086,35 +2090,34 @@ function toggleHybridCamera() {
 
     card.currentStatus = newStatus;
     card.lastLogTime = logTimeStr;
-
     handleScanSuccess(res);
 
     const scanData = {
-        gateId: gate.id,
-        cardId: card.cardId,
-        companionCardId: compCard ? compCard.cardId : '',
-        recordedBy: res.recordedBy,
-        offlineTimestamp: logTimeStr 
+        gateId: gate.id, cardId: card.cardId, companionCardId: compCard ? compCard.cardId : '',
+        recordedBy: res.recordedBy, offlineTimestamp: logTimeStr 
     };
 
     if (!navigator.onLine) {
+        clearTimeout(safetyUnlock);
         offlineQueue.push(scanData);
         localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
         updateOfflineUI();
-        isGlobalProcessing = false; // ออฟไลน์ไม่ต้องรอ ปลดล็อคได้เลย
+        isGlobalProcessing = false;
         activeProcessingIds.delete(cardId);
-		showToast('บันทึกออฟไลน์แล้ว (รออินเทอร์เน็ต)', 'warning');
     } else {
         apiCall('processScan', scanData, false)
-        .then(() => { console.log("Server sync ok: " + cardId); })
-        .catch(err => { console.error("Sync failed", err); })
+        .then(response => {
+            if (!response.success && response.error) {
+                console.error("Server Error:", response.error);
+            }
+        })
         .finally(() => {
-            // หน่วงเวลาเล็กน้อย (500ms) ให้เซิร์ฟเวอร์หายใจ ก่อนจะเริ่มรับแสกนคนถัดไป
+            clearTimeout(safetyUnlock);
             setTimeout(() => {
                 isGlobalProcessing = false; 
                 activeProcessingIds.delete(cardId);
                 if(statusEl) statusEl.innerHTML = 'ระบบพร้อมทำงาน...';
-            }, 500);
+            }, 300);
         });
     }
 }
