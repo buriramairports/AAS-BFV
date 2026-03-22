@@ -2027,36 +2027,38 @@ function processMainScan() {
     executeScanFinal(gateId, card.cardId, null, predictedStatus, `${card.firstName} ${card.lastName}`);
 }
 
-// 4. ฟังก์ชันแสดงผลข้อมูลทันที (Instant UI)
 /**
- * 4. ปรับปรุงฟังก์ชันแสดงผลทันที: ล้างข้อมูลเก่า (Reset) ป้องกันบัค
+ * 4. ปรับปรุงฟังก์ชันแสดงผลทันที: ล้างข้อมูลเก่า (Reset) แบบละเอียดเพื่อป้องกันไอคอนรูปเสีย
  */
 function showInstantUI(card, typeInfo, predictedStatus) {
-    // --- 1. ล้างข้อมูลภาพเก่าและไอคอนเก่าก่อนเสมอ (แก้บัค 2) ---
     const imgEl = document.getElementById('resCardImage');
     const iconEl = document.getElementById('resCardIcon');
-    
-    imgEl.src = ""; // ล้าง URL รูปเดิมทิ้ง
-    imgEl.classList.add('hidden'); // ซ่อนรูปเดิม
-    iconEl.classList.remove('hidden'); // โชว์ไอคอนเริ่มต้นแทน
-    
-    // --- 2. ล้างข้อมูลผู้ติดตามเดิมทิ้งก่อนเสมอ (แก้บัค 1) ---
     const compBox = document.getElementById('resCompanionBox');
-    compBox.classList.add('hidden'); // ซ่อนกล่องผู้ติดตามเดิม
+
+    // --- 1. ล้างรูปภาพและป้องกันไอคอนรูปเสีย (Broken Icon) ---
+    // ใช้รูปโปร่งใสขนาด 1x1 แทนค่าว่างเพื่อไม่ให้เบราว์เซอร์โชว์ไอคอนรูปเสีย
+    imgEl.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+    imgEl.style.display = 'none'; // ซ่อนตัวเลือกรูปภาพทันที
+    imgEl.classList.add('hidden');
+    
+    // แสดงไอคอนผู้ใช้ (Fallback Icon) เป็นค่าเริ่มต้นเสมอ
+    iconEl.style.display = 'block';
+    iconEl.classList.remove('hidden');
+    
+    // --- 2. ล้างข้อมูลผู้ติดตามเดิม ---
+    compBox.classList.add('hidden');
     document.getElementById('resCompanionName').textContent = "-";
     document.getElementById('resCompanionId').textContent = "-";
     document.getElementById('resCompanionOrg').textContent = "-";
 
-    // --- 3. แสดงส่วนข้อมูลพนักงาน ---
+    // --- 3. แสดงส่วนข้อมูลพื้นฐาน ---
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.remove('hidden');
     
-    // แสดงสถานะแบบ "กำลังยืนยัน..." (Opacity จางๆ)
     const badge = document.getElementById('resIoBadge');
     badge.textContent = predictedStatus;
     badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-xl z-10 tracking-widest opacity-50 animate-pulse ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
     
-    // โชว์ข้อมูลพนักงาน (ดึงจาก Local ทันที)
     document.getElementById('resCardId').textContent = card.cardId;
     document.getElementById('resFullName').textContent = `${card.firstName} ${card.lastName}`;
     document.getElementById('resOrg').textContent = card.organization || 'ไม่ระบุหน่วยงาน';
@@ -2065,17 +2067,25 @@ function showInstantUI(card, typeInfo, predictedStatus) {
     document.getElementById('resExpiry').textContent = formatDateOnly(card.expiryDate);
     document.getElementById('resTime').innerHTML = "กำลังบันทึกข้อมูล...";
 
-    // หากคนใหม่นี้มีรูป ให้โหลดโชว์แทนไอคอน
+    // --- 4. ตรวจสอบและโหลดรูปภาพใหม่ (ถ้ามี) ---
     if (card.imageUrl && card.imageUrl.trim() !== '') {
-        imgEl.src = card.imageUrl;
-        imgEl.onload = function() {
+        // สร้าง Object รูปภาพชั่วคราวเพื่อเช็คว่าโหลดรูปได้จริงไหมก่อนแสดงผล
+        const tempImg = new Image();
+        tempImg.onload = function() {
+            imgEl.src = card.imageUrl;
+            imgEl.style.display = 'block';
             imgEl.classList.remove('hidden');
+            iconEl.style.display = 'none';
             iconEl.classList.add('hidden');
         };
-        imgEl.onerror = function() {
+        tempImg.onerror = function() {
+            // หากโหลดรูปไม่ได้ ให้กลับไปใช้ไอคอนเหมือนเดิม
+            imgEl.style.display = 'none';
             imgEl.classList.add('hidden');
+            iconEl.style.display = 'block';
             iconEl.classList.remove('hidden');
         };
+        tempImg.src = card.imageUrl;
     }
 }
 
