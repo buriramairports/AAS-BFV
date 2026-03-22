@@ -2028,36 +2028,29 @@ function processMainScan() {
 }
 
 /**
- * 4. ปรับปรุงฟังก์ชันแสดงผลทันที: ล้างข้อมูลเก่า (Reset) แบบละเอียดเพื่อป้องกันไอคอนรูปเสีย
+ * 4. ปรับปรุงการแสดงผล: สีเข้มชัดเจน + ไอคอนกำลังประมวลผล
  */
 function showInstantUI(card, typeInfo, predictedStatus) {
     const imgEl = document.getElementById('resCardImage');
     const iconEl = document.getElementById('resCardIcon');
     const compBox = document.getElementById('resCompanionBox');
 
-    // --- 1. ล้างรูปภาพและป้องกันไอคอนรูปเสีย (Broken Icon) ---
-    // ใช้รูปโปร่งใสขนาด 1x1 แทนค่าว่างเพื่อไม่ให้เบราว์เซอร์โชว์ไอคอนรูปเสีย
+    // ล้างรูปและผู้ติดตามเดิม
     imgEl.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-    imgEl.style.display = 'none'; // ซ่อนตัวเลือกรูปภาพทันที
     imgEl.classList.add('hidden');
-    
-    // แสดงไอคอนผู้ใช้ (Fallback Icon) เป็นค่าเริ่มต้นเสมอ
-    iconEl.style.display = 'block';
     iconEl.classList.remove('hidden');
-    
-    // --- 2. ล้างข้อมูลผู้ติดตามเดิม ---
     compBox.classList.add('hidden');
-    document.getElementById('resCompanionName').textContent = "-";
-    document.getElementById('resCompanionId').textContent = "-";
-    document.getElementById('resCompanionOrg').textContent = "-";
 
-    // --- 3. แสดงส่วนข้อมูลพื้นฐาน ---
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.remove('hidden');
     
+    // --- ปรับปรุง Badge: สีเข้ม + ไอคอนนาฬิกา (Processing) ---
     const badge = document.getElementById('resIoBadge');
-    badge.textContent = predictedStatus;
-    badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-xl z-10 tracking-widest opacity-50 animate-pulse ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+    badge.innerHTML = `<span class="flex items-center gap-3">
+        ${predictedStatus} 
+        <i data-lucide="loader-2" class="w-10 h-10 animate-spin text-white/70"></i>
+    </span>`;
+    badge.className = `absolute top-0 right-0 px-12 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-xl z-10 tracking-widest ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
     
     document.getElementById('resCardId').textContent = card.cardId;
     document.getElementById('resFullName').textContent = `${card.firstName} ${card.lastName}`;
@@ -2065,25 +2058,16 @@ function showInstantUI(card, typeInfo, predictedStatus) {
     document.getElementById('resCardType').textContent = typeInfo.typeName;
     document.getElementById('resVehicle').textContent = card.vehicleReg || '-';
     document.getElementById('resExpiry').textContent = formatDateOnly(card.expiryDate);
-    document.getElementById('resTime').innerHTML = "กำลังบันทึกข้อมูล...";
+    document.getElementById('resTime').innerHTML = `<span class="text-orange-500 flex items-center gap-1"><i data-lucide="cloud-upload" class="w-4 h-4"></i> กำลังส่งข้อมูล...</span>`;
 
-    // --- 4. ตรวจสอบและโหลดรูปภาพใหม่ (ถ้ามี) ---
+    lucide.createIcons(); // วาดไอคอนใหม่
+
     if (card.imageUrl && card.imageUrl.trim() !== '') {
-        // สร้าง Object รูปภาพชั่วคราวเพื่อเช็คว่าโหลดรูปได้จริงไหมก่อนแสดงผล
         const tempImg = new Image();
         tempImg.onload = function() {
             imgEl.src = card.imageUrl;
-            imgEl.style.display = 'block';
             imgEl.classList.remove('hidden');
-            iconEl.style.display = 'none';
             iconEl.classList.add('hidden');
-        };
-        tempImg.onerror = function() {
-            // หากโหลดรูปไม่ได้ ให้กลับไปใช้ไอคอนเหมือนเดิม
-            imgEl.style.display = 'none';
-            imgEl.classList.add('hidden');
-            iconEl.style.display = 'block';
-            iconEl.classList.remove('hidden');
         };
         tempImg.src = card.imageUrl;
     }
@@ -2188,40 +2172,70 @@ function clearAllFailedScans() {
     const box = document.getElementById('failedScansContainer');
     if (box) box.remove();
 }
+	  
 /**
- * 6. ปรับปรุงการยืนยันสถานะ: ตรวจสอบข้อมูลผู้ติดตาม (แก้บัค 1)
+ * 6. ปรับปรุงการยืนยันสถานะ: เพิ่ม Success Toast สำหรับคนที่แสกนผ่านไปแล้ว
  */
 function confirmStatusUI(finalStatus, logTime, fullRes = null) {
-    // ตรวจสอบว่าคำตอบที่กลับมา เป็นของคนที่แสดงอยู่บนหน้าจอหรือไม่
-    if (fullRes && String(fullRes.cardInfo.cardId).toUpperCase() !== currentDisplayCardId) {
-        console.log(`ข้อมูลของ ${fullRes.cardInfo.cardId} กลับมาทีหลัง ไม่แสดงบนหน้าจอเพื่อป้องกันการสับสน`);
-        return; 
+    // 1. ถ้าเป็นคนที่ "กำลังโชว์บนหน้าจอ" (คนล่าสุด)
+    if (fullRes && String(fullRes.cardInfo.cardId).toUpperCase() === currentDisplayCardId) {
+        const badge = document.getElementById('resIoBadge');
+        // ลบไอคอนหมุนออก เหลือแค่ตัวหนังสือสถานะ
+        badge.innerHTML = finalStatus; 
+        badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-2xl z-10 tracking-widest transition-all duration-500 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+        
+        document.getElementById('resTime').innerHTML = formatDateTime(logTime).replace(' | ', '<br>');
+        
+        if (fullRes.companionName && fullRes.companionName.trim() !== "") {
+            document.getElementById('resCompanionName').textContent = fullRes.companionName;
+            document.getElementById('resCompanionId').textContent = fullRes.companionCardId;
+            document.getElementById('resCompanionOrg').textContent = fullRes.companionOrg || '-';
+            document.getElementById('resCompanionBox').classList.remove('hidden');
+        }
+    } 
+    // 2. ถ้าเป็นคนที่ "แสกนผ่านไปแล้ว" แต่เพิ่งได้รับคำยืนยันจาก Server
+    else if (fullRes) {
+        showSuccessToast(fullRes.cardInfo.cardId, fullRes.cardInfo.firstName, finalStatus);
     }
 
-    const badge = document.getElementById('resIoBadge');
-    badge.textContent = finalStatus;
-    badge.classList.remove('opacity-50', 'animate-pulse'); // ปรับให้เข้มขึ้น (ยืนยันแล้ว)
-    badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-xl z-10 tracking-widest transition-all duration-300 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
-    
-    document.getElementById('resTime').innerHTML = formatDateTime(logTime).replace(' | ', '<br>');
-    
-    // --- จัดการข้อมูลผู้ติดตาม (เฉพาะเมื่อ Server ส่งมาจริงๆ) ---
-    const compBox = document.getElementById('resCompanionBox');
-    if (fullRes && fullRes.companionName && fullRes.companionName.trim() !== "") {
-        document.getElementById('resCompanionName').textContent = fullRes.companionName;
-        document.getElementById('resCompanionId').textContent = fullRes.companionCardId;
-        document.getElementById('resCompanionOrg').textContent = fullRes.companionOrg || '-';
-        compBox.classList.remove('hidden'); // โชว์กล่อง
-    } else {
-        compBox.classList.add('hidden'); // ซ่อนกล่องหากคนนี้ไม่มีผู้ติดตาม
-    }
-
-    // อัปเดตตารางรายการด้านล่าง
     if (fullRes) {
         updateRecentLogsList(fullRes, logTime, finalStatus);
     }
 }
 
+/**
+ * ระบบแจ้งเตือนแวบเดียว (Success Toast) สำหรับคนที่แสกนผ่านไปแล้ว
+ */
+function showSuccessToast(cardId, name, status) {
+    let container = document.getElementById('successToastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'successToastContainer';
+        container.className = 'fixed bottom-20 left-4 z-[200] flex flex-col-reverse gap-2 pointer-events-none';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `animate-fadeIn flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border-l-4 text-white font-bold text-sm pointer-events-auto transition-all duration-500 ${status === 'IN' ? 'bg-green-600 border-green-300' : 'bg-orange-600 border-orange-300'}`;
+    toast.innerHTML = `
+        <i data-lucide="${status === 'IN' ? 'log-in' : 'log-out'}" class="w-5 h-5"></i>
+        <div>
+            <p class="text-[10px] opacity-80">บันทึกสำเร็จ (${cardId})</p>
+            <p>${name}: ${status}</p>
+        </div>
+    `;
+    
+    container.appendChild(toast);
+    lucide.createIcons();
+
+    // หายไปเองภายใน 4 วินาที
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(-20px)';
+        setTimeout(() => toast.remove(), 500);
+    }, 4000);
+}
+	  
 /**
  * ฟังก์ชันแยกสำหรับการอัปเดตรายการล่าสุด
  */
