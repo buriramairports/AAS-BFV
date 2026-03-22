@@ -2320,14 +2320,15 @@ if(res.ioType === 'IN') {
     now.setHours(0,0,0,0);
 
     currentFilteredCards = allCards.filter(c => {
-        // แปลงข้อมูลเป็น String และเช็คค่าว่างก่อนทำ lowerCase
-        const cardId = (c.cardId || "").toString().toLowerCase();
-        const firstName = (c.firstName || "").toString().toLowerCase();
-        const lastName = (c.lastName || "").toString().toLowerCase();
-        const vehicle = (c.vehicleReg || "").toString().toLowerCase();
+    // บังคับข้อมูลทุกอย่างเป็น String และเช็คค่าว่าง (null/undefined) ก่อนทำ lowerCase
+    const cardId = String(c.cardId || "").toLowerCase();
+    const firstName = String(c.firstName || "").toLowerCase();
+    const lastName = String(c.lastName || "").toLowerCase();
+    const vehicle = String(c.vehicleReg || "").toLowerCase();
+    const org = String(c.organization || "").toLowerCase();
 
-        // กรองคำค้นหา
-        if (txt && !(cardId.includes(txt) || firstName.includes(txt) || lastName.includes(txt) || vehicle.includes(txt))) return false;
+    // กรองคำค้นหา
+    if (txt && !(cardId.includes(txt) || firstName.includes(txt) || lastName.includes(txt) || vehicle.includes(txt) || org.includes(txt))) return false;
         
         // กรองประเภทบัตร
         if (tId && parseInt(c.typeId) !== parseInt(tId)) return false;
@@ -4471,25 +4472,53 @@ async function previewIdCard(id) {
         escortEl.style.setProperty('display', (isTemp && noComp) ? "block" : "none", 'important');
         driveEl.style.setProperty('display', canDrive ? "block" : "none", 'important');
 
-        // 6. พื้นที่ Area Boxes (1-4 พื้นที่)
+        // 6. พื้นที่ Area Boxes (1-4 พื้นที่) - ฉบับป้องกัน Error และรองรับข้อมูลทุกรูปแบบ
         const areaContainer = document.getElementById('renderAreaBoxes');
-        areaContainer.innerHTML = ''; 
-        if (c.areaAccessIds) {
-            const arr = String(c.areaAccessIds).split(',').map(x => x.trim()).filter(x => x !== "");
-            let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
-            aData.sort((a, b) => Number(a.areaNumber) - Number(b.areaNumber));
-            const count = aData.length;
-            if (count > 0) {
-                let boxW, boxH, fSize, comp;
-                if (count === 1) { boxW="130px"; boxH="130px"; fSize="110px"; comp="0.24em"; }
-                else if (count === 2) { boxW="62px"; boxH="62px"; fSize="55px"; comp="0.24em"; }
-                else { boxW="58px"; boxH="58px"; fSize="50px"; comp="0.23em"; }
+        if (areaContainer) {
+            areaContainer.innerHTML = ''; // ล้างค่าเก่าออกก่อนทุกครั้ง
+
+            // ตรวจสอบความปลอดภัยของข้อมูล (รองรับ null, undefined, 0, หรือค่าว่าง)
+            if (c.areaAccessIds !== undefined && c.areaAccessIds !== null && String(c.areaAccessIds).trim() !== "") {
                 
-                areaContainer.innerHTML = aData.slice(0, 4).map(a => `
-                    <div class="area-square-fixed" style="background-color:${a.colorCode}; color:${getContrastYIQ(a.colorCode)}; width:${boxW} !important; height:${boxH} !important; font-size:${fSize} !important; padding-bottom:${comp} !important; border:1px solid #1e1b4b !important;">
-                        ${a.areaNumber}
-                    </div>
-                `).join('');
+                // 1. บังคับข้อมูลเป็น String และตัดช่องว่างส่วนเกินออก
+                const idsString = String(c.areaAccessIds).trim();
+                
+                // 2. แยกข้อมูลด้วยคอมม่า และลบช่องว่างของแต่ละรหัส (เช่น "1 , 2" -> ["1", "2"])
+                const arr = idsString.split(',').map(x => x.trim()).filter(x => x !== "");
+                
+                // 3. กรองพื้นที่จากฐานข้อมูล โดยเทียบค่าเป็น String ทั้งคู่เพื่อความแม่นยำ
+                let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
+                
+                // 4. เรียงลำดับหมายเลขพื้นที่จากน้อยไปมาก (ใช้ Number() เพื่อให้ 10 อยู่หลัง 2)
+                aData.sort((a, b) => Number(a.areaNumber) - Number(b.areaNumber));
+                
+                const count = aData.length;
+                if (count > 0) {
+                    let boxW, boxH, fSize, comp;
+
+                    // 5. คำนวณขนาดและฟอนต์ตามจำนวนพื้นที่ที่มี (1, 2, หรือ 4)
+                    if (count === 1) { 
+                        boxW = "130px"; boxH = "130px"; fSize = "110px"; comp = "0.24em"; 
+                    } else if (count === 2) { 
+                        boxW = "62px"; boxH = "62px"; fSize = "55px"; comp = "0.24em"; 
+                    } else { 
+                        boxW = "58px"; boxH = "58px"; fSize = "50px"; comp = "0.23em"; 
+                    }
+                    
+                    // 6. สร้าง HTML กล่องสี่เหลี่ยมสีสัญลักษณ์ (จำกัดไม่เกิน 4 กล่องเพื่อความสวยงามบนบัตร)
+                    areaContainer.innerHTML = aData.slice(0, 4).map(a => `
+                        <div class="area-square-fixed" 
+                             style="background-color: ${a.colorCode}; 
+                                    color: ${getContrastYIQ(a.colorCode)}; 
+                                    width: ${boxW} !important; 
+                                    height: ${boxH} !important; 
+                                    font-size: ${fSize} !important; 
+                                    padding-bottom: ${comp} !important; 
+                                    border: 1px solid #1e1b4b !important;">
+                            ${a.areaNumber}
+                        </div>
+                    `).join('');
+                }
             }
         }
 
@@ -4596,8 +4625,10 @@ document.addEventListener('change', function(e) {
 	systemSettings.ttsRate = 1.0; 
 
 function speakStatus(firstName, lastName, type) {
-    if (!('speechSynthesis' in window)) return;
-
+    if (!systemSettings.ttsEnabled || !('speechSynthesis' in window)) return;
+	// บังคับชื่อเป็น String ก่อนประมวลผล
+    const fName = String(firstName || "");
+    const lName = String(lastName || "");
     window.speechSynthesis.cancel(); 
 
     const msg = new SpeechSynthesisUtterance();
