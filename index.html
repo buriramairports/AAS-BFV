@@ -1355,8 +1355,7 @@ gap: 1px !important;
     let offlineQueue = JSON.parse(localStorage.getItem('aac_offlineQueue') || '[]');
     let currentUser = null, currentPage = 'home';
     let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true , aiThreshold: 0.38, aiCooldown: 10, aiInterval: 1000, aiPadX: 15, aiPadTop: 35 };
-    let activeProcessingIds = new Set(); // เก็บ ID บัตรที่กำลังรอกระบวนการจากเซิร์ฟเวอร์
-	  let isGlobalProcessing = false; // ตัวล็อคระดับระบบ ไม่ให้ส่งคำขอซ้อนกันเกินไป
+    
     // Data Caches
     let allGates = [], typeCards = [], allCards = [], allSystemUsers = [], allAreas = [];
     let recentLogs = []; // เก็บแค่ Array ของหน้าแรกเพื่อความเร็ว
@@ -2058,69 +2057,52 @@ function toggleHybridCamera() {
         executeScanSuccessLocal(gate, card, typeInfo, newStatus, null);
     }
 
-   function executeScanSuccessLocal(gate, card, typeInfo, newStatus, compCard) {
-    const cardId = card.cardId;
-    
-    isGlobalProcessing = true;
-    activeProcessingIds.add(cardId);
-    
-    const statusEl = document.getElementById('faceScanStatus');
-    if(statusEl) statusEl.innerHTML = `<span class="text-orange-600 animate-pulse">⏳ กำลังบันทึกข้อมูล...</span>`;
+    function executeScanSuccessLocal(gate, card, typeInfo, newStatus, compCard) {
+        const now = new Date();
+        const logTimeStr = now.toISOString();
 
-    // --- [เพิ่ม] ระบบป้องกันหน้าจอค้าง (Safety Timeout) ---
-    const safetyUnlock = setTimeout(() => {
-        if (isGlobalProcessing) {
-            isGlobalProcessing = false;
-            activeProcessingIds.delete(cardId);
-            if(statusEl) statusEl.innerHTML = 'การเชื่อมต่อช้า กำลังลองใหม่...';
+        const res = {
+            ioType: newStatus,
+            cardInfo: card,
+            typeInfo: typeInfo,
+            logTime: logTimeStr,
+            gateName: gate.name,
+            companionName: compCard ? `${compCard.firstName} ${compCard.lastName}` : '',
+            companionCardId: compCard ? compCard.cardId : '',
+            companionOrg: compCard ? (compCard.organization || '') : '',
+            recordedBy: `${currentUser.firstName} ${currentUser.lastName}`
+        };
+
+        card.currentStatus = newStatus;
+        card.lastLogTime = logTimeStr;
+
+        handleScanSuccess(res);
+
+        // --- เริ่มส่วนที่แก้ไขสำหรับ Offline Mode ---
+        const scanData = {
+            gateId: gate.id,
+            cardId: card.cardId,
+            companionCardId: compCard ? compCard.cardId : '',
+            recordedBy: res.recordedBy,
+            offlineTimestamp: logTimeStr // สำคัญ! ส่งเวลาที่แสกนจริงไปด้วย
+        };
+
+        if (!navigator.onLine) {
+            // ถ้าเน็ตหลุด -> เก็บลงเครื่อง
+            offlineQueue.push(scanData);
+            localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
+            updateOfflineUI();
+            showToast('บันทึกออฟไลน์แล้ว (รออินเทอร์เน็ต)', 'warning');
+        } else {
+            // ถ้าเน็ตปกติ -> ส่งไป API (ไม่โชว์ Loading หน้าจอมืดๆ เพราะทำ Optimistic UI ไปแล้ว)
+            apiCall('processScan', scanData, false).catch(err => {
+                console.warn("ส่งข้อมูลไม่สำเร็จ เก็บลงคิวออฟไลน์:", err);
+                offlineQueue.push(scanData);
+                localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
+                updateOfflineUI();
+            });
         }
-    }, 15000); 
-    // -----------------------------------------------
-
-    const now = new Date();
-    const logTimeStr = now.toISOString();
-
-    const res = {
-        ioType: newStatus, cardInfo: card, typeInfo: typeInfo, logTime: logTimeStr,
-        gateName: gate.name, companionName: compCard ? `${compCard.firstName} ${compCard.lastName}` : '',
-        companionCardId: compCard ? compCard.cardId : '',
-        companionOrg: compCard ? (compCard.organization || '') : '',
-        recordedBy: `${currentUser.firstName} ${currentUser.lastName}`
-    };
-
-    card.currentStatus = newStatus;
-    card.lastLogTime = logTimeStr;
-    handleScanSuccess(res);
-
-    const scanData = {
-        gateId: gate.id, cardId: card.cardId, companionCardId: compCard ? compCard.cardId : '',
-        recordedBy: res.recordedBy, offlineTimestamp: logTimeStr 
-    };
-
-    if (!navigator.onLine) {
-        clearTimeout(safetyUnlock);
-        offlineQueue.push(scanData);
-        localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
-        updateOfflineUI();
-        isGlobalProcessing = false;
-        activeProcessingIds.delete(cardId);
-    } else {
-        apiCall('processScan', scanData, false)
-        .then(response => {
-            if (!response.success && response.error) {
-                console.error("Server Error:", response.error);
-            }
-        })
-        .finally(() => {
-            clearTimeout(safetyUnlock);
-            setTimeout(() => {
-                isGlobalProcessing = false; 
-                activeProcessingIds.delete(cardId);
-                if(statusEl) statusEl.innerHTML = 'ระบบพร้อมทำงาน...';
-            }, 300);
-        });
     }
-}
 
     function closeCompanionModal() {
         document.getElementById('companionModal').classList.add('hidden');
@@ -2338,15 +2320,14 @@ if(res.ioType === 'IN') {
     now.setHours(0,0,0,0);
 
     currentFilteredCards = allCards.filter(c => {
-    // บังคับข้อมูลทุกอย่างเป็น String และเช็คค่าว่าง (null/undefined) ก่อนทำ lowerCase
-    const cardId = String(c.cardId || "").toLowerCase();
-    const firstName = String(c.firstName || "").toLowerCase();
-    const lastName = String(c.lastName || "").toLowerCase();
-    const vehicle = String(c.vehicleReg || "").toLowerCase();
-    const org = String(c.organization || "").toLowerCase();
+        // แปลงข้อมูลเป็น String และเช็คค่าว่างก่อนทำ lowerCase
+        const cardId = (c.cardId || "").toString().toLowerCase();
+        const firstName = (c.firstName || "").toString().toLowerCase();
+        const lastName = (c.lastName || "").toString().toLowerCase();
+        const vehicle = (c.vehicleReg || "").toString().toLowerCase();
 
-    // กรองคำค้นหา
-    if (txt && !(cardId.includes(txt) || firstName.includes(txt) || lastName.includes(txt) || vehicle.includes(txt) || org.includes(txt))) return false;
+        // กรองคำค้นหา
+        if (txt && !(cardId.includes(txt) || firstName.includes(txt) || lastName.includes(txt) || vehicle.includes(txt))) return false;
         
         // กรองประเภทบัตร
         if (tId && parseInt(c.typeId) !== parseInt(tId)) return false;
@@ -4113,36 +4094,38 @@ stopWebcam = function() {
 
 // ฟังก์ชันเมื่อจับคู่หน้าผ่านแล้ว ส่งเข้ากระบวนการแสกน
 function triggerFaceScanSuccess(cardId) {
+    // 1. ตัวล็อค: ห้ามแสกนซ้ำขณะมี Alert หรือ Modal เปิดอยู่
     const isAlertOpen = !document.getElementById('customAlertModal').classList.contains('hidden');
     const isCompModalOpen = !document.getElementById('companionModal').classList.contains('hidden');
-    
-    // --- [Perfect Lock] ถ้ามีแจ้งเตือนค้างอยู่ OR ระบบกำลังคุยกับเซิร์ฟเวอร์ OR บัตรใบนี้กำลังรอคิว ---
-    // เราจะหยุดรับแสกนทันที เพื่อป้องกันคิวที่เซิร์ฟเวอร์เต็ม
-    if (isAlertOpen || isCompModalOpen || isGlobalProcessing || activeProcessingIds.has(cardId)) return;
+    if (isAlertOpen || isCompModalOpen) return;
 
+    // 2. Cooldown ป้องกันแสกนรัว (ใช้ cardId เดิมซ้ำในเวลาใกล้กันไม่ได้)
     if (lastScannedFaceId === cardId) return;
     
     lastScannedFaceId = cardId;
     const cooldownMs = (systemSettings.aiCooldown || 10) * 1000;
     faceScanCooldownTimer = setTimeout(() => { lastScannedFaceId = null; }, cooldownMs);
 
+    // 3. แสดงสถานะที่แถบด้านบนเพื่อให้เจ้าหน้าที่เห็นว่า "อ่านค่ารหัสได้แล้ว"
     const statusEl = document.getElementById('faceScanStatus');
     if (statusEl) {
-        statusEl.innerHTML = `<span class="text-green-600 font-black">✔ ตรวจพบ: ${cardId}</span>`;
+        statusEl.innerHTML = `<span class="text-green-600 font-black">✔ อ่านรหัสได้: ${cardId}</span>`;
         statusEl.classList.remove('bg-indigo-50', 'text-indigo-700');
         statusEl.classList.add('bg-green-50');
         
+        // คืนค่าสถานะปกติหลังจาก 2 วินาที
         setTimeout(() => {
             statusEl.classList.remove('bg-green-50');
             statusEl.classList.add('bg-indigo-50', 'text-indigo-700');
-            if(!isGlobalProcessing) statusEl.innerHTML = 'ระบบพร้อมทำงาน...';
+            statusEl.innerHTML = 'ระบบพร้อมทำงาน...';
         }, 2000);
     }
 
+    // 4. ส่งค่าเข้าช่อง Input และประมวลผลการเข้า-ออก
     const mainInput = document.getElementById('scanInput');
     if (mainInput) {
         mainInput.value = cardId;
-        processMainScan(); 
+        processMainScan(); // ฟังก์ชันนี้จะไปเช็ควันหมดอายุ/สถานะบัตรต่อเอง
     }
 }
 //---------------
@@ -4488,57 +4471,25 @@ async function previewIdCard(id) {
         escortEl.style.setProperty('display', (isTemp && noComp) ? "block" : "none", 'important');
         driveEl.style.setProperty('display', canDrive ? "block" : "none", 'important');
 
-        // 6. พื้นที่ Area Boxes (1-4 พื้นที่) - คืนค่าระบบ Grid 2x2 และป้องกัน Error
+        // 6. พื้นที่ Area Boxes (1-4 พื้นที่)
         const areaContainer = document.getElementById('renderAreaBoxes');
-        if (areaContainer) {
-            areaContainer.innerHTML = ''; // ล้างค่าเก่า
-            
-            // รีเซ็ตสไตล์กลับเป็นค่าเริ่มต้น (แนวตั้ง) ก่อนเผื่อกรณีพรีวิวใบก่อนหน้าเป็นแบบ Grid
-            areaContainer.style.display = 'flex';
-            areaContainer.style.flexDirection = 'column';
-            areaContainer.style.gridTemplateColumns = 'none';
-            areaContainer.style.gap = '1px';
-
-            if (c.areaAccessIds !== undefined && c.areaAccessIds !== null && String(c.areaAccessIds).trim() !== "") {
-                const arr = String(c.areaAccessIds).split(',').map(x => x.trim()).filter(x => x !== "");
-                let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
-                aData.sort((a, b) => Number(a.areaNumber) - Number(b.areaNumber));
+        areaContainer.innerHTML = ''; 
+        if (c.areaAccessIds) {
+            const arr = String(c.areaAccessIds).split(',').map(x => x.trim()).filter(x => x !== "");
+            let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
+            aData.sort((a, b) => Number(a.areaNumber) - Number(b.areaNumber));
+            const count = aData.length;
+            if (count > 0) {
+                let boxW, boxH, fSize, comp;
+                if (count === 1) { boxW="130px"; boxH="130px"; fSize="110px"; comp="0.24em"; }
+                else if (count === 2) { boxW="62px"; boxH="62px"; fSize="55px"; comp="0.24em"; }
+                else { boxW="58px"; boxH="58px"; fSize="50px"; comp="0.23em"; }
                 
-                const count = aData.length;
-                if (count > 0) {
-                    let boxW, boxH, fSize, comp;
-
-                    if (count === 1) { 
-                        boxW = "130px"; boxH = "130px"; fSize = "110px"; comp = "0.24em"; 
-                    } else if (count === 2) { 
-                        boxW = "62px"; boxH = "62px"; fSize = "55px"; comp = "0.24em"; 
-                    } else { 
-                        // --- กรณีมี 3 หรือ 4 พื้นที่: บังคับเปลี่ยนเป็น Grid 2x2 ---
-                        areaContainer.style.display = 'grid';
-                        areaContainer.style.gridTemplateColumns = 'repeat(2, 58px)'; // แบ่ง 2 คอลัมน์ คอลัมน์ละ 58px
-                        areaContainer.style.justifyContent = 'center';
-                        areaContainer.style.gap = '2px';
-                        
-                        boxW = "58px"; boxH = "58px"; fSize = "50px"; comp = "0.23em"; 
-                    }
-                    
-                    areaContainer.innerHTML = aData.slice(0, 4).map(a => `
-                        <div class="area-square-fixed" 
-                             style="background-color: ${a.colorCode}; 
-                                    color: ${getContrastYIQ(a.colorCode)}; 
-                                    width: ${boxW} !important; 
-                                    height: ${boxH} !important; 
-                                    font-size: ${fSize} !important; 
-                                    padding-bottom: ${comp} !important; 
-                                    border: 1px solid #1e1b4b !important;
-                                    display: flex !important;
-                                    align-items: center !important;
-                                    justify-content: center !important;
-                                    box-sizing: border-box !important;">
-                            ${a.areaNumber}
-                        </div>
-                    `).join('');
-                }
+                areaContainer.innerHTML = aData.slice(0, 4).map(a => `
+                    <div class="area-square-fixed" style="background-color:${a.colorCode}; color:${getContrastYIQ(a.colorCode)}; width:${boxW} !important; height:${boxH} !important; font-size:${fSize} !important; padding-bottom:${comp} !important; border:1px solid #1e1b4b !important;">
+                        ${a.areaNumber}
+                    </div>
+                `).join('');
             }
         }
 
@@ -4645,10 +4596,8 @@ document.addEventListener('change', function(e) {
 	systemSettings.ttsRate = 1.0; 
 
 function speakStatus(firstName, lastName, type) {
-    if (!systemSettings.ttsEnabled || !('speechSynthesis' in window)) return;
-	// บังคับชื่อเป็น String ก่อนประมวลผล
-    const fName = String(firstName || "");
-    const lName = String(lastName || "");
+    if (!('speechSynthesis' in window)) return;
+
     window.speechSynthesis.cancel(); 
 
     const msg = new SpeechSynthesisUtterance();
