@@ -4181,7 +4181,7 @@ function triggerFaceScanSuccess(cardId) {
 	updateAreaCheckboxState();
     }
     
-    const originalEditCard = editCard;
+    /*const originalEditCard = editCard;
     editCard = function(id) { 
         originalEditCard(id); 
         const c = allCards.find(x => x.id === id); 
@@ -4189,7 +4189,7 @@ function triggerFaceScanSuccess(cardId) {
         document.getElementById('cardCanDrive').checked = c.canDrive === true || c.canDrive === 'TRUE';
         renderAreaCheckboxes(c.areaAccessIds || ''); // วาด Checkbox และติ๊กอันที่เคยเลือก
 	updateAreaCheckboxState();
-    }
+    }*/
 
     const originalSaveCard = saveCard;
     saveCard = async function() {
