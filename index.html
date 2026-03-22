@@ -2654,29 +2654,24 @@ if(res.ioType === 'IN') {
     };
 
     showLoader('กำลังบันทึกข้อมูล...');
-
     try {
         if(id) { 
             d.id = parseInt(id); 
             const updatedCard = await apiCall('updateCard', d); 
-            
-            // --- แก้ไขบั๊กจุดที่ 1: การอัปเดต Local Cache ---
-            // ใช้ Number() และ == เพื่อให้หา ID เจอแน่นอนไม่ว่าจะเป็น String หรือ Number
             const idx = allCards.findIndex(x => Number(x.id) == Number(updatedCard.id)); 
             
             if(idx !== -1) {
-                allCards[idx] = updatedCard; // อัปเดตข้อมูลใหม่ลงในตัวแปรในหน้าเว็บ
+                // อัปเดตข้อมูลใหม่ทับ แต่รักษาค่า currentStatus และ lastLogTime เดิมไว้
+                allCards[idx] = { ...allCards[idx], ...updatedCard }; 
             }
             showToast('แก้ไขข้อมูลสำเร็จ', 'success'); 
         } else { 
             const newC = await apiCall('addCard', d); 
-            allCards.unshift(newC); // เพิ่มบัตรใหม่ไว้บนสุด
+            allCards.unshift(newC); 
             cardStats.total++; 
             showToast('เพิ่มบัตรใหม่สำเร็จ', 'success'); 
         }
-        
         closeCardModal(); 
-        // --- แก้ไขบั๊กจุดที่ 2: สั่ง Refresh ตารางทันที ---
         filterCardsTable(); 
     } catch (err) {
         console.error(err);
@@ -4352,30 +4347,50 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         await origSaveGate();
         window.apiCall = oldApiCall;
     }
-    const origProcessMainScan = processMainScan;
-    processMainScan = function() {
-        const gateId = document.getElementById('scanGateSelect').value;
-        const mainInput = document.getElementById('scanInput');
-        const cardId = mainInput.value.trim().toUpperCase();
-        if(!gateId || !cardId) return origProcessMainScan(); 
-        const gate = allGates.find(g => parseInt(g.id) === parseInt(gateId));
-        const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
-        if(gate && card && gate.status === 'active' && gate.allowedAreas && gate.allowedAreas.trim() !== '') {
-            const currentStatus = card.currentStatus || 'OUT';
-            const newStatus = currentStatus === 'IN' ? 'OUT' : 'IN';
-            if(newStatus === 'IN') {
-                const requiredAreas = gate.allowedAreas.split(',').map(s => s.trim());
-                const userAreas = (card.areaAccessIds || '').split(',');
+
+const origProcessMainScan = processMainScan;
+processMainScan = function() {
+    const gateId = document.getElementById('scanGateSelect').value;
+    const mainInput = document.getElementById('scanInput');
+    const cardId = mainInput.value.trim().toUpperCase();
+    
+    if(!gateId || !cardId) return origProcessMainScan(); 
+
+    const gate = allGates.find(g => parseInt(g.id) === parseInt(gateId));
+    const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
+
+    // ตรวจสอบความปลอดภัยของข้อมูลก่อนเรียกใช้ .split หรือ .trim
+    if(gate && card && gate.status === 'active' && gate.allowedAreas) {
+        const currentStatus = card.currentStatus || 'OUT';
+        const newStatus = currentStatus === 'IN' ? 'OUT' : 'IN';
+
+        if(newStatus === 'IN') {
+            // บังคับให้เป็น String ก่อนเสมอเพื่อป้องกัน Crash
+            const allowedStr = String(gate.allowedAreas || "");
+            const userAreasStr = String(card.areaAccessIds || "");
+
+            if (allowedStr.trim() !== "") {
+                const requiredAreas = allowedStr.split(',').map(s => s.trim());
+                const userAreas = userAreasStr.split(',').map(s => s.trim());
+
+                // เช็คว่าผู้ใช้มีพื้นที่ใดพื้นที่หนึ่งที่ประตูนี้อนุญาตหรือไม่
                 const hasAccess = requiredAreas.some(ra => userAreas.includes(ra));
+
                 if(!hasAccess) {
-                    mainInput.value = ''; mainInput.focus();
-                    try { const errSound = new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3'); errSound.play(); } catch(e){}
-                    return showAlert('ไม่อนุญาตให้เข้าพื้นที่', `บัตรหมายเลข ${cardId} ไม่มีสิทธิ์เข้าจุดนี้\n(ต้องการพื้นที่: ${gate.allowedAreas})`, 'error');
+                    mainInput.value = ''; 
+                    mainInput.focus();
+                    try { 
+                        const errSound = new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3'); 
+                        errSound.play(); 
+                    } catch(e){}
+                    return showAlert('ไม่อนุญาตให้เข้าพื้นที่', `บัตรหมายเลข ${cardId} ไม่มีสิทธิ์เข้าจุดนี้\n(พื้นที่ที่อนุญาต: ${allowedStr})`, 'error');
                 }
             }
         }
-        origProcessMainScan();
     }
+    // ถ้าผ่านเงื่อนไขทั้งหมด หรือข้อมูลครบถ้วน ให้ไปทำงานต่อที่ฟังก์ชันหลัก
+    origProcessMainScan();
+}
 
 
     // ==========================================
