@@ -2479,87 +2479,69 @@ if(res.ioType === 'IN') {
     }
 
     function editCard(id) {
-        const c = allCards.find(x => x.id === id);
-        
-        tempCardImageBase64 = null;
-        isRemovingCardImage = false; 
-        document.getElementById('cardImageInput').value = '';
-        updateAreaCheckboxState();
-        // --- ดึงข้อมูล AI ของเดิมมาแสดง ---
-        tempFaceDescriptor = c.faceDescriptor || null;
-        
-        if (c.imageUrl && c.imageUrl.trim() !== '') {
-            document.getElementById('cardImagePreview').src = c.imageUrl;
-            
-            const previewBox = document.getElementById('cardImagePreviewBox');
-            previewBox.classList.remove('hidden');
-            previewBox.style.display = ''; previewBox.classList.add('flex');
-            document.getElementById('cardImagePlaceholder').classList.add('hidden');
-            
-            // โชว์สถานะ AI ว่ารูปนี้มีรหัสหน้าหรือยัง
-            if (tempFaceDescriptor) setFaceAiStatus('✅ มีข้อมูลใบหน้าในระบบแล้ว', 'success');
-            else setFaceAiStatus('⚠️ รูปนี้ยังไม่ได้สกัดรหัสใบหน้า', 'error');
+    // 1. ค้นหาบัตร (ใช้ == เพื่อให้รองรับ String ID)
+    const c = allCards.find(x => Number(x.id) == Number(id));
+    if (!c) return showToast('ไม่พบข้อมูลบัตรในระบบ', 'error');
 
-        } else {
-            document.getElementById('cardImagePreview').src = '';
-            
-            const previewBox = document.getElementById('cardImagePreviewBox');
-            previewBox.classList.add('hidden');
-            previewBox.style.display = ''; previewBox.classList.remove('flex');
-            document.getElementById('cardImagePlaceholder').classList.remove('hidden');
-            
-            const aiStatus = document.getElementById('faceAiStatus');
-            if(aiStatus) aiStatus.classList.add('hidden');
-        }
-        
-        document.getElementById('cardModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขข้อมูลบัตร';
-        document.getElementById('editCardDbId').value = c.id;
-        
-        const idStr = c.cardId || '';
-        const parts = idStr.split('/');
-        
-        if(parts.length === 2) {
-            document.getElementById('cardGenYear').value = parts[1]; 
-            const prefixAndNum = parts[0]; 
-            const numMatch = prefixAndNum.match(/\d+$/); 
-            if(numMatch) {
-                const n = numMatch[0];
-                const p = prefixAndNum.substring(0, prefixAndNum.length - n.length);
-                document.getElementById('cardGenNum').value = parseInt(n); 
-                document.getElementById('cardGenPrefix').value = p;
-            } else {
-                document.getElementById('cardGenNum').value = '';
-                document.getElementById('cardGenPrefix').value = prefixAndNum;
-            }
-        } else {
-            document.getElementById('cardGenYear').value = ''; 
-            document.getElementById('cardGenNum').value = ''; 
-            document.getElementById('cardGenPrefix').value = ''; 
-        }
-
-        document.getElementById('cardIdInp').value = c.cardId;
-        
-        const typeSel = document.getElementById('cardTypeInp');
-        typeSel.innerHTML = typeCards.map(t => `<option value="${t.id}" ${parseInt(t.id)===parseInt(c.typeId)?'selected':''}>${t.typeName}</option>`).join('');
-        
-        document.getElementById('cardFirstName').value = c.firstName; 
-        document.getElementById('cardLastName').value = c.lastName; 
-        document.getElementById('cardOrg').value = c.organization; 
-        document.getElementById('cardVehicle').value = c.vehicleReg;
-        
-        document.querySelector(`input[name="cardStatusInp"][value="${c.status}"]`).checked = true;
-        document.getElementById('cardIssueDate').value = c.issueDate;
-        
-        calcExpiryDate(); 
-        document.getElementById('cardExpiryDate').value = c.expiryDate;
-
-        const bcBox = document.getElementById('cardBarcodeDisplayBox');
-        bcBox.classList.remove('hidden');
-        document.getElementById('cardBarcodeRender').textContent = `*${c.cardId}*`;
-        document.getElementById('cardBarcodeText').textContent = c.cardId;
-
-        document.getElementById('cardModal').classList.remove('hidden');
+    // 2. เคลียร์ค่ารูปภาพ
+    tempCardImageBase64 = null;
+    isRemovingCardImage = false; 
+    document.getElementById('cardImageInput').value = '';
+    
+    if (c.imageUrl && c.imageUrl.trim() !== '') {
+        document.getElementById('cardImagePreview').src = c.imageUrl;
+        document.getElementById('cardImagePreviewBox').classList.remove('hidden', 'flex');
+        document.getElementById('cardImagePreviewBox').classList.add('flex');
+        document.getElementById('cardImagePlaceholder').classList.add('hidden');
+    } else {
+        removeCardImage();
     }
+    
+    // 3. ตั้งค่าหัว Modal และ ID
+    document.getElementById('cardModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขข้อมูลบัตร';
+    document.getElementById('editCardDbId').value = c.id;
+    
+    // 4. แยกส่วนรหัสบัตร
+    const parts = (c.cardId || '').split('/');
+    if(parts.length === 2) {
+        document.getElementById('cardGenYear').value = parts[1]; 
+        const prefixAndNum = parts[0]; 
+        const numMatch = prefixAndNum.match(/\d+$/); 
+        if(numMatch) {
+            const n = numMatch[0];
+            document.getElementById('cardGenNum').value = parseInt(n); 
+            document.getElementById('cardGenPrefix').value = prefixAndNum.substring(0, prefixAndNum.length - n.length);
+        }
+    }
+
+    document.getElementById('cardIdInp').value = c.cardId;
+    document.getElementById('cardTypeInp').innerHTML = typeCards.map(t => `<option value="${t.id}" ${parseInt(t.id)===parseInt(c.typeId)?'selected':''}>${t.typeName}</option>`).join('');
+    
+    // 5. ข้อมูลอื่นๆ
+    document.getElementById('cardFirstName').value = c.firstName || ''; 
+    document.getElementById('cardLastName').value = c.lastName || ''; 
+    document.getElementById('cardPosition').value = c.position || '';
+    document.getElementById('cardOrg').value = c.organization || ''; 
+    document.getElementById('cardVehicle').value = c.vehicleReg || '';
+    document.getElementById('cardCanDrive').checked = (c.canDrive == true || c.canDrive == 'TRUE' || c.canDrive == 'true');
+    
+    document.querySelector(`input[name="cardStatusInp"][value="${c.status}"]`).checked = true;
+    document.getElementById('cardIssueDate').value = c.issueDate || '';
+    document.getElementById('cardExpiryDate').value = c.expiryDate || '';
+
+    // 6. พื้นที่ Area Access (เรียกฟังก์ชันวาด Checkbox)
+    renderAreaCheckboxes(c.areaAccessIds || '');
+    updateAreaCheckboxState();
+
+    // 7. บาร์โค้ด
+    const bcBox = document.getElementById('cardBarcodeDisplayBox');
+    bcBox.classList.remove('hidden');
+    document.getElementById('cardBarcodeRender').textContent = `*${c.cardId}*`;
+    document.getElementById('cardBarcodeText').textContent = c.cardId;
+
+    document.getElementById('cardModal').classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+}
 
     function closeCardModal() { document.getElementById('cardModal').classList.add('hidden'); }
 
@@ -4357,13 +4339,13 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         return (yiq >= 128) ? 'black' : 'white';
     }
 
-   async function previewIdCard(id) {
+   async function previewIdCard(id) {async function previewIdCard(id) {
     showLoader('กำลังเตรียมข้อมูลรูปภาพบัตร...');
     
     try {
-        // 1. ตรวจสอบข้อมูลบัตร
-        const c = allCards.find(x => x.id === id);
-        if (!c) throw new Error('ไม่พบข้อมูลบัตรในฐานข้อมูล');
+        // 1. ค้นหาข้อมูลบัตร (ใช้ == และ Number() เพื่อป้องกัน Error "ไม่พบข้อมูล")
+        const c = allCards.find(x => Number(x.id) == Number(id));
+        if (!c) throw new Error('ไม่พบข้อมูลบัตรในฐานข้อมูล (ID: ' + id + ')');
         
         const t = typeCards.find(x => parseInt(x.id) === parseInt(c.typeId)) || {};
         
@@ -4371,20 +4353,17 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         document.getElementById('tplFrontImg').src = systemSettings.cardTplFront || '';
         document.getElementById('tplBackImg').src = systemSettings.cardTplBack || '';
         
-        // 3. จัดการรูปโปรไฟล์ (ดึง Base64 เพื่อให้ Print PDF ติดรูป)
+        // 3. จัดการรูปโปรไฟล์ (ดึง Base64)
         const imgEl = document.getElementById('renderPhoto');
         const iconEl = document.getElementById('renderPhotoIcon');
         
         if (c.imageUrl && c.imageUrl.trim() !== '') { 
             try {
-                // เรียก API ดึงรูปเป็น Base64 (ใส่ false เพื่อไม่ให้โชว์ Loader ซ้ำซ้อน)
                 const b64 = await apiCall('getDriveImageBase64', { url: c.imageUrl }, false);
                 imgEl.src = b64 || c.imageUrl; 
                 imgEl.classList.remove('hidden'); 
                 iconEl.classList.add('hidden'); 
             } catch(e) {
-                // หากดึง Base64 ไม่ได้ ให้ใช้ URL ตรงๆ เป็นแผนสำรอง
-                console.warn("ดึงรูป Base64 ไม่สำเร็จ ใช้ URL สำรอง:", e);
                 imgEl.src = c.imageUrl; 
                 imgEl.classList.remove('hidden'); 
                 iconEl.classList.add('hidden'); 
@@ -4403,24 +4382,15 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         document.getElementById('renderName').textContent = `${c.firstName || ''} ${c.lastName || ''}`;
         document.getElementById('renderPos').textContent = c.position || '-';
         document.getElementById('renderOrg').textContent = c.organization || '-';
-        
-        // 5. จัดการวันหมดอายุ
-        let expText = '-';
-        if (c.expiryDate) {
-            const d = new Date(c.expiryDate);
-            if (!isNaN(d.getTime())) {
-                expText = `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`;
-            }
-        }
-        document.getElementById('renderExp').textContent = expText;
+        document.getElementById('renderExp').textContent = formatDateOnly(c.expiryDate);
         document.getElementById('renderCardId').textContent = c.cardId || '-';
         
-        // 6. ข้อความท้ายบัตรและกฎระเบียบ
+        // 5. ข้อความท้ายบัตรและกฎระเบียบ
         document.getElementById('renderFooter1').textContent = systemSettings.cardFooterLine1 || '-';
         document.getElementById('renderFooter2').textContent = systemSettings.cardFooterLine2 || '-';
         document.getElementById('renderFooter3').textContent = systemSettings.cardFooterLine3 || '';
-        
         document.getElementById('renderRulesTitle1').textContent = systemSettings.cardRulesTitle1 || 'ข้อควรปฏิบัติ';
+        
         const rT2 = document.getElementById('renderRulesTitle2'); 
         rT2.textContent = systemSettings.cardRulesTitle2 || ''; 
         rT2.classList.toggle('hidden', !systemSettings.cardRulesTitle2);
@@ -4431,65 +4401,39 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         
         document.getElementById('renderRules').innerHTML = (systemSettings.cardTplRules || '').replace(/\n/g, '<br>');
         
-       // 7. ควบคุมป้ายสถานะ (Temp, Unescort, Drive) และระบบล็อคตำแหน่ง (Fixed Spacer)
+        // 6. ควบคุมป้ายสถานะ (Temp, Unescort, Drive) และระบบล็อคตำแหน่ง
         const tempEl = document.getElementById('renderTemp');
         const escortEl = document.getElementById('renderEscort');
         const driveEl = document.getElementById('renderDrive');
         
-        // --- ตรวจสอบเงื่อนไขแบบยืดหยุ่น (แก้ป้ายไม่ขึ้น) ---
-        // ใช้ == เพื่อรองรับทั้งข้อมูลประเภท Boolean และข้อความจาก Google Sheets
         const isTemp = (t.isTemporary == true || t.isTemporary == 'TRUE' || t.isTemporary == 'true');
         const noCompanion = (t.requireCompanion == false || t.requireCompanion == 'FALSE' || t.requireCompanion == 'false');
         const canDrive = (c.canDrive == true || c.canDrive == 'TRUE' || c.canDrive == 'true');
 
-        // --- ส่วนที่ 1: จัดการป้าย "บัตรชั่วคราว" (ล็อคความสูง 28px เพื่อไม่ให้กรอบพื้นที่เลื่อนขึ้น) ---
-        // บังคับให้ป้ายนี้จองพื้นที่ 28px เสมอ (ห้ามใช้ display: none)
         tempEl.style.setProperty('display', 'block', 'important'); 
         tempEl.style.setProperty('min-height', '28px', 'important'); 
-        tempEl.style.setProperty('line-height', '28px', 'important'); // จัดตัวหนังสือกลางกล่อง
 
         if (isTemp) {
             tempEl.textContent = "บัตรชั่วคราว";
             tempEl.style.setProperty('visibility', 'visible', 'important');
             tempEl.style.setProperty('opacity', '1', 'important');
-            tempEl.style.setProperty('color', '#dc2626', 'important'); // บังคับตัวหนังสือสีแดง
-            tempEl.style.setProperty('background-color', 'rgba(255, 255, 255, 0.9)', 'important');
         } else {
-            // กรณีบัตรถาวร: ล้างข้อความทิ้ง แต่ "คงพื้นที่ว่าง 28px ไว้" เพื่อล็อคตำแหน่งกรอบพื้นที่
             tempEl.textContent = ""; 
             tempEl.style.setProperty('visibility', 'hidden', 'important');
             tempEl.style.setProperty('opacity', '0', 'important');
-            tempEl.style.setProperty('background-color', 'transparent', 'important');
         }
 
-        // --- ส่วนที่ 2: จัดการป้าย "UNESCORT" (แสดงเฉพาะบัตรชั่วคราวที่ไม่ต้องมีผู้ติดตาม) ---
-        // ป้ายด้านล่างนี้สามารถใช้ display: none ได้ เพราะไม่มีของอยู่ข้างล่างมันแล้ว
-        if (isTemp && noCompanion) {
-            escortEl.textContent = "UNESCORT";
-            escortEl.style.setProperty('display', 'block', 'important');
-        } else {
-            // บัตรถาวร หรือ บัตรชั่วคราวที่มีผู้ติดตาม จะไม่เห็นป้ายนี้
-            escortEl.style.setProperty('display', 'none', 'important'); 
-        }
-
-        // --- ส่วนที่ 3: จัดการป้าย "DRIVE" ---
-        if (canDrive) {
-            driveEl.style.setProperty('display', 'block', 'important');
-        } else {
-            driveEl.style.setProperty('display', 'none', 'important');
-        }
+        escortEl.style.setProperty('display', (isTemp && noCompanion) ? 'block' : 'none', 'important');
+        driveEl.style.setProperty('display', canDrive ? 'block' : 'none', 'important');
         
-        // 8. ส่วนพื้นที่ (Area Boxes) 1-4 พื้นที่ (ฉบับแก้ไข Error .split)
+        // 7. ส่วนพื้นที่ (Area Boxes) 1-4 พื้นที่ (คืนค่าลอจิก Layout ทั้งหมด)
         const areaContainer = document.getElementById('renderAreaBoxes');
         areaContainer.innerHTML = ''; 
 
         if (c.areaAccessIds !== undefined && c.areaAccessIds !== null && c.areaAccessIds !== "") {
-            // บังคับให้เป็น String ก่อนเสมอเพื่อป้องกัน Error .split is not a function
-            const idsString = String(c.areaAccessIds); 
-            const arr = idsString.split(',').map(x => x.trim()).filter(x => x !== "");
-            
+            const arr = String(c.areaAccessIds).split(',').map(x => x.trim()).filter(x => x !== "");
             let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
-            aData.sort((a, b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
+            aData.sort((a, b) => Number(a.areaNumber) - Number(b.areaNumber));
             
             const count = aData.length;
             if (count > 0) {
@@ -4514,42 +4458,32 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
                     boxWidth = "58px"; boxHeight = "58px"; fontSize = "50px"; compensation = "0.23em";
                 }
 
-                const areaHtml = aData.slice(0, 4).map(a => `
+                areaContainer.innerHTML = aData.slice(0, 4).map(a => `
                     <div class="area-square-fixed" 
                          style="background-color: ${a.colorCode}; 
                                 color: ${getContrastYIQ(a.colorCode)}; 
                                 width: ${boxWidth} !important;
                                 height: ${boxHeight} !important;
                                 font-size: ${fontSize} !important;
-                                display: flex !important;
-                                align-items: center !important;
-                                justify-content: center !important;
-                                line-height: 1 !important;
                                 padding-bottom: ${compensation} !important;
-                                box-sizing: border-box !important;
-                                border: 1px solid #1e1b4b !important;
-                                margin: 0 !important;">
+                                border: 1px solid #1e1b4b !important;">
                         ${a.areaNumber}
                     </div>
                 `).join('');
-                areaContainer.innerHTML = areaHtml;
             }
         }
         
-        // 9. บาร์โค้ด
         document.getElementById('renderBarcode').textContent = `*${c.cardId}*`;
         document.getElementById('renderBarcodeText').textContent = c.cardId;
         
-        // 10. ปิด Loader และแสดง Modal
         hideLoader();
         document.getElementById('idCardModal').classList.remove('hidden');
         if (window.lucide) lucide.createIcons();
 
     } catch (err) {
-        // หากเกิด Error กลางคัน ให้ปิด Loader และแจ้งเตือน
         hideLoader();
         console.error("Preview Error:", err);
-        showToast("ไม่สามารถเตรียมข้อมูลบัตรได้: " + err.message, "error");
+        showToast("เตรียมข้อมูลบัตรล้มเหลว: " + err.message, "error");
     }
 }
 	/////////////
