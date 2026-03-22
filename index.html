@@ -2435,46 +2435,54 @@ if(res.ioType === 'IN') {
     }
 
     function openCardModal() {
-      removeCardImage(); // ล้างรูปตอนเปิดเพิ่มบัตร
-	  updateAreaCheckboxState();
-        document.getElementById('cardModalTitle').innerHTML = '<i data-lucide="credit-card"></i> เพิ่มบัตรใหม่';
-        document.getElementById('editCardDbId').value = '';
-        
-        // Auto Gen Logic (หาเลขลำดับสูงสุดของปีปัจจุบัน จากรูปแบบ xxx/yyyy)
-        const currentYear = new Date().getFullYear() + 543;
-        let maxNum = 0;
-        const suffix = '/' + currentYear;
-        
-        allCards.forEach(c => {
-            if(c.cardId && c.cardId.endsWith(suffix)) {
-                // ตัด /256x ออก จะเหลือแค่ส่วนหน้า เช่น A001
-                const prefixAndNum = c.cardId.replace(suffix, '');
-                // ดึงเฉพาะตัวเลขที่อยู่ท้ายสุด
-                const numMatch = prefixAndNum.match(/\d+$/);
-                if(numMatch) {
-                    const num = parseInt(numMatch[0]);
-                    if(!isNaN(num) && num > maxNum) maxNum = num;
-                }
+    removeCardImage(); 
+    document.getElementById('cardModalTitle').innerHTML = '<i data-lucide="credit-card"></i> เพิ่มบัตรใหม่';
+    document.getElementById('editCardDbId').value = '';
+    
+    // รีเซ็ตรหัสผ่านเลข Auto
+    const currentYear = new Date().getFullYear() + 543;
+    let maxNum = 0;
+    const suffix = '/' + currentYear;
+    
+    allCards.forEach(c => {
+        if(c.cardId && c.cardId.endsWith(suffix)) {
+            const prefixAndNum = c.cardId.replace(suffix, '');
+            const numMatch = prefixAndNum.match(/\d+$/);
+            if(numMatch) {
+                const num = parseInt(numMatch[0]);
+                if(!isNaN(num) && num > maxNum) maxNum = num;
             }
-        });
+        }
+    });
 
-        document.getElementById('cardGenPrefix').value = '';
-        document.getElementById('cardGenNum').value = maxNum + 1;
-        document.getElementById('cardGenYear').value = currentYear;
-        updateCardIdPreview();
-        
-        const typeSel = document.getElementById('cardTypeInp');
-        typeSel.innerHTML = typeCards.map(t => `<option value="${t.id}">${t.typeName} (อายุ ${t.durationValue} ${t.durationType})</option>`).join('');
-        
-        ['cardFirstName','cardLastName','cardOrg','cardVehicle'].forEach(id=>document.getElementById(id).value='');
-        document.querySelector('input[name="cardStatusInp"][value="active"]').checked = true;
-        
-        const today = new Date(); document.getElementById('cardIssueDate').value = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-        calcExpiryDate();
+    document.getElementById('cardGenPrefix').value = '';
+    document.getElementById('cardGenNum').value = maxNum + 1;
+    document.getElementById('cardGenYear').value = currentYear;
+    updateCardIdPreview();
+    
+    const typeSel = document.getElementById('cardTypeInp');
+    typeSel.innerHTML = typeCards.map(t => `<option value="${t.id}">${t.typeName}</option>`).join('');
+    
+    ['cardFirstName','cardLastName','cardOrg','cardVehicle','cardPosition'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('cardCanDrive').checked = false;
+    document.querySelector('input[name="cardStatusInp"][value="active"]').checked = true;
+    
+    const today = new Date(); 
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    document.getElementById('cardIssueDate').value = todayStr;
 
-        document.getElementById('cardBarcodeDisplayBox').classList.add('hidden');
-        document.getElementById('cardModal').classList.remove('hidden');
-    }
+    // --- แก้ไขจุดที่ 2: รีเซ็ตวันหมดอายุให้เป็นค่าว่าง หรือ วันปัจจุบันเสมอ ---
+    const expInp = document.getElementById('cardExpiryDate');
+    expInp.value = ""; // ล้างค่าเก่าที่ค้างมาจากใบอื่น
+    expInp.readOnly = true; // กลับไปเป็นโหมดอ่านอย่างเดียวเป็นค่าเริ่มต้น
+    
+    renderAreaCheckboxes(''); 
+    updateAreaCheckboxState();
+    calcExpiryDate(); // คำนวณวันหมดอายุใหม่ตามประเภทบัตรที่เลือกอยู่
+
+    document.getElementById('cardBarcodeDisplayBox').classList.add('hidden');
+    document.getElementById('cardModal').classList.remove('hidden');
+}
 
    function editCard(id) {
     const c = allCards.find(x => Number(x.id) == Number(id));
@@ -2491,13 +2499,14 @@ if(res.ioType === 'IN') {
         return `${y}-${m}-${day}`;
     };
 
+    // ล้างสถานะรูปภาพ
     tempCardImageBase64 = null;
     isRemovingCardImage = false; 
     document.getElementById('cardImageInput').value = '';
     
     if (c.imageUrl && c.imageUrl.trim() !== '') {
         document.getElementById('cardImagePreview').src = c.imageUrl;
-        document.getElementById('cardImagePreviewBox').classList.remove('hidden', 'flex');
+        document.getElementById('cardImagePreviewBox').classList.remove('hidden');
         document.getElementById('cardImagePreviewBox').classList.add('flex');
         document.getElementById('cardImagePlaceholder').classList.add('hidden');
     } else {
@@ -2507,6 +2516,30 @@ if(res.ioType === 'IN') {
     document.getElementById('cardModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขข้อมูลบัตร';
     document.getElementById('editCardDbId').value = c.id;
     
+    // --- แก้ไขจุดที่ 1: แยกส่วนรหัสบัตร T439/2569 เข้า 3 ช่อง ---
+    const fullId = c.cardId || '';
+    const parts = fullId.split('/'); // แยกด้วย / จะได้ ["T439", "2569"]
+    
+    if(parts.length === 2) {
+        document.getElementById('cardGenYear').value = parts[1]; // ใส่ปี 2569
+        
+        const firstPart = parts[0]; // "T439"
+        // ใช้ Regex หาตัวเลขที่อยู่ท้ายสุดของข้อความ
+        const numMatch = firstPart.match(/\d+$/); 
+        
+        if(numMatch) {
+            const numStr = numMatch[0]; // "439"
+            const prefixStr = firstPart.substring(0, firstPart.length - numStr.length); // "T"
+            
+            document.getElementById('cardGenPrefix').value = prefixStr;
+            document.getElementById('cardGenNum').value = parseInt(numStr);
+        } else {
+            // กรณีไม่มีตัวเลขเลย เช่น "T/2569"
+            document.getElementById('cardGenPrefix').value = firstPart;
+            document.getElementById('cardGenNum').value = "";
+        }
+    }
+
     document.getElementById('cardIdInp').value = c.cardId;
     document.getElementById('cardTypeInp').innerHTML = typeCards.map(t => `<option value="${t.id}" ${parseInt(t.id)===parseInt(c.typeId)?'selected':''}>${t.typeName}</option>`).join('');
     
@@ -2518,16 +2551,14 @@ if(res.ioType === 'IN') {
     document.getElementById('cardCanDrive').checked = (c.canDrive == true || c.canDrive == 'TRUE' || c.canDrive == 'true');
     
     document.querySelector(`input[name="cardStatusInp"][value="${c.status}"]`).checked = true;
-
-    // --- แก้ไขจุดนี้: บังคับฟอร์แมตวันที่ก่อนแสดงผล ---
     document.getElementById('cardIssueDate').value = formatDateForInput(c.issueDate);
     document.getElementById('cardExpiryDate').value = formatDateForInput(c.expiryDate);
 
     renderAreaCheckboxes(c.areaAccessIds || '');
     updateAreaCheckboxState();
+    calcExpiryDate(); // เรียกเพื่อให้สถานะ ReadOnly/Color ของช่องวันที่ถูกต้องตามประเภทบัตร
 
-    const bcBox = document.getElementById('cardBarcodeDisplayBox');
-    bcBox.classList.remove('hidden');
+    document.getElementById('cardBarcodeDisplayBox').classList.remove('hidden');
     document.getElementById('cardBarcodeRender').textContent = `*${c.cardId}*`;
     document.getElementById('cardBarcodeText').textContent = c.cardId;
 
