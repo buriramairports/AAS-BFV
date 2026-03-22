@@ -4472,40 +4472,40 @@ async function previewIdCard(id) {
         escortEl.style.setProperty('display', (isTemp && noComp) ? "block" : "none", 'important');
         driveEl.style.setProperty('display', canDrive ? "block" : "none", 'important');
 
-        // 6. พื้นที่ Area Boxes (1-4 พื้นที่) - ฉบับป้องกัน Error และรองรับข้อมูลทุกรูปแบบ
+        // 6. พื้นที่ Area Boxes (1-4 พื้นที่) - คืนค่าระบบ Grid 2x2 และป้องกัน Error
         const areaContainer = document.getElementById('renderAreaBoxes');
         if (areaContainer) {
-            areaContainer.innerHTML = ''; // ล้างค่าเก่าออกก่อนทุกครั้ง
+            areaContainer.innerHTML = ''; // ล้างค่าเก่า
+            
+            // รีเซ็ตสไตล์กลับเป็นค่าเริ่มต้น (แนวตั้ง) ก่อนเผื่อกรณีพรีวิวใบก่อนหน้าเป็นแบบ Grid
+            areaContainer.style.display = 'flex';
+            areaContainer.style.flexDirection = 'column';
+            areaContainer.style.gridTemplateColumns = 'none';
+            areaContainer.style.gap = '1px';
 
-            // ตรวจสอบความปลอดภัยของข้อมูล (รองรับ null, undefined, 0, หรือค่าว่าง)
             if (c.areaAccessIds !== undefined && c.areaAccessIds !== null && String(c.areaAccessIds).trim() !== "") {
-                
-                // 1. บังคับข้อมูลเป็น String และตัดช่องว่างส่วนเกินออก
-                const idsString = String(c.areaAccessIds).trim();
-                
-                // 2. แยกข้อมูลด้วยคอมม่า และลบช่องว่างของแต่ละรหัส (เช่น "1 , 2" -> ["1", "2"])
-                const arr = idsString.split(',').map(x => x.trim()).filter(x => x !== "");
-                
-                // 3. กรองพื้นที่จากฐานข้อมูล โดยเทียบค่าเป็น String ทั้งคู่เพื่อความแม่นยำ
+                const arr = String(c.areaAccessIds).split(',').map(x => x.trim()).filter(x => x !== "");
                 let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
-                
-                // 4. เรียงลำดับหมายเลขพื้นที่จากน้อยไปมาก (ใช้ Number() เพื่อให้ 10 อยู่หลัง 2)
                 aData.sort((a, b) => Number(a.areaNumber) - Number(b.areaNumber));
                 
                 const count = aData.length;
                 if (count > 0) {
                     let boxW, boxH, fSize, comp;
 
-                    // 5. คำนวณขนาดและฟอนต์ตามจำนวนพื้นที่ที่มี (1, 2, หรือ 4)
                     if (count === 1) { 
                         boxW = "130px"; boxH = "130px"; fSize = "110px"; comp = "0.24em"; 
                     } else if (count === 2) { 
                         boxW = "62px"; boxH = "62px"; fSize = "55px"; comp = "0.24em"; 
                     } else { 
+                        // --- กรณีมี 3 หรือ 4 พื้นที่: บังคับเปลี่ยนเป็น Grid 2x2 ---
+                        areaContainer.style.display = 'grid';
+                        areaContainer.style.gridTemplateColumns = 'repeat(2, 58px)'; // แบ่ง 2 คอลัมน์ คอลัมน์ละ 58px
+                        areaContainer.style.justifyContent = 'center';
+                        areaContainer.style.gap = '2px';
+                        
                         boxW = "58px"; boxH = "58px"; fSize = "50px"; comp = "0.23em"; 
                     }
                     
-                    // 6. สร้าง HTML กล่องสี่เหลี่ยมสีสัญลักษณ์ (จำกัดไม่เกิน 4 กล่องเพื่อความสวยงามบนบัตร)
                     areaContainer.innerHTML = aData.slice(0, 4).map(a => `
                         <div class="area-square-fixed" 
                              style="background-color: ${a.colorCode}; 
@@ -4514,7 +4514,11 @@ async function previewIdCard(id) {
                                     height: ${boxH} !important; 
                                     font-size: ${fSize} !important; 
                                     padding-bottom: ${comp} !important; 
-                                    border: 1px solid #1e1b4b !important;">
+                                    border: 1px solid #1e1b4b !important;
+                                    display: flex !important;
+                                    align-items: center !important;
+                                    justify-content: center !important;
+                                    box-sizing: border-box !important;">
                             ${a.areaNumber}
                         </div>
                     `).join('');
