@@ -240,10 +240,10 @@ gap: 1px !important;
     </div>
 
     <!-- จอแสดงผลกล้อง (ปรับขนาดอัตโนมัติตามพื้นที่ที่เหลือ) -->
-    <div id="cameraArea" class="hidden relative flex-1 w-full max-w-[340px] min-h-[200px] aspect-square bg-black rounded-3xl overflow-hidden mx-auto border-[4px] border-white shadow-xl">
-        <video id="webcamVideo" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100" autoplay muted playsinline></video>
-        <canvas id="webcamCanvas" class="absolute inset-0 w-full h-full object-cover z-10 transform -scale-x-100"></canvas>
-    </div>
+    <div id="cameraArea" class="hidden relative flex-1 w-full max-w-[320px] max-h-[320px] aspect-square bg-black rounded-3xl overflow-hidden mx-auto border-[4px] border-white shadow-xl mb-4">
+    <video id="webcamVideo" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100" autoplay muted playsinline></video>
+    <canvas id="webcamCanvas" class="absolute inset-0 w-full h-full object-cover z-10 transform -scale-x-100"></canvas>
+	</div>
 </div>
 
                <!-- ฝั่งขวา: แสดงผลข้อมูลบัตรที่เพิ่งแสกน -->
@@ -3789,15 +3789,36 @@ async function startWebcam() {
 //////////////////
 // ฟังก์ชันปิดกล้อง
 function stopWebcam() {
+    // 1. หยุดการทำงานของ Quagga (บาร์โค้ด)
+    if (typeof Quagga !== 'undefined') {
+        try {
+            Quagga.stop();
+        } catch(e) { console.log("Quagga already stopped"); }
+    }
+
+    // 2. หยุดการทำงานของ Stream (ปิดเลนส์กล้อง)
     if (webcamStream) {
-        webcamStream.getTracks().forEach(track => track.stop());
+        webcamStream.getTracks().forEach(track => {
+            track.stop(); // สั่งหยุดการรับสัญญาณภาพจาก Hardware
+        });
         webcamStream = null;
     }
+
+    // 3. เคลียร์ค่าในตัว Video Element
+    const video = document.getElementById('webcamVideo');
+    if (video) {
+        video.srcObject = null;
+        video.pause();
+    }
+
+    // 4. หยุดลูปตรวจจับใบหน้า
     if (faceDetectionInterval) {
         clearInterval(faceDetectionInterval);
         faceDetectionInterval = null;
     }
+
     document.getElementById('faceScanStatus').innerHTML = 'กล้องถูกปิดการใช้งาน';
+    console.log("Camera hardware fully released.");
 }
 
 // โหลดฐานข้อมูลเข้า Face Matcher ตั้งค่าความเหมือนใบหน้า
