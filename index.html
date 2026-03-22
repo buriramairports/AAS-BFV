@@ -1380,27 +1380,29 @@ systemSettings.beepVolume = systemSettings.beepVolume !== undefined ? systemSett
 
 let voices = [];
 
+
 function initVoices() {
-    // ดึงเสียงทั้งหมดจากระบบ
+    if (!('speechSynthesis' in window)) return;
+    
     voices = window.speechSynthesis.getVoices();
     const select = document.getElementById('ttsVoiceSelect');
     if(!select) return;
     
-    // กรองเอาเฉพาะเสียงไทย (th-TH)
     const thaiVoices = voices.filter(v => v.lang.includes('th') || v.lang === 'th-TH');
-
     if (thaiVoices.length > 0) {
         select.innerHTML = thaiVoices.map(v => `<option value="${v.name}">${v.name}</option>`).join('');
-        
-        // ถ้าเคยบันทึกเสียงไว้ ให้เลือกตัวเดิม
-        if (systemSettings.ttsVoiceName) {
-            select.value = systemSettings.ttsVoiceName;
-        }
-        showToast(`โหลดสำเร็จ: พบเสียงไทย ${thaiVoices.length} เสียง`, 'info');
+        if (systemSettings.ttsVoiceName) select.value = systemSettings.ttsVoiceName;
     } else {
-        select.innerHTML = '<option value="">ไม่พบเสียงภาษาไทยในเครื่อง</option>';
+        select.innerHTML = '<option value="">ไม่มีเสียงไทย</option>';
     }
-    if(window.lucide) lucide.createIcons();
+}
+
+// ป้องกันเครื่องค้าง: โหลดเสียงเพียงครั้งเดียวเมื่อพร้อม
+if ('speechSynthesis' in window) {
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = initVoices;
+    }
+    setTimeout(initVoices, 1500); // หน่วงเวลาให้ระบบพร้อม
 }
 
 // เรียกโหลดเสียงแบบหน่วงเวลานิดนึงเพื่อให้ระบบพร้อม
@@ -1662,47 +1664,39 @@ function toggleHybridCamera() {
 
     // 1. เปลี่ยนให้ใช้ apiCall() แทน google.script.run
     function fetchInitialData() {
-        // เรียกใช้ API โดยไม่โชว์หน้าโหลดดิ้งหลัก (เพราะมีหน้า Splash ปิดบังไว้อยู่แล้ว)
-        apiCall('getInitialData', {}, false)
-            .then(data => {
-                try {
-                    if(data) {
-                        if(data.settings) { systemSettings = {...systemSettings, ...data.settings}; applySettingsToUI(); }
-                        allGates = data.gates || [];
-                        typeCards = data.typeCards || [];
-                        recentLogs = data.recentLogs || [];
-                        allCards = data.allCards || [];
-                        cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
-                        monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
-						allAreas = data.areas || [];
+    apiCall('getInitialData', {}, false)
+        .then(data => {
+            try {
+                if(data) {
+                    if(data.settings) { systemSettings = {...systemSettings, ...data.settings}; applySettingsToUI(); }
+                    allGates = data.gates || [];
+                    typeCards = data.typeCards || [];
+                    recentLogs = data.recentLogs || [];
+                    allCards = data.allCards || [];
+                    cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
+                    monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
+                    allAreas = data.areas || [];
 
-                        updateGateSelects(); 
-                        if(currentPage === 'home') {
-                            renderHomeDashboard(); 
-                            renderRecentLogsTable(); 
-                            initBanner();
-                        }
+                    updateGateSelects(); 
+                    if(currentPage === 'home') {
+                        renderHomeDashboard(); 
+                        renderRecentLogsTable(); 
+                        initBanner();
                     }
-                } catch(e) {
-                    console.error("เกิดข้อผิดพลาดในการแสดงผลหน้าจอ:", e);
                 }
-                
-                // ปิดหน้าโหลด (Loading Screen)
-                if(systemSettings.loginBgUrl && !currentUser) {
-                    const img = new Image(); 
-                    img.src = systemSettings.loginBgUrl; 
-                    img.onload = hideInitialSplash; 
-                    img.onerror = hideInitialSplash;
-                } else {
-                    hideInitialSplash();
-                }
-            })
-            .catch(e => {
-                hideInitialSplash(); // ปิดหน้าโหลดกรณีเน็ตหลุด
-                console.error("โหลดข้อมูลเริ่มต้นล้มเหลว:", e);
-                showToast("ไม่สามารถโหลดข้อมูลจากเซิร์ฟเวอร์ได้", "error");
-            });
-    }
+            } catch(e) {
+                console.error("Error rendering UI:", e);
+            } finally {
+                // ไม่ว่าจะ Error หรือไม่ ต้องสั่งปิดหน้าโหลดเสมอ
+                hideInitialSplash();
+            }
+        })
+        .catch(e => {
+            console.error("Load failed:", e);
+            hideInitialSplash(); // ปิดหน้าโหลดกรณีเน็ตหลุด
+            showToast("ไม่สามารถโหลดข้อมูลจากเซิร์ฟเวอร์ได้", "error");
+        });
+}
 
     // 2. เปลี่ยนปุ่มรีเฟรชข้อมูลหน้า Home
     function refreshHomeData() {
@@ -4635,6 +4629,14 @@ function testFullNotification() {
     }
 }
 	  ////////////
+									 // บังคับปิดหน้า Splash ถ้าค้างเกิน 5 วินาที (ป้องกัน Bug)
+setTimeout(() => {
+    const splash = document.getElementById('initialSplash');
+    if (splash && splash.style.opacity !== '0') {
+        console.warn("Forcing splash screen to hide due to timeout.");
+        hideInitialSplash();
+    }
+}, 5000);
   </script>
 </body>
 </html>
