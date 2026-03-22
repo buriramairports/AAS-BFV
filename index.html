@@ -2320,16 +2320,16 @@ if(res.ioType === 'IN') {
     now.setHours(0,0,0,0);
 
     currentFilteredCards = allCards.filter(c => {
-        // แปลงข้อมูลเป็น String และเช็คค่าว่างก่อนทำ lowerCase
-        const cardId = (c.cardId || "").toString().toLowerCase();
-        const firstName = (c.firstName || "").toString().toLowerCase();
-        const lastName = (c.lastName || "").toString().toLowerCase();
-        const vehicle = (c.vehicleReg || "").toString().toLowerCase();
+        const cardId = String(c.cardId || "").toLowerCase();
+    const firstName = String(c.firstName || "").toLowerCase();
+    const lastName = String(c.lastName || "").toLowerCase();
+    const vehicle = String(c.vehicleReg || "").toLowerCase();
+    const org = String(c.organization || "").toLowerCase();
 
-        // กรองคำค้นหา
-        if (txt && !(cardId.includes(txt) || firstName.includes(txt) || lastName.includes(txt) || vehicle.includes(txt))) return false;
+    // กรองคำค้นหา
+    if (txt && !(cardId.includes(txt) || firstName.includes(txt) || lastName.includes(txt) || vehicle.includes(txt) || org.includes(txt))) return false;
         
-        // กรองประเภทบัตร
+		// กรองประเภทบัตร
         if (tId && parseInt(c.typeId) !== parseInt(tId)) return false;
         
         // กรองสถานะ Active/Inactive
@@ -4471,25 +4471,57 @@ async function previewIdCard(id) {
         escortEl.style.setProperty('display', (isTemp && noComp) ? "block" : "none", 'important');
         driveEl.style.setProperty('display', canDrive ? "block" : "none", 'important');
 
-        // 6. พื้นที่ Area Boxes (1-4 พื้นที่)
+        // 6. พื้นที่ Area Boxes (1-4 พื้นที่) - คืนค่าระบบ Grid 2x2 และป้องกัน Error
         const areaContainer = document.getElementById('renderAreaBoxes');
-        areaContainer.innerHTML = ''; 
-        if (c.areaAccessIds) {
-            const arr = String(c.areaAccessIds).split(',').map(x => x.trim()).filter(x => x !== "");
-            let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
-            aData.sort((a, b) => Number(a.areaNumber) - Number(b.areaNumber));
-            const count = aData.length;
-            if (count > 0) {
-                let boxW, boxH, fSize, comp;
-                if (count === 1) { boxW="130px"; boxH="130px"; fSize="110px"; comp="0.24em"; }
-                else if (count === 2) { boxW="62px"; boxH="62px"; fSize="55px"; comp="0.24em"; }
-                else { boxW="58px"; boxH="58px"; fSize="50px"; comp="0.23em"; }
+        if (areaContainer) {
+            areaContainer.innerHTML = ''; // ล้างค่าเก่า
+            
+            // รีเซ็ตสไตล์กลับเป็นค่าเริ่มต้น (แนวตั้ง) ก่อนเผื่อกรณีพรีวิวใบก่อนหน้าเป็นแบบ Grid
+            areaContainer.style.display = 'flex';
+            areaContainer.style.flexDirection = 'column';
+            areaContainer.style.gridTemplateColumns = 'none';
+            areaContainer.style.gap = '1px';
+
+            if (c.areaAccessIds !== undefined && c.areaAccessIds !== null && String(c.areaAccessIds).trim() !== "") {
+                const arr = String(c.areaAccessIds).split(',').map(x => x.trim()).filter(x => x !== "");
+                let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
+                aData.sort((a, b) => Number(a.areaNumber) - Number(b.areaNumber));
                 
-                areaContainer.innerHTML = aData.slice(0, 4).map(a => `
-                    <div class="area-square-fixed" style="background-color:${a.colorCode}; color:${getContrastYIQ(a.colorCode)}; width:${boxW} !important; height:${boxH} !important; font-size:${fSize} !important; padding-bottom:${comp} !important; border:1px solid #1e1b4b !important;">
-                        ${a.areaNumber}
-                    </div>
-                `).join('');
+                const count = aData.length;
+                if (count > 0) {
+                    let boxW, boxH, fSize, comp;
+
+                    if (count === 1) { 
+                        boxW = "130px"; boxH = "130px"; fSize = "110px"; comp = "0.24em"; 
+                    } else if (count === 2) { 
+                        boxW = "62px"; boxH = "62px"; fSize = "55px"; comp = "0.24em"; 
+                    } else { 
+                        // --- กรณีมี 3 หรือ 4 พื้นที่: บังคับเปลี่ยนเป็น Grid 2x2 ---
+                        areaContainer.style.display = 'grid';
+                        areaContainer.style.gridTemplateColumns = 'repeat(2, 58px)'; // แบ่ง 2 คอลัมน์ คอลัมน์ละ 58px
+                        areaContainer.style.justifyContent = 'center';
+                        areaContainer.style.gap = '2px';
+                        
+                        boxW = "58px"; boxH = "58px"; fSize = "50px"; comp = "0.23em"; 
+                    }
+                    
+                    areaContainer.innerHTML = aData.slice(0, 4).map(a => `
+                        <div class="area-square-fixed" 
+                             style="background-color: ${a.colorCode}; 
+                                    color: ${getContrastYIQ(a.colorCode)}; 
+                                    width: ${boxW} !important; 
+                                    height: ${boxH} !important; 
+                                    font-size: ${fSize} !important; 
+                                    padding-bottom: ${comp} !important; 
+                                    border: 1px solid #1e1b4b !important;
+                                    display: flex !important;
+                                    align-items: center !important;
+                                    justify-content: center !important;
+                                    box-sizing: border-box !important;">
+                            ${a.areaNumber}
+                        </div>
+                    `).join('');
+                }
             }
         }
 
@@ -4597,7 +4629,9 @@ document.addEventListener('change', function(e) {
 
 function speakStatus(firstName, lastName, type) {
     if (!('speechSynthesis' in window)) return;
-
+ // บังคับชื่อเป็น String ก่อนประมวลผล
+    const fName = String(firstName || "");
+    const lName = String(lastName || "");
     window.speechSynthesis.cancel(); 
 
     const msg = new SpeechSynthesisUtterance();
