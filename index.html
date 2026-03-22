@@ -2593,43 +2593,61 @@ if(res.ioType === 'IN') {
         if(window.lucide) lucide.createIcons();
     }
 
-    async function saveCard() {
-        const id = document.getElementById('editCardDbId').value;
-        const cardId = document.getElementById('cardIdInp').value.trim().toUpperCase();
-        const fName = document.getElementById('cardFirstName').value.trim();
-        const typeId = document.getElementById('cardTypeInp').value;
-        
-        if(!cardId || !fName || !typeId) return showToast('กรุณากรอก รหัสบัตร, ชื่อ และเลือกประเภทให้ครบ', 'error');
-        if(!id && allCards.find(c => String(c.cardId).toUpperCase() === cardId)) return showToast(`รหัสบัตร ${cardId} มีอยู่ในระบบแล้ว`, 'error');
+   async function saveCard() {
+    const id = document.getElementById('editCardDbId').value;
+    const cardId = document.getElementById('cardIdInp').value.trim().toUpperCase();
+    const fName = document.getElementById('cardFirstName').value.trim();
+    const typeId = document.getElementById('cardTypeInp').value;
+    
+    if(!cardId || !fName || !typeId) return showToast('กรุณากรอกข้อมูลให้ครบ', 'error');
 
-        const d = {
-            cardId: cardId, typeId: typeId, firstName: fName, lastName: document.getElementById('cardLastName').value.trim(),
-            organization: document.getElementById('cardOrg').value.trim(), vehicleReg: document.getElementById('cardVehicle').value.trim(),
-            issueDate: document.getElementById('cardIssueDate').value, expiryDate: document.getElementById('cardExpiryDate').value,
-            status: document.querySelector('input[name="cardStatusInp"]:checked').value,
-            imageBase64: tempCardImageBase64, 
-            removeImage: isRemovingCardImage,
-            faceDescriptor: tempFaceDescriptor || '' // --- เพิ่มการส่งข้อมูลรหัสใบหน้าไปเซิร์ฟเวอร์ ---
-        };
-        showLoader('กำลังบันทึกข้อมูลและอัปโหลดรูปภาพ...');
+    const d = {
+        cardId: cardId, typeId: typeId, firstName: fName, 
+        lastName: document.getElementById('cardLastName').value.trim(),
+        position: document.getElementById('cardPosition').value.trim(),
+        organization: document.getElementById('cardOrg').value.trim(), 
+        vehicleReg: document.getElementById('cardVehicle').value.trim(),
+        areaAccessIds: Array.from(document.querySelectorAll('.input-area-cb:checked')).map(cb => cb.value).join(','),
+        canDrive: document.getElementById('cardCanDrive').checked,
+        issueDate: document.getElementById('cardIssueDate').value, 
+        expiryDate: document.getElementById('cardExpiryDate').value,
+        status: document.querySelector('input[name="cardStatusInp"]:checked').value,
+        imageBase64: tempCardImageBase64, 
+        removeImage: isRemovingCardImage,
+        faceDescriptor: tempFaceDescriptor || ''
+    };
 
+    showLoader('กำลังบันทึกข้อมูล...');
+
+    try {
         if(id) { 
             d.id = parseInt(id); 
             const updatedCard = await apiCall('updateCard', d); 
-            const idx = allCards.findIndex(x=>x.id===d.id); 
-            if(idx!==-1) allCards[idx] = updatedCard; 
-            showToast('แก้ไขข้อมูลบัตรสำเร็จ', 'success'); 
+            
+            // --- แก้ไขบั๊กจุดที่ 1: การอัปเดต Local Cache ---
+            // ใช้ Number() และ == เพื่อให้หา ID เจอแน่นอนไม่ว่าจะเป็น String หรือ Number
+            const idx = allCards.findIndex(x => Number(x.id) == Number(updatedCard.id)); 
+            
+            if(idx !== -1) {
+                allCards[idx] = updatedCard; // อัปเดตข้อมูลใหม่ลงในตัวแปรในหน้าเว็บ
+            }
+            showToast('แก้ไขข้อมูลสำเร็จ', 'success'); 
         } else { 
             const newC = await apiCall('addCard', d); 
-            allCards.unshift(newC); 
+            allCards.unshift(newC); // เพิ่มบัตรใหม่ไว้บนสุด
             cardStats.total++; 
-            if(d.status==='active') cardStats.active++; else cardStats.inactive++;
             showToast('เพิ่มบัตรใหม่สำเร็จ', 'success'); 
         }
         
         closeCardModal(); 
-        filterCardsTable();
+        // --- แก้ไขบั๊กจุดที่ 2: สั่ง Refresh ตารางทันที ---
+        filterCardsTable(); 
+    } catch (err) {
+        console.error(err);
+    } finally {
+        hideLoader();
     }
+}
 
     async function deleteCard(id) {
         if(confirm('ยืนยันลบบัตรใบนี้? (ลบแล้วกู้คืนไม่ได้ แต่ประวัติใน Log จะยังคงอยู่)')) {
