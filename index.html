@@ -1970,6 +1970,14 @@ function toggleHybridCamera() {
 	// LOGIC ใหม่ /////////////////////
 	
 	// 3. ฟังก์ชันประมวลผลการแสกนหลัก (ฝั่งหน้าเว็บ)
+// ตัวแปรเก็บรหัสบัตรล่าสุดที่กำลังแสดงบนหน้าจอ
+let currentDisplayCardId = "";
+// คิวเก็บรายการที่แสกนล้มเหลว
+let failedScansQueue = [];
+
+/**
+ * 3. ปรับปรุงฟังก์ชันแสกนหลัก: เพิ่มระบบ Request ID
+ */
 function processMainScan() {
     const gateId = document.getElementById('scanGateSelect').value;
     const mainInput = document.getElementById('scanInput');
@@ -1978,14 +1986,12 @@ function processMainScan() {
     if (!gateId) return showAlert('ข้อมูลไม่ครบ', 'กรุณาเลือกจุดเข้าออกพื้นที่ก่อน', 'warning');
     if (!cardId) return mainInput.focus();
 
-    // 1. ค้นหาข้อมูลในเครื่องเพื่อแสดงผลทันที (Instant UI)
     const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
     if (!card) {
         mainInput.value = ''; mainInput.focus();
         return showAlert('ไม่พบข้อมูลบัตร', `บัตรหมายเลข ${cardId} ไม่พบในระบบ`, 'error');
     }
 
-    // 2. ตรวจสอบเงื่อนไขเบื้องต้น (Validation)
     if (card.status !== 'active') {
         mainInput.value = ''; mainInput.focus();
         return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error');
@@ -2000,12 +2006,8 @@ function processMainScan() {
     }
 
     const typeInfo = typeCards.find(t => String(t.id) === String(card.typeId));
-    if (!typeInfo) return showAlert('ผิดพลาด', 'ไม่พบข้อมูลประเภทบัตร', 'error');
-
-    // 3. เตรียมข้อมูลแสกน
     let predictedStatus = (card.currentStatus === 'IN') ? 'OUT' : 'IN';
 
-    // 4. กรณีต้องมีผู้ติดตาม (เฉพาะขาเข้า)
     if (typeInfo.requireCompanion && predictedStatus === 'IN') {
         document.getElementById('companionModalMainCardId').value = card.cardId;
         document.getElementById('compBarcode').value = '';
@@ -2014,12 +2016,15 @@ function processMainScan() {
         return;
     }
 
-    // 5. แสดงข้อมูลพนักงานทันที (แต่ยังไม่ยืนยันสถานะ IN/OUT)
+    // --- จดจำว่าตอนนี้กำลังโชว์รหัสอะไร ---
+    currentDisplayCardId = card.cardId;
     mainInput.value = ''; mainInput.focus();
+
+    // แสดงผล UI ทันที (สถานะจางๆ)
     showInstantUI(card, typeInfo, predictedStatus);
 
-    // 6. ส่งไปให้ Server ตัดสินใจ
-    executeScanFinal(gateId, card.cardId, null, predictedStatus);
+    // ส่งไป Server
+    executeScanFinal(gateId, card.cardId, null, predictedStatus, `${card.firstName} ${card.lastName}`);
 }
 
 // 4. ฟังก์ชันแสดงผลข้อมูลทันที (Instant UI)
@@ -2052,61 +2057,122 @@ function showInstantUI(card, typeInfo, predictedStatus) {
     }
 }
 
-// 5. ฟังก์ชันส่งข้อมูลและรับคำยืนยันจาก Server
-async function executeScanFinal(gateId, cardId, companionCardId, predictedStatus) {
+/**
+ * 5. ปรับปรุงการจัดการ Error: ระบบคิวแจ้งเตือน
+ */
+async function executeScanFinal(gateId, cardId, companionCardId, predictedStatus, fullName) {
     const recordedBy = `${currentUser.firstName} ${currentUser.lastName}`;
-    const scanData = {
-        gateId: gateId,
-        cardId: cardId,
-        companionCardId: companionCardId,
-        recordedBy: recordedBy
-    };
+    const scanData = { gateId, cardId, companionCardId, recordedBy };
 
     if (!navigator.onLine) {
-        // โหมดออฟไลน์: บันทึกตามที่เครื่องเดา (Predicted)
         const logTime = new Date().toISOString();
-        const offlineData = { ...scanData, offlineTimestamp: logTime };
-        offlineQueue.push(offlineData);
+        offlineQueue.push({ ...scanData, offlineTimestamp: logTime });
         localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
         updateOfflineUI();
-        
-        // ยืนยันสถานะที่หน้าจอ (ดึงค่าจากที่เดา)
         confirmStatusUI(predictedStatus, logTime);
         showToast('บันทึกออฟไลน์แล้ว', 'warning');
     } else {
-        // โหมดออนไลน์: รอ Server ตอบกลับ
         try {
             const res = await apiCall('processScan', scanData, false);
             if (res.success) {
-                // อัปเดตข้อมูลใน Local เพื่อให้เครื่องอื่น/การแสกนครั้งหน้าถูกต้อง
                 const idx = allCards.findIndex(c => String(c.cardId) === String(cardId));
-                if (idx !== -1) {
-                    allCards[idx].currentStatus = res.newStatus;
-                    allCards[idx].lastLogTime = res.logTime;
-                }
-                // ยืนยันสถานะที่หน้าจอ (ใช้ค่าจริงจาก Server)
-                confirmStatusUI(res.newStatus, res.logTime, res);
+                if (idx !== -1) allCards[idx].currentStatus = res.newStatus;
                 
-                // เล่นเสียงและ AI
+                confirmStatusUI(res.newStatus, res.logTime, res);
                 handleScanSounds(res.newStatus, res.cardInfo.firstName, res.cardInfo.lastName);
             }
         } catch (err) {
-            console.error("Scan Failed:", err);
-            showToast("เกิดข้อผิดพลาดในการบันทึก", "error");
+            // กรณี Error เช่น Timeout (รอเกิน 10 วินาที)
+            console.error("Scan Error:", err);
+            addToFailedQueue(cardId, fullName);
         }
     }
 }
 
-// 6. ฟังก์ชันยืนยันสถานะบนหน้าจอ (Confirm UI)
+/**
+ * ระบบจัดการคิวการแสกนที่ล้มเหลว
+ */
+function addToFailedQueue(cardId, fullName) {
+    failedScansQueue.push({ cardId, fullName, time: new Date().toLocaleTimeString() });
+    renderFailedScansAlert();
+    
+    // เล่นเสียงเตือน Error
+    try {
+        const errSound = new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3');
+        errSound.play();
+    } catch(e) {}
+}
+
+function renderFailedScansAlert() {
+    if (failedScansQueue.length === 0) return;
+
+    const listHtml = failedScansQueue.map((item, index) => `
+        <div class="flex justify-between items-center bg-red-50 border-l-4 border-red-500 p-3 mb-2 rounded shadow-sm animate-fadeIn">
+            <div>
+                <p class="text-red-700 font-black text-sm">${item.cardId} - ${item.fullName}</p>
+                <p class="text-red-500 text-[10px]">ล้มเหลวเมื่อเวลา ${item.time} (กรุณาแสกนใหม่)</p>
+            </div>
+            <button onclick="removeFailedScan(${index})" class="bg-red-500 text-white p-1 rounded-full hover:bg-red-700 transition">
+                <i data-lucide="check" class="w-4 h-4"></i>
+            </button>
+        </div>
+    `).join('');
+
+    // สร้างหรืออัปเดตกล่องแจ้งเตือน (ลอยอยู่มุมขวาบน)
+    let errorBox = document.getElementById('failedScansContainer');
+    if (!errorBox) {
+        errorBox = document.createElement('div');
+        errorBox.id = 'failedScansContainer';
+        errorBox.className = 'fixed top-20 right-4 z-[200] w-72 sm:w-80 max-h-[70vh] overflow-y-auto pointer-events-auto';
+        document.body.appendChild(errorBox);
+    }
+    
+    errorBox.innerHTML = `
+        <div class="bg-white/90 backdrop-blur p-4 rounded-2xl shadow-2xl border-2 border-red-200">
+            <h4 class="text-red-600 font-black text-center mb-3 flex items-center justify-center gap-2">
+                <i data-lucide="alert-octagon" class="w-5 h-5"></i> แสกนไม่สำเร็จ (${failedScansQueue.length})
+            </h4>
+            ${listHtml}
+            <button onclick="clearAllFailedScans()" class="w-full mt-2 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-xs font-bold transition">
+                ปิดแจ้งเตือนทั้งหมด
+            </button>
+        </div>
+    `;
+    lucide.createIcons();
+}
+
+function removeFailedScan(index) {
+    failedScansQueue.splice(index, 1);
+    if (failedScansQueue.length === 0) {
+        const box = document.getElementById('failedScansContainer');
+        if (box) box.remove();
+    } else {
+        renderFailedScansAlert();
+    }
+}
+
+function clearAllFailedScans() {
+    failedScansQueue = [];
+    const box = document.getElementById('failedScansContainer');
+    if (box) box.remove();
+}
+/**
+ * 6. ปรับปรุงการยืนยันสถานะ: เช็คว่าเป็นคนปัจจุบันหรือไม่
+ */
 function confirmStatusUI(finalStatus, logTime, fullRes = null) {
+    // ถ้าข้อมูลที่กลับมา ไม่ตรงกับคนที่อยู่บนหน้าจอตอนนี้
+    if (fullRes && String(fullRes.cardInfo.cardId).toUpperCase() !== currentDisplayCardId) {
+        console.log(`ข้อมูลของ ${fullRes.cardInfo.cardId} กลับมาทีหลัง ไม่แสดงบนหน้าจอเพื่อป้องกันการสับสน`);
+        return; 
+    }
+
     const badge = document.getElementById('resIoBadge');
     badge.textContent = finalStatus;
-    badge.classList.remove('opacity-50', 'animate-pulse'); // ทำให้เข้มขึ้น
+    badge.classList.remove('opacity-50', 'animate-pulse');
     badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-xl z-10 tracking-widest transition-all duration-300 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
     
     document.getElementById('resTime').innerHTML = formatDateTime(logTime).replace(' | ', '<br>');
     
-    // ถ้ามีข้อมูลผู้ติดตาม (จาก Server) ให้แสดง
     if (fullRes && fullRes.companionName) {
         document.getElementById('resCompanionName').textContent = fullRes.companionName;
         document.getElementById('resCompanionId').textContent = fullRes.companionCardId;
@@ -2114,19 +2180,26 @@ function confirmStatusUI(finalStatus, logTime, fullRes = null) {
         document.getElementById('resCompanionBox').classList.remove('hidden');
     }
 
-    // เพิ่มลงตารางรายการล่าสุด (หน้าบ้าน)
+    // อัปเดตตารางด้านล่างเสมอ (เพราะเป็นข้อมูลจริงที่บันทึกแล้ว)
     if (fullRes) {
-        const newLog = {
-            timestamp: logTime, ioType: finalStatus, cardId: fullRes.cardInfo.cardId, 
-            cardTypeName: fullRes.typeInfo.typeName, firstName: fullRes.cardInfo.firstName, 
-            lastName: fullRes.cardInfo.lastName, organization: fullRes.cardInfo.organization,
-            gateName: fullRes.gateName, companionName: fullRes.companionName, recordedBy: fullRes.recordedBy
-        };
-        recentLogs.unshift(newLog);
-        if (recentLogs.length > 200) recentLogs.pop();
-        renderRecentLogsTable();
-        renderHomeDashboard();
+        updateRecentLogsList(fullRes, logTime, finalStatus);
     }
+}
+
+/**
+ * ฟังก์ชันแยกสำหรับการอัปเดตรายการล่าสุด
+ */
+function updateRecentLogsList(fullRes, logTime, finalStatus) {
+    const newLog = {
+        timestamp: logTime, ioType: finalStatus, cardId: fullRes.cardInfo.cardId, 
+        cardTypeName: fullRes.typeInfo.typeName, firstName: fullRes.cardInfo.firstName, 
+        lastName: fullRes.cardInfo.lastName, organization: fullRes.cardInfo.organization,
+        gateName: fullRes.gateName, companionName: fullRes.companionName, recordedBy: fullRes.recordedBy
+    };
+    recentLogs.unshift(newLog);
+    if (recentLogs.length > 200) recentLogs.pop();
+    renderRecentLogsTable();
+    renderHomeDashboard();
 }
 
 // 7. ฟังก์ชันจัดการเสียง
