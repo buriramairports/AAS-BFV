@@ -4380,17 +4380,19 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         return (yiq >= 128) ? 'black' : 'white';
     }
 
- async function previewIdCard(id) {
+async function previewIdCard(id) {
     showLoader('กำลังเตรียมข้อมูลรูปภาพบัตร...');
     try {
+        // 1. ค้นหาข้อมูลบัตร (ใช้ Number() เพื่อความแม่นยำ)
         const c = allCards.find(x => Number(x.id) == Number(id));
         if (!c) throw new Error('ไม่พบข้อมูลบัตรในฐานข้อมูล');
         const t = typeCards.find(x => parseInt(x.id) === parseInt(c.typeId)) || {};
 
+        // 2. โหลดเทมเพลตบัตร
         document.getElementById('tplFrontImg').src = systemSettings.cardTplFront || '';
         document.getElementById('tplBackImg').src = systemSettings.cardTplBack || '';
 
-        // จัดการรูปโปรไฟล์
+        // 3. จัดการรูปโปรไฟล์
         const imgEl = document.getElementById('renderPhoto');
         const iconEl = document.getElementById('renderPhotoIcon');
         if (c.imageUrl && c.imageUrl.trim() !== '') { 
@@ -4406,7 +4408,7 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
             imgEl.src = ''; imgEl.classList.add('hidden'); iconEl.classList.remove('hidden'); 
         }
 
-        // ข้อมูลหน้าบัตร
+        // 4. ข้อมูลหน้าบัตร
         document.getElementById('renderLblPos').textContent = systemSettings.lblPos || 'ตำแหน่ง';
         document.getElementById('renderLblOrg').textContent = systemSettings.lblOrg || 'สังกัด';
         document.getElementById('renderLblExp').textContent = systemSettings.lblExp || 'หมดอายุ';
@@ -4416,26 +4418,36 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         document.getElementById('renderExp').textContent = formatDateOnly(c.expiryDate);
         document.getElementById('renderCardId').textContent = c.cardId || '-';
 
-        // ป้ายสถานะ
+        // 5. ปรับปรุงการควบคุมป้ายสถานะ (ล็อคตำแหน่งไม่ให้กรอบพื้นที่เลื่อน)
         const tempEl = document.getElementById('renderTemp');
-        const isTemp = (t.isTemporary == true || t.isTemporary == 'TRUE');
-        const noComp = (t.requireCompanion == false || t.requireCompanion == 'FALSE');
-        const canDrive = (c.canDrive == true || c.canDrive == 'TRUE');
+        const escortEl = document.getElementById('renderEscort');
+        const driveEl = document.getElementById('renderDrive');
 
+        const isTemp = (t.isTemporary == true || t.isTemporary == 'TRUE' || t.isTemporary == 'true');
+        const noComp = (t.requireCompanion == false || t.requireCompanion == 'FALSE' || t.requireCompanion == 'false');
+        const canDrive = (c.canDrive == true || c.canDrive == 'TRUE' || c.canDrive == 'true');
+
+        // ล็อคความสูงของป้ายสถานะไว้ที่ 28px เสมอ เพื่อจองพื้นที่ไว้ไม่ให้ข้างล่างเลื่อนขึ้น
         tempEl.style.setProperty('display', 'block', 'important'); 
+        tempEl.style.setProperty('min-height', '28px', 'important'); 
+        tempEl.style.setProperty('line-height', '28px', 'important'); 
+
         if (isTemp) {
             tempEl.textContent = "บัตรชั่วคราว";
             tempEl.style.setProperty('visibility', 'visible', 'important');
             tempEl.style.setProperty('opacity', '1', 'important');
         } else {
-            tempEl.textContent = ""; 
+            // กรณีไม่ใช่บัตรชั่วคราว: ใส่ข้อความไว้แต่ใช้ visibility: hidden เพื่อให้จองพื้นที่ความสูงไว้ ( Layout ไม่เสีย)
+            tempEl.textContent = "บัตรถาวร"; 
             tempEl.style.setProperty('visibility', 'hidden', 'important');
             tempEl.style.setProperty('opacity', '0', 'important');
         }
-        document.getElementById('renderEscort').style.display = (isTemp && noComp) ? "block" : "none";
-        document.getElementById('renderDrive').style.display = canDrive ? "block" : "none";
 
-        // พื้นที่ Area Boxes
+        // ส่วนป้าย UNESCORT และ DRIVE (แสดงต่อท้ายพื้นที่แสกน ไม่กระทบตำแหน่งหลัก)
+        escortEl.style.setProperty('display', (isTemp && noComp) ? "block" : "none", 'important');
+        driveEl.style.setProperty('display', canDrive ? "block" : "none", 'important');
+
+        // 6. พื้นที่ Area Boxes (1-4 พื้นที่)
         const areaContainer = document.getElementById('renderAreaBoxes');
         areaContainer.innerHTML = ''; 
         if (c.areaAccessIds) {
@@ -4448,11 +4460,16 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
                 if (count === 1) { boxW="130px"; boxH="130px"; fSize="110px"; comp="0.24em"; }
                 else if (count === 2) { boxW="62px"; boxH="62px"; fSize="55px"; comp="0.24em"; }
                 else { boxW="58px"; boxH="58px"; fSize="50px"; comp="0.23em"; }
-                areaContainer.innerHTML = aData.slice(0, 4).map(a => `<div class="area-square-fixed" style="background-color:${a.colorCode}; color:${getContrastYIQ(a.colorCode)}; width:${boxW} !important; height:${boxH} !important; font-size:${fSize} !important; padding-bottom:${comp} !important; border:1px solid #1e1b4b !important;">${a.areaNumber}</div>`).join('');
+                
+                areaContainer.innerHTML = aData.slice(0, 4).map(a => `
+                    <div class="area-square-fixed" style="background-color:${a.colorCode}; color:${getContrastYIQ(a.colorCode)}; width:${boxW} !important; height:${boxH} !important; font-size:${fSize} !important; padding-bottom:${comp} !important; border:1px solid #1e1b4b !important;">
+                        ${a.areaNumber}
+                    </div>
+                `).join('');
             }
         }
 
-        // --- แก้ไขพรีวิวหลังบัตร (ดึงข้อมูลกฎระเบียบและส่วนท้าย) ---
+        // 7. ข้อมูลหลังบัตร (ดึงข้อมูลกฎระเบียบและส่วนท้าย)
         document.getElementById('renderRulesTitle1').textContent = systemSettings.cardRulesTitle1 || 'ข้อควรปฏิบัติ';
         document.getElementById('renderRulesTitle2').textContent = systemSettings.cardRulesTitle2 || '';
         document.getElementById('renderRulesTitle3').textContent = systemSettings.cardRulesTitle3 || '';
@@ -4462,6 +4479,7 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         document.getElementById('renderFooter2').textContent = systemSettings.cardFooterLine2 || '';
         document.getElementById('renderFooter3').textContent = systemSettings.cardFooterLine3 || '';
 
+        // 8. บาร์โค้ด
         document.getElementById('renderBarcode').textContent = `*${c.cardId}*`;
         document.getElementById('renderBarcodeText').textContent = c.cardId;
 
