@@ -1355,7 +1355,7 @@ gap: 1px !important;
     let offlineQueue = JSON.parse(localStorage.getItem('aac_offlineQueue') || '[]');
     let currentUser = null, currentPage = 'home';
     let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true , aiThreshold: 0.38, aiCooldown: 10, aiInterval: 1000, aiPadX: 15, aiPadTop: 35 };
-    
+    let activeProcessingIds = new Set(); // เก็บ ID บัตรที่กำลังรอกระบวนการจากเซิร์ฟเวอร์
     // Data Caches
     let allGates = [], typeCards = [], allCards = [], allSystemUsers = [], allAreas = [];
     let recentLogs = []; // เก็บแค่ Array ของหน้าแรกเพื่อความเร็ว
@@ -2057,52 +2057,62 @@ function toggleHybridCamera() {
         executeScanSuccessLocal(gate, card, typeInfo, newStatus, null);
     }
 
-    function executeScanSuccessLocal(gate, card, typeInfo, newStatus, compCard) {
-        const now = new Date();
-        const logTimeStr = now.toISOString();
+   function executeScanSuccessLocal(gate, card, typeInfo, newStatus, compCard) {
+    const cardId = card.cardId;
+    
+    // เริ่มล็อค ID นี้ เพื่อไม่ให้แสกนซ้ำระหว่างรอกระบวนการเซิร์ฟเวอร์
+    activeProcessingIds.add(cardId);
 
-        const res = {
-            ioType: newStatus,
-            cardInfo: card,
-            typeInfo: typeInfo,
-            logTime: logTimeStr,
-            gateName: gate.name,
-            companionName: compCard ? `${compCard.firstName} ${compCard.lastName}` : '',
-            companionCardId: compCard ? compCard.cardId : '',
-            companionOrg: compCard ? (compCard.organization || '') : '',
-            recordedBy: `${currentUser.firstName} ${currentUser.lastName}`
-        };
+    const now = new Date();
+    const logTimeStr = now.toISOString();
 
-        card.currentStatus = newStatus;
-        card.lastLogTime = logTimeStr;
+    const res = {
+        ioType: newStatus,
+        cardInfo: card,
+        typeInfo: typeInfo,
+        logTime: logTimeStr,
+        gateName: gate.name,
+        companionName: compCard ? `${compCard.firstName} ${compCard.lastName}` : '',
+        companionCardId: compCard ? compCard.cardId : '',
+        companionOrg: compCard ? (compCard.organization || '') : '',
+        recordedBy: `${currentUser.firstName} ${currentUser.lastName}`
+    };
 
-        handleScanSuccess(res);
+    card.currentStatus = newStatus;
+    card.lastLogTime = logTimeStr;
 
-        // --- เริ่มส่วนที่แก้ไขสำหรับ Offline Mode ---
-        const scanData = {
-            gateId: gate.id,
-            cardId: card.cardId,
-            companionCardId: compCard ? compCard.cardId : '',
-            recordedBy: res.recordedBy,
-            offlineTimestamp: logTimeStr // สำคัญ! ส่งเวลาที่แสกนจริงไปด้วย
-        };
+    handleScanSuccess(res);
 
-        if (!navigator.onLine) {
-            // ถ้าเน็ตหลุด -> เก็บลงเครื่อง
-            offlineQueue.push(scanData);
-            localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
-            updateOfflineUI();
-            showToast('บันทึกออฟไลน์แล้ว (รออินเทอร์เน็ต)', 'warning');
-        } else {
-            // ถ้าเน็ตปกติ -> ส่งไป API (ไม่โชว์ Loading หน้าจอมืดๆ เพราะทำ Optimistic UI ไปแล้ว)
-            apiCall('processScan', scanData, false).catch(err => {
-                console.warn("ส่งข้อมูลไม่สำเร็จ เก็บลงคิวออฟไลน์:", err);
-                offlineQueue.push(scanData);
-                localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
-                updateOfflineUI();
-            });
-        }
+    const scanData = {
+        gateId: gate.id,
+        cardId: card.cardId,
+        companionCardId: compCard ? compCard.cardId : '',
+        recordedBy: res.recordedBy,
+        offlineTimestamp: logTimeStr 
+    };
+
+    if (!navigator.onLine) {
+        offlineQueue.push(scanData);
+        localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
+        updateOfflineUI();
+        // ถ้าออฟไลน์ ให้ปลดล็อคทันทีเพราะไม่ได้รอเซิร์ฟเวอร์ตอบกลับ
+        activeProcessingIds.delete(cardId);
+		showToast('บันทึกออฟไลน์แล้ว (รออินเทอร์เน็ต)', 'warning');
+    } else {
+        // ส่งไปเซิร์ฟเวอร์
+        apiCall('processScan', scanData, false)
+        .then(() => {
+            console.log("Sync success for " + cardId);
+        })
+        .catch(err => {
+            console.error("Sync failed, ID remained in queue", err);
+        })
+        .finally(() => {
+            // เมื่อเซิร์ฟเวอร์ตอบกลับแล้ว (ไม่ว่าจะสำเร็จหรือ Error) ให้ปลดล็อค ID นี้เพื่อให้แสกนใหม่ได้
+            activeProcessingIds.delete(cardId);
+        });
     }
+}
 
     function closeCompanionModal() {
         document.getElementById('companionModal').classList.add('hidden');
@@ -4095,26 +4105,24 @@ stopWebcam = function() {
 
 // ฟังก์ชันเมื่อจับคู่หน้าผ่านแล้ว ส่งเข้ากระบวนการแสกน
 function triggerFaceScanSuccess(cardId) {
-    // 1. ตัวล็อค: ห้ามแสกนซ้ำขณะมี Alert หรือ Modal เปิดอยู่
     const isAlertOpen = !document.getElementById('customAlertModal').classList.contains('hidden');
     const isCompModalOpen = !document.getElementById('companionModal').classList.contains('hidden');
-    if (isAlertOpen || isCompModalOpen) return;
+    
+    // บล็อคไม่ให้แสกนเพิ่มถ้า: มีแจ้งเตือนเปิดอยู่ OR กำลังรอคำตอบจากเซิร์ฟเวอร์ของบัตรใบนี้
+    if (isAlertOpen || isCompModalOpen || activeProcessingIds.has(cardId)) return;
 
-    // 2. Cooldown ป้องกันแสกนรัว (ใช้ cardId เดิมซ้ำในเวลาใกล้กันไม่ได้)
     if (lastScannedFaceId === cardId) return;
     
     lastScannedFaceId = cardId;
     const cooldownMs = (systemSettings.aiCooldown || 10) * 1000;
     faceScanCooldownTimer = setTimeout(() => { lastScannedFaceId = null; }, cooldownMs);
 
-    // 3. แสดงสถานะที่แถบด้านบนเพื่อให้เจ้าหน้าที่เห็นว่า "อ่านค่ารหัสได้แล้ว"
     const statusEl = document.getElementById('faceScanStatus');
     if (statusEl) {
         statusEl.innerHTML = `<span class="text-green-600 font-black">✔ อ่านรหัสได้: ${cardId}</span>`;
         statusEl.classList.remove('bg-indigo-50', 'text-indigo-700');
         statusEl.classList.add('bg-green-50');
         
-        // คืนค่าสถานะปกติหลังจาก 2 วินาที
         setTimeout(() => {
             statusEl.classList.remove('bg-green-50');
             statusEl.classList.add('bg-indigo-50', 'text-indigo-700');
@@ -4122,11 +4130,10 @@ function triggerFaceScanSuccess(cardId) {
         }, 2000);
     }
 
-    // 4. ส่งค่าเข้าช่อง Input และประมวลผลการเข้า-ออก
     const mainInput = document.getElementById('scanInput');
     if (mainInput) {
         mainInput.value = cardId;
-        processMainScan(); // ฟังก์ชันนี้จะไปเช็ควันหมดอายุ/สถานะบัตรต่อเอง
+        processMainScan(); 
     }
 }
 //---------------
