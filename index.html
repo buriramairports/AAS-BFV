@@ -270,7 +270,11 @@ gap: 1px !important;
                                     <i id="resCardIcon" data-lucide="user" class="w-16 h-16 relative z-0"></i>
                                 </div>
                                 <div class="bg-white px-4 py-1.5 rounded-lg shadow-sm border border-gray-200 font-bold text-gray-800 tracking-wider text-center text-lg" id="resCardId">-</div>
-                              </div>
+                              <!-- วางโค้ดนี้ต่อท้าย #resCardId -->
+<div id="resAreaBadgeContainer" class="flex flex-wrap justify-center gap-2 mt-3">
+    <!-- Badge พื้นที่จะถูกวาดที่นี่โดย JS -->
+</div>
+							  </div>
                                
                                <!-- รายละเอียด -->
                                <div class="flex-1">
@@ -2072,6 +2076,7 @@ function showInstantUI(card, typeInfo, predictedStatus) {
         };
         tempImg.src = card.imageUrl;
     }
+	renderResultAreaBadges(card.areaAccessIds);
 }
 
 /**
@@ -5014,6 +5019,35 @@ function testFullNotification() {
         hideInitialSplash();
     }
 }, 5000);*/
+
+	  /**
+ * ฟังก์ชันวาด Badge พื้นที่สำหรับแสดงผลหน้าแสกน
+ */
+function renderResultAreaBadges(areaAccessIds) {
+    const container = document.getElementById('resAreaBadgeContainer');
+    container.innerHTML = ''; // ล้างค่าเก่า
+    
+    if (!areaAccessIds || String(areaAccessIds).trim() === "") return;
+
+    // แยกหมายเลขพื้นที่ออกมาเป็น Array (เช่น ["1", "5"])
+    const areaNums = String(areaAccessIds).split(',').map(s => s.trim());
+    
+    // ค้นหาข้อมูลพื้นที่จากฐานข้อมูลหลัก (allAreas) และเรียงลำดับ
+    let selectedAreas = allAreas.filter(a => areaNums.includes(String(a.areaNumber)));
+    selectedAreas.sort((a, b) => Number(a.areaNumber) - Number(b.areaNumber));
+
+    selectedAreas.forEach(area => {
+        const badge = document.createElement('div');
+        // กำหนดขนาดสี่เหลี่ยมจัตุรัสใหญ่ๆ ชัดๆ (w-12 h-12)
+        badge.className = "w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center font-black text-2xl sm:text-3xl shadow-lg border-2 border-white transition-transform hover:scale-110 cursor-help";
+        badge.style.backgroundColor = area.colorCode;
+        badge.style.color = getContrastYIQ(area.colorCode); // ใช้ฟังก์ชันเดิมที่มีอยู่เพื่อเลือกสีตัวอักษร ขาว/ดำ
+        badge.textContent = area.areaNumber;
+        badge.title = area.areaName; // เอาเมาส์ชี้เพื่อดูชื่อพื้นที่ได้
+        
+        container.appendChild(badge);
+    });
+}
   </script>
 </body>
 </html>
