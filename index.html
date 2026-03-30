@@ -263,18 +263,29 @@ gap: 1px !important;
                            
                            <div class="flex flex-col sm:flex-row gap-6">
                              <!-- ไอคอนโปรไฟล์ / รูปบัตร / บาร์โค้ด -->
-                              <div class="flex flex-col items-center justify-start shrink-0">
-                                <!-- ขยายรูปพนักงานในหน้าสแกนให้กว้างขึ้นเล็กน้อย -->
-<div class="w-36 h-48 sm:w-44 sm:h-56 bg-gray-100 rounded-2xl border-4 border-white shadow-md flex items-center justify-center text-gray-400 mb-3 overflow-hidden relative">
-                                    <img id="resCardImage" src="" class="w-full h-full object-cover hidden absolute inset-0 z-10">
-                                    <i id="resCardIcon" data-lucide="user" class="w-16 h-16 relative z-0"></i>
-                                </div>
-                                <div class="bg-white px-4 py-1.5 rounded-lg shadow-sm border border-gray-200 font-bold text-gray-800 tracking-wider text-center text-lg" id="resCardId">-</div>
-                              <!-- วางโค้ดนี้ต่อท้าย #resCardId -->
-<div id="resAreaBadgeContainer" class="flex flex-wrap justify-center gap-2 mt-3">
-    <!-- Badge พื้นที่จะถูกวาดที่นี่โดย JS -->
+                              <div class="flex flex-col items-center justify-start shrink-0 w-full sm:w-48">
+    <!-- รูปถ่าย (คงเดิม) -->
+    <div class="w-36 h-48 sm:w-44 sm:h-56 bg-gray-100 rounded-2xl border-4 border-white shadow-md flex items-center justify-center text-gray-400 mb-4 overflow-hidden relative">
+        <img id="resCardImage" src="" class="w-full h-full object-cover hidden absolute inset-0 z-10">
+        <i id="resCardIcon" data-lucide="user" class="w-16 h-16 relative z-0"></i>
+    </div>
+
+    <!-- ส่วนที่ปรับใหม่: รหัสบัตรขนาดใหญ่ -->
+    <div class="text-center w-full mb-4">
+        <span class="text-[10px] sm:text-xs text-gray-500 font-bold uppercase tracking-widest block mb-1">รหัสบัตรพนักงาน</span>
+        <div class="bg-indigo-50 border-2 border-indigo-200 px-2 py-2 rounded-2xl shadow-inner">
+            <span id="resCardId" class="text-2xl sm:text-3xl font-black text-indigo-900 tracking-tighter">-</span>
+        </div>
+    </div>
+
+    <!-- ส่วนที่ปรับใหม่: สิทธิการเข้าพื้นที่ขนาดใหญ่ -->
+    <div class="text-center w-full" id="resAreaSection">
+        <span class="text-[10px] sm:text-xs text-emerald-600 font-bold uppercase tracking-widest block mb-1">สิทธิการเข้าพื้นที่</span>
+        <div id="resAreaBadgeContainer" class="flex flex-wrap justify-center gap-2 p-3 bg-emerald-50 rounded-2xl border-2 border-emerald-100 shadow-inner min-h-[80px]">
+            <!-- Badge พื้นที่จะถูกวาดที่นี่โดย JS -->
+        </div>
+    </div>
 </div>
-							  </div>
                                
                                <!-- รายละเอียด -->
                                <div class="flex-1">
@@ -5023,27 +5034,34 @@ function testFullNotification() {
 	  /**
  * ฟังก์ชันวาด Badge พื้นที่สำหรับแสดงผลหน้าแสกน
  */
+/**
+ * ฟังก์ชันวาด Badge สิทธิการเข้าพื้นที่ขนาดใหญ่พิเศษ
+ */
 function renderResultAreaBadges(areaAccessIds) {
     const container = document.getElementById('resAreaBadgeContainer');
-    container.innerHTML = ''; // ล้างค่าเก่า
+    const section = document.getElementById('resAreaSection');
+    container.innerHTML = ''; 
     
-    if (!areaAccessIds || String(areaAccessIds).trim() === "") return;
+    // ถ้าไม่มีสิทธิเข้าพื้นที่เลย ให้ซ่อนทั้งส่วนสิทธิการเข้าพื้นที่
+    if (!areaAccessIds || String(areaAccessIds).trim() === "") {
+        section.classList.add('hidden');
+        return;
+    }
+    
+    section.classList.remove('hidden');
 
-    // แยกหมายเลขพื้นที่ออกมาเป็น Array (เช่น ["1", "5"])
     const areaNums = String(areaAccessIds).split(',').map(s => s.trim());
-    
-    // ค้นหาข้อมูลพื้นที่จากฐานข้อมูลหลัก (allAreas) และเรียงลำดับ
     let selectedAreas = allAreas.filter(a => areaNums.includes(String(a.areaNumber)));
     selectedAreas.sort((a, b) => Number(a.areaNumber) - Number(b.areaNumber));
 
     selectedAreas.forEach(area => {
         const badge = document.createElement('div');
-        // กำหนดขนาดสี่เหลี่ยมจัตุรัสใหญ่ๆ ชัดๆ (w-12 h-12)
-        badge.className = "w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center font-black text-2xl sm:text-3xl shadow-lg border-2 border-white transition-transform hover:scale-110 cursor-help";
+        // ปรับขนาดให้ใหญ่ขึ้นเป็น w-16 h-16 (ประมาณ 64px) และตัวเลขใหญ่พิเศษ (text-4xl)
+        badge.className = "w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center font-black text-4xl sm:text-5xl shadow-xl border-4 border-white transition-all hover:scale-110 active:scale-95";
         badge.style.backgroundColor = area.colorCode;
-        badge.style.color = getContrastYIQ(area.colorCode); // ใช้ฟังก์ชันเดิมที่มีอยู่เพื่อเลือกสีตัวอักษร ขาว/ดำ
+        badge.style.color = getContrastYIQ(area.colorCode);
+        badge.style.textShadow = "0 2px 4px rgba(0,0,0,0.1)"; // เพิ่มเงาที่ตัวเลขเล็กน้อยให้ลอยเด่น
         badge.textContent = area.areaNumber;
-        badge.title = area.areaName; // เอาเมาส์ชี้เพื่อดูชื่อพื้นที่ได้
         
         container.appendChild(badge);
     });
