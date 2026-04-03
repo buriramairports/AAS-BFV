@@ -2147,7 +2147,11 @@ function processMainScan() {
         mainInput.value = ''; mainInput.focus();
         return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error');
     }
-
+  // --- ส่วนที่เพิ่มใหม่: จังหวะการพูดแบบที่ 1 (พูดทันที) สำหรับทุกช่องทาง ---
+    if (systemSettings.ttsTimingMode === 'immediate') {
+        speakImmediateGreeting(card.firstName, card.lastName);
+    }
+    // -----------------------------------------------------------
     const now = new Date();
     const expiryDate = new Date(card.expiryDate);
     expiryDate.setHours(23, 59, 59, 999);
@@ -5056,7 +5060,7 @@ function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
     }
 
     // --- แก้ไขจุดนี้: จังหวะการพูดแบบที่ 1 (พูดทันที) ---
-    if (systemSettings.ttsTimingMode === 'immediate') {
+    /*if (systemSettings.ttsTimingMode === 'immediate') {
         // ใช้การ Find แบบไม่สนตัวพิมพ์เล็กใหญ่และช่องว่าง
         const matched = allCards.find(c => 
             String(c.cardId).trim().toUpperCase() === String(cardId).trim().toUpperCase()
@@ -5065,7 +5069,7 @@ function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
         if (matched) {
             speakImmediateGreeting(matched.firstName, matched.lastName);
         }
-    }
+    }*/
 
     // เก็บข้อมูลสำหรับการกด Improve AI
     lastMatchData = {
