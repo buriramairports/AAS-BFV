@@ -42,7 +42,20 @@
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+	/* สไตล์สำหรับเมนูที่ถูกเลือก (Active) */
+.sidebar-item.active {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-left: 4px solid #ffffff;
+    border-radius: 0 12px 12px 0; /* ทำมุมโค้งมนแค่ฝั่งขวา */
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
 
+/* ปรับระยะห่างของหัวข้อหมวดหมู่ */
+#sidebarNav > div:not(:first-child) {
+    margin-top: 15px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
 /* ลบหรือแก้ height เป็น auto */
 #renderAreaBoxes {
     display: flex; 
@@ -719,7 +732,7 @@ gap: 1px !important;
        <h2 class="text-xl font-bold flex items-center gap-2 text-gray-800 mb-6"><i data-lucide="settings" class="w-6 h-6 text-green-600"></i> ตั้งค่าระบบ</h2>
        
        <!-- Settings: General -->
-       <div class="bg-white rounded-2xl card-shadow p-6">
+       <div class="bg-sky-50/40 rounded-3xl card-shadow p-6 border-2 border-sky-100 shadow-sm">
            <h3 class="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-gray-700"><i data-lucide="sliders" class="w-5 h-5 text-sky-500"></i> ข้อมูลทั่วไป</h3>
            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-4">
                <div><label class="block text-sm font-medium mb-1 text-gray-700">ชื่อระบบ (บรรทัดที่ 1)</label><input type="text" id="systemName" class="w-full border p-3 rounded-xl focus:ring-2 outline-none focus:ring-green-500 bg-gray-50"></div>
@@ -741,7 +754,7 @@ gap: 1px !important;
        </div>
 
        <!-- Settings: Auto Checkout -->
-       <div class="bg-white rounded-2xl card-shadow p-6">
+       <div class="bg-orange-50/40 rounded-3xl card-shadow p-6 border-2 border-orange-100 shadow-sm">
            <div class="flex flex-wrap justify-between items-center mb-2 border-b pb-2">
                <h3 class="font-bold flex items-center gap-2 text-gray-700"><i data-lucide="clock" class="w-5 h-5 text-orange-500"></i> ล้างสถานะอัตโนมัติ (Auto-Checkout)</h3>
                <div class="flex items-center gap-4 bg-orange-50 px-4 py-2 rounded-lg border border-orange-200 shadow-sm transition hover:bg-orange-100">
@@ -754,7 +767,7 @@ gap: 1px !important;
        </div>
 
 <!-- Settings: AI Face Scan -->
-       <div class="bg-white rounded-2xl card-shadow p-6">
+       <div class="bg-indigo-50/40 rounded-3xl card-shadow p-6 border-2 border-indigo-100 shadow-sm">
            <h3 class="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-gray-700">
                <i data-lucide="scan-face" class="w-5 h-5 text-indigo-500"></i> ตั้งค่าระบบแสกนใบหน้า (AI)
            </h3>
@@ -832,7 +845,7 @@ gap: 1px !important;
        </div>
 
 	<!-- Settings: Card Template & Labels -->
-       <div class="bg-white rounded-2xl card-shadow p-6">
+       <div class="bg-rose-50/40 rounded-3xl card-shadow p-6 border-2 border-rose-100 shadow-sm">
            <h3 class="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-gray-700">
                <i data-lucide="printer" class="w-5 h-5 text-pink-500"></i> ตั้งค่ารูปแบบบัตรพนักงาน (ID Card Template & Labels)
            </h3>
@@ -878,7 +891,7 @@ gap: 1px !important;
        </div>
 
        <!-- Settings: Banner -->
-       <div class="bg-white rounded-2xl card-shadow p-6">
+       <div class="bg-purple-50/40 rounded-3xl card-shadow p-6 border-2 border-purple-100 shadow-sm">
            <div class="flex flex-wrap justify-between items-center mb-4 gap-4 border-b pb-2">
                <h3 class="font-bold flex items-center gap-2 text-gray-700"><i data-lucide="image" class="w-5 h-5 text-purple-500"></i> รูปภาพ Banner หน้าหลัก</h3>
                <div class="flex items-center gap-4 bg-gray-50 px-4 py-2 rounded-lg border">
@@ -895,7 +908,7 @@ gap: 1px !important;
        </div>
 
 		<!-- Settings: AI Voice & Notification Sound -->
-<div class="bg-white rounded-2xl card-shadow p-6 mt-6">
+<div class="bg-emerald-50/40 rounded-3xl card-shadow p-6 border-2 border-emerald-100 shadow-sm">
     <h3 class="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-gray-700">
         <i data-lucide="megaphone" class="w-5 h-5 text-indigo-500"></i> ตั้งค่าเสียงแจ้งเตือนและ AI
     </h3>
@@ -1960,24 +1973,70 @@ function toggleHybridCamera() {
         if(savedGate) document.getElementById('scanGateSelect').value = savedGate;
     }
 
-    function renderSidebar(){
-        const m = [
-            {id:'home',icon:'scan-line',label:'แสกนเข้า-ออก (Home)',r:['user','admin']},
-            // --- แทรกเมนูผู้ตกค้าง ---
-            {id:'activeInside',icon:'user-check',label:'ผู้ตกค้างในพื้นที่',r:['admin']},
-            // ---------------------
-            {id:'manageCards',icon:'credit-card',label:'ฐานข้อมูลบัตร',r:['admin']},
-            {id:'manageTypeCards',icon:'tags',label:'ตั้งค่าประเภทบัตร',r:['admin']},
-			{id:'manageAreas',icon:'map',label:'ตั้งค่าพื้นที่ (Area)',r:['admin']},
-            {id:'manageGates',icon:'boom-box',label:'จุดเข้าออกพื้นที่',r:['admin']},
-            {id:'userManagement',icon:'users',label:'ผู้ใช้งานระบบ',r:['admin']},
-            {id:'reports',icon:'file-spreadsheet',label:'รายงาน / ประวัติ',r:['admin']},
-            {id:'settings',icon:'settings',label:'ตั้งค่าระบบ',r:['admin']},
-            {id:'profile',icon:'user-circle',label:'โปรไฟล์ส่วนตัว',r:['user','admin']}
-        ];
-        document.getElementById('sidebarNav').innerHTML = m.filter(i=>i.r.includes(currentUser.role)).map(i=>`<button onclick="navigateTo('${i.id}')" class="sidebar-item w-full flex items-center gap-3 px-4 py-4 text-white rounded-xl transition font-medium" data-page="${i.id}"><i data-lucide="${i.icon}" class="w-5 h-5"></i><span>${i.label}</span></button>`).join('');
-        lucide.createIcons();
-    }
+   function renderSidebar() {
+    const categories = [
+        {
+            title: 'หน้าหลักและติดตาม',
+            items: [
+                { id: 'home', icon: 'scan-line', label: 'แสกนเข้า-ออก', r: ['user', 'admin'] },
+                { id: 'activeInside', icon: 'user-check', label: 'ผู้ตกค้างในพื้นที่', r: ['admin'] }
+            ]
+        },
+        {
+            title: 'จัดการข้อมูลบัตรและพื้นที่',
+            items: [
+                { id: 'manageCards', icon: 'credit-card', label: 'ฐานข้อมูลบัตร', r: ['admin'] },
+                { id: 'manageTypeCards', icon: 'tags', label: 'ตั้งค่าประเภทบัตร', r: ['admin'] },
+                { id: 'manageAreas', icon: 'map', label: 'ตั้งค่าพื้นที่ (Area)', r: ['admin'] },
+                { id: 'manageGates', icon: 'boom-box', label: 'จุดเข้าออกพื้นที่', r: ['admin'] }
+            ]
+        },
+        {
+            title: 'รายงานและประวัติ',
+            items: [
+                { id: 'reports', icon: 'file-spreadsheet', label: 'รายงาน / ประวัติ', r: ['admin'] }
+            ]
+        },
+        {
+            title: 'ดูแลระบบ',
+            items: [
+                { id: 'userManagement', icon: 'users', label: 'ผู้ใช้งานระบบ', r: ['admin'] },
+                { id: 'settings', icon: 'settings', label: 'ตั้งค่าระบบ', r: ['admin'] }
+            ]
+        },
+        {
+            title: 'บัญชีผู้ใช้',
+            items: [
+                { id: 'profile', icon: 'user-circle', label: 'โปรไฟล์ส่วนตัว', r: ['user', 'admin'] }
+            ]
+        }
+    ];
+
+    let sidebarHtml = '';
+
+    categories.forEach(cat => {
+        // กรองเฉพาะเมนูที่สิทธิ์ของผู้ใช้สามารถมองเห็นได้
+        const allowedItems = cat.items.filter(item => item.r.includes(currentUser.role));
+
+        // ถ้าในหมวดนี้มีเมนูที่แสดงได้ ให้วาดหัวข้อหมวดหมู่
+        if (allowedItems.length > 0) {
+            sidebarHtml += `<div class="px-4 pt-4 pb-1 text-[10px] font-black text-green-200 uppercase tracking-[0.2em] opacity-60">${cat.title}</div>`;
+            
+            allowedItems.forEach(item => {
+                sidebarHtml += `
+                    <button onclick="navigateTo('${item.id}')" 
+                        class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-white rounded-xl transition font-medium mb-1 hover:bg-white/10" 
+                        data-page="${item.id}">
+                        <i data-lucide="${item.icon}" class="w-5 h-5"></i>
+                        <span class="text-sm">${item.label}</span>
+                    </button>`;
+            });
+        }
+    });
+
+    document.getElementById('sidebarNav').innerHTML = sidebarHtml;
+    lucide.createIcons();
+}
 
     function navigateTo(p){
     forceShutdownCamera(); 
