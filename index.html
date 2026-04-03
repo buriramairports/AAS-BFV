@@ -5316,6 +5316,15 @@ function startReturnCooldown() {
         document.getElementById('cardCanDrive').checked = false;
         renderAreaCheckboxes(''); // วาด Checkbox พื้นที่แบบว่างๆ
 	updateAreaCheckboxState();
+		calcExpiryDate(); // คำนวณวันหมดอายุใหม่ตามประเภทบัตรที่เลือกอยู่
+
+        // >>> เพิ่มส่วนนี้เพื่อเคลียร์ฐานข้อมูลใบหน้าของคนก่อนหน้า <<<
+        const listContainer = document.getElementById('cardFacesList');
+        if (listContainer) {
+            listContainer.innerHTML = '<p class="text-xs text-gray-400 col-span-full text-center py-8">ไม่มีข้อมูลรูปภาพประกอบ</p>';
+        }
+        selectedFaceIds = []; // รีเซ็ตตัวแปรอาร์เรย์ที่ใช้เก็บ ID รูปภาพที่ถูกเลือก
+        // >>> สิ้นสุดส่วนที่เพิ่ม <<<
     }
     
 
