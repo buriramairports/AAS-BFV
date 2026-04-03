@@ -3225,18 +3225,23 @@ async function saveCard() {
     }
 
     function editTypeCard(id) {
-        const t = typeCards.find(x => x.id === id);
-        document.getElementById('typeCardModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขประเภทบัตร';
-        document.getElementById('editTypeId').value = t.id;
-        document.getElementById('tcName').value = t.typeName; 
-        document.getElementById('tcValue').value = t.durationValue; 
-        document.getElementById('tcType').value = t.durationType;
-        document.getElementById('tcRequireComp').checked = t.requireCompanion; 
-        document.getElementById('tcStatus').value = t.status;
-        
-        toggleCustomDuration(); // เช็คเปิด/ปิดช่องตัวเลข
-        document.getElementById('typeCardModal').classList.remove('hidden');
-    }
+    // แก้ไข: ใช้ Number() เพื่อให้เปรียบเทียบค่าได้ถูกต้องไม่ว่าจะเป็น String หรือ Number
+    const t = typeCards.find(x => Number(x.id) === Number(id));
+    if (!t) return showToast('ไม่พบข้อมูลประเภทบัตร', 'error');
+
+    document.getElementById('typeCardModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขประเภทบัตร';
+    document.getElementById('editTypeId').value = t.id;
+    document.getElementById('tcName').value = t.typeName; 
+    document.getElementById('tcValue').value = t.durationValue; 
+    document.getElementById('tcType').value = t.durationType;
+    document.getElementById('tcRequireComp').checked = (t.requireCompanion == true || t.requireCompanion == 'TRUE'); 
+    document.getElementById('tcIsTemp').checked = (t.isTemporary == true || t.isTemporary == 'TRUE');
+    document.getElementById('tcStatus').value = t.status;
+    
+    toggleCustomDuration(); 
+    document.getElementById('typeCardModal').classList.remove('hidden');
+    if (window.lucide) lucide.createIcons(); // วาดไอคอนใหม่
+}
     function closeTypeCardModal() { document.getElementById('typeCardModal').classList.add('hidden'); }
 
     // --- เพิ่มใหม่: ฟังก์ชันปิดช่องตัวเลขถ้าเลือกแบบกำหนดเอง ---
@@ -3314,7 +3319,23 @@ async function saveCard() {
         lucide.createIcons();
     }
     function openGateModal() { document.getElementById('gateModalTitle').innerHTML='<i data-lucide="boom-box"></i> เพิ่มจุดเข้าออก'; document.getElementById('editGateId').value=''; ['gateName','gateLocation'].forEach(id=>document.getElementById(id).value=''); document.getElementById('gateStatus').value='active'; document.getElementById('gateModal').classList.remove('hidden'); }
-    function editGate(id) { const g=allGates.find(x=>x.id===id); document.getElementById('gateModalTitle').innerHTML='<i data-lucide="edit"></i> แก้ไขจุดเข้าออก'; document.getElementById('editGateId').value=g.id; document.getElementById('gateName').value=g.name; document.getElementById('gateLocation').value=g.location||''; document.getElementById('gateStatus').value=g.status; document.getElementById('gateModal').classList.remove('hidden'); }
+    function editGate(id) {
+    // แก้ไข: ใช้ Number() ในการเปรียบเทียบ ID
+    const g = allGates.find(x => Number(x.id) === Number(id));
+    if (!g) return showToast('ไม่พบข้อมูลจุดเข้าออก', 'error');
+
+    document.getElementById('gateModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขจุดเข้าออก';
+    document.getElementById('editGateId').value = g.id;
+    document.getElementById('gateName').value = g.name;
+    document.getElementById('gateLocation').value = g.location || '';
+    document.getElementById('gateStatus').value = g.status;
+
+    // โหลด Checkbox พื้นที่ที่อนุญาต
+    renderAreaCheckboxesGen(g.allowedAreas || '', 'gateAreaCheckboxes', 'input-gate-area-cb');
+
+    document.getElementById('gateModal').classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+}
     function closeGateModal() { document.getElementById('gateModal').classList.add('hidden'); }
     async function saveGate() {
         const id = document.getElementById('editGateId').value, name = document.getElementById('gateName').value.trim();
@@ -5206,7 +5227,21 @@ function startReturnCooldown() {
     }
     
     function openAreaModal() { document.getElementById('areaModalTitle').innerHTML='<i data-lucide="map"></i> เพิ่มพื้นที่ใหม่'; document.getElementById('editAreaId').value=''; ['areaNum','areaName'].forEach(id=>document.getElementById(id).value=''); document.getElementById('areaColor').value='#ffeb3b'; document.getElementById('areaStatus').value='active'; document.getElementById('areaModal').classList.remove('hidden'); }
-    function editArea(id) { const a = allAreas.find(x=>x.id===id); document.getElementById('areaModalTitle').innerHTML='<i data-lucide="edit"></i> แก้ไขพื้นที่'; document.getElementById('editAreaId').value=a.id; document.getElementById('areaNum').value=a.areaNumber; document.getElementById('areaName').value=a.areaName; document.getElementById('areaColor').value=a.colorCode; document.getElementById('areaStatus').value=a.status; document.getElementById('areaModal').classList.remove('hidden'); }
+    function editArea(id) {
+    // แก้ไข: ใช้ Number() ในการเปรียบเทียบ ID
+    const a = allAreas.find(x => Number(x.id) === Number(id));
+    if (!a) return showToast('ไม่พบข้อมูลพื้นที่', 'error');
+
+    document.getElementById('areaModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขพื้นที่';
+    document.getElementById('editAreaId').value = a.id;
+    document.getElementById('areaNum').value = a.areaNumber;
+    document.getElementById('areaName').value = a.areaName;
+    document.getElementById('areaColor').value = a.colorCode;
+    document.getElementById('areaStatus').value = a.status;
+    
+    document.getElementById('areaModal').classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+}
     function closeAreaModal() { document.getElementById('areaModal').classList.add('hidden'); }
     
     async function saveArea() {
