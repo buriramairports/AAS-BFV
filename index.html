@@ -280,24 +280,25 @@ gap: 1px !important;
                            <div class="flex flex-col sm:flex-row gap-6">
                              <!-- ไอคอนโปรไฟล์ / รูปบัตร / บาร์โค้ด -->
                               <!-- ฝั่งซ้าย: รูปถ่ายและข้อมูลรหัส/สิทธิ -->
+<!-- ฝั่งซ้าย: รูปถ่าย ข้อมูลรหัส(เล็กลง) และสิทธิพื้นที่(ใหญ่ขึ้นมาก) -->
 <div class="flex flex-col items-center justify-start shrink-0 px-2">
-    <!-- รูปถ่าย (ขนาดใหญ่ขึ้นเล็กน้อย) -->
-    <div class="w-40 h-52 sm:w-48 sm:h-64 bg-gray-100 rounded-2xl border-[6px] border-white shadow-xl flex items-center justify-center text-gray-400 mb-6 overflow-hidden relative group">
-        <img id="resCardImage" src="" class="w-full h-full object-cover hidden absolute inset-0 z-10 transition-transform duration-500 group-hover:scale-110">
-        <i id="resCardIcon" data-lucide="user" class="w-20 h-20 relative z-0 opacity-20"></i>
+    <!-- รูปถ่าย (ขนาดมาตรฐาน) -->
+    <div class="w-36 h-48 sm:w-44 sm:h-56 bg-gray-100 rounded-2xl border-4 border-white shadow-lg flex items-center justify-center text-gray-400 mb-5 overflow-hidden relative group">
+        <img id="resCardImage" src="" class="w-full h-full object-cover hidden absolute inset-0 z-10 transition-transform duration-500 group-hover:scale-105">
+        <i id="resCardIcon" data-lucide="user" class="w-16 h-16 relative z-0 opacity-20"></i>
     </div>
 
-    <!-- หัวข้อและ Badge รหัสพนักงาน (Extra Large) -->
-    <div class="w-full text-center mb-6">
-        <span class="text-xs font-black text-gray-500 uppercase tracking-[0.2em] block mb-2">รหัสพนักงาน</span>
-        <div id="resCardId" class="bg-indigo-900 text-white px-6 py-3 rounded-2xl shadow-lg font-black text-xl tracking-widest inline-block min-w-[180px] border-b-4 border-indigo-500 animate-fadeIn">-</div>
+    <!-- หัวข้อและ Badge รหัสพนักงาน (ปรับให้เล็กลงและกะทัดรัด) -->
+    <div class="w-full text-center mb-5">
+        <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">รหัสพนักงาน</span>
+        <div id="resCardId" class="bg-gray-800 text-white px-4 py-1.5 rounded-xl shadow-md font-black text-lg tracking-widest inline-block min-w-[140px] border-b-2 border-gray-600">-</div>
     </div>
 
-    <!-- หัวข้อและ Badge สิทธิการเข้าพื้นที่ (Extra Large) -->
+    <!-- หัวข้อและ Badge สิทธิการเข้าพื้นที่ (ขยายใหญ่ยักษ์ Super Size) -->
     <div class="w-full text-center">
-        <span class="text-xs font-black text-sky-600 uppercase tracking-[0.2em] block mb-2">สิทธิการเข้าพื้นที่</span>
-        <div id="resAreaBadges" class="flex flex-wrap justify-center gap-3 w-full max-w-[220px] mx-auto min-h-[80px] p-4 bg-white rounded-3xl border-2 border-dashed border-sky-100 shadow-inner">
-            <!-- Badge พื้นที่ขนาดใหญ่จะถูกวาดที่นี่ทันที -->
+        <span class="text-xs font-black text-sky-600 uppercase tracking-[0.2em] block mb-2">สิทธิการเข้าพื้นที่ (AREA ACCESS)</span>
+        <div id="resAreaBadges" class="flex flex-wrap justify-center gap-4 w-full max-w-[260px] mx-auto min-h-[100px] p-4 bg-white rounded-[2rem] border-2 border-dashed border-sky-100 shadow-inner">
+            <!-- Badge พื้นที่ขนาดใหญ่ยักษ์จะถูกวาดที่นี่ -->
             <span class="text-xs text-gray-300 italic self-center">รอการแสกน...</span>
         </div>
     </div>
@@ -2426,6 +2427,9 @@ function clearAllFailedScans() {
 /**
  * ฟังก์ชันวาด Badge เลขพื้นที่ขนาดใหญ่พิเศษ (Instant & Extra Large)
  */
+/**
+ * ฟังก์ชันวาด Badge เลขพื้นที่ขนาดใหญ่ยักษ์ (Super Size)
+ */
 function renderResultAreaBadges(areaIdsStr) {
     const container = document.getElementById('resAreaBadges');
     if (!container) return;
@@ -2441,16 +2445,16 @@ function renderResultAreaBadges(areaIdsStr) {
 
     ids.forEach(num => {
         const area = allAreas.find(a => String(a.areaNumber) === String(num));
-        const bgColor = area ? area.colorCode : '#64748b';
+        const bgColor = area ? area.colorCode : '#475569';
         const textColor = getContrastYIQ(bgColor);
 
-        // วาดเป็น Badge ขนาดใหญ่พิเศษ (w-14 h-14)
+        // วาดเป็น Badge ขนาดใหญ่ยักษ์ (w-20 h-20) หรือประมาณ 80x80 px
         container.innerHTML += `
-            <div class="w-30 h-30 rounded-2xl shadow-xl border border-black/10 flex flex-col items-center justify-center animate-fadeIn transform hover:scale-110 transition-all duration-300" 
+            <div class="w-30 h-30 rounded-[1.5rem] shadow-2xl border-2 border-white/20 flex flex-col items-center justify-center animate-fadeIn transform hover:scale-105 transition-all duration-300" 
                  style="background-color: ${bgColor}; color: ${textColor};" 
                  title="${area ? area.areaName : 'พื้นที่ ' + num}">
-                <span class="text-[7px] font-black leading-none mb-1 opacity-80">AREA</span>
-                <span class="text-3xl font-black leading-none">${num}</span>
+                <span class="text-[10px] font-black leading-none mb-1 opacity-70 tracking-tighter">AREA</span>
+                <span class="text-4xl font-black leading-none drop-shadow-sm">${num}</span>
             </div>
         `;
     });
