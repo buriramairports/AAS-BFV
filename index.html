@@ -286,6 +286,9 @@ gap: 1px !important;
                                     <i id="resCardIcon" data-lucide="user" class="w-16 h-16 relative z-0"></i>
                                 </div>
                                 <div class="bg-white px-4 py-1.5 rounded-lg shadow-sm border border-gray-200 font-bold text-gray-800 tracking-wider text-center text-lg" id="resCardId">-</div>
+								  <div id="resAreaBadges" class="flex flex-wrap justify-center gap-1.5 mt-2 w-full max-w-[160px]">
+    <!-- Badge พื้นที่จะถูกวาดที่นี่ด้วย JS -->
+</div>
                               </div>
                                
                                <!-- รายละเอียด -->
@@ -2398,6 +2401,34 @@ function clearAllFailedScans() {
  * ฟังก์ชันยืนยันและแสดงผลสถานะการบันทึกสำเร็จบนหน้าจอ
  * ปรับปรุง: ดึงค่า % ความแม่นยำจริงมาแสดง และป้องกันค่าดีดกลับเป็น 100
  */
+/**
+ * ฟังก์ชันวาด Badge เลขพื้นที่ในหน้าแสกนสำเร็จ
+ */
+function renderResultAreaBadges(areaIdsStr) {
+    const container = document.getElementById('resAreaBadges');
+    if (!container) return;
+    container.innerHTML = ''; // ล้างค่าเก่า
+    
+    if (!areaIdsStr || String(areaIdsStr).trim() === "") return;
+
+    const ids = String(areaIdsStr).split(',').map(s => s.trim()).filter(s => s !== "");
+    // เรียงเลขพื้นที่จากน้อยไปมาก
+    ids.sort((a, b) => parseInt(a) - parseInt(b));
+
+    ids.forEach(num => {
+        const area = allAreas.find(a => String(a.areaNumber) === String(num));
+        const bgColor = area ? area.colorCode : '#e5e7eb'; // ถ้าไม่เจอสีพื้นที่ ให้ใช้สีเทาอ่อน
+        const textColor = getContrastYIQ(bgColor); // ใช้ฟังก์ชันเดิมหาค่าสีตัวอักษรที่ตัดกัน (ขาว/ดำ)
+
+        container.innerHTML += `
+            <div class="w-8 h-8 rounded-lg shadow-sm border border-black/10 flex items-center justify-center font-black text-base animate-fadeIn" 
+                 style="background-color: ${bgColor}; color: ${textColor};" 
+                 title="${area ? area.areaName : ''}">
+                ${num}
+            </div>
+        `;
+    });
+}
 function confirmStatusUI(finalStatus, logTime, fullRes = null) {
     // 1. ตรวจสอบว่าพนักงานที่ตอบกลับมา คือคนเดียวกับที่แสดงบนจอปัจจุบันหรือไม่
     if (fullRes && String(fullRes.cardInfo.cardId).toUpperCase() === currentDisplayCardId) {
@@ -2408,7 +2439,9 @@ function confirmStatusUI(finalStatus, logTime, fullRes = null) {
             badge.innerHTML = finalStatus; 
             badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-2xl z-10 tracking-widest transition-all duration-500 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
         }
-        
+        // >>> เพิ่มบรรทัดนี้ลงไปเพื่อให้วาด Badge เลขพื้นที่ <<<
+        renderResultAreaBadges(fullRes.cardInfo.areaAccessIds);
+        // ----------------------------------------------
         // --- อัปเดตวันเวลาที่บันทึกสำเร็จ ---
         const resTimeEl = document.getElementById('resTime');
         if (resTimeEl) {
