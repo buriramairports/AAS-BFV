@@ -290,7 +290,7 @@ gap: 1px !important;
     <!-- หัวข้อและ Badge รหัสพนักงาน (Extra Large) -->
     <div class="w-full text-center mb-6">
         <span class="text-xs font-black text-gray-500 uppercase tracking-[0.2em] block mb-2">รหัสพนักงาน</span>
-        <div id="resCardId" class="bg-indigo-900 text-white px-6 py-3 rounded-2xl shadow-lg font-black text-3xl tracking-widest inline-block min-w-[180px] border-b-4 border-indigo-500 animate-fadeIn">-</div>
+        <div id="resCardId" class="bg-indigo-900 text-white px-6 py-3 rounded-2xl shadow-lg font-black text-xl tracking-widest inline-block min-w-[180px] border-b-4 border-indigo-500 animate-fadeIn">-</div>
     </div>
 
     <!-- หัวข้อและ Badge สิทธิการเข้าพื้นที่ (Extra Large) -->
@@ -2446,11 +2446,11 @@ function renderResultAreaBadges(areaIdsStr) {
 
         // วาดเป็น Badge ขนาดใหญ่พิเศษ (w-14 h-14)
         container.innerHTML += `
-            <div class="w-14 h-14 rounded-2xl shadow-xl border border-black/10 flex flex-col items-center justify-center animate-fadeIn transform hover:scale-110 transition-all duration-300" 
+            <div class="w-30 h-30 rounded-2xl shadow-xl border border-black/10 flex flex-col items-center justify-center animate-fadeIn transform hover:scale-110 transition-all duration-300" 
                  style="background-color: ${bgColor}; color: ${textColor};" 
                  title="${area ? area.areaName : 'พื้นที่ ' + num}">
-                <span class="text-[9px] font-black leading-none mb-1 opacity-80">AREA</span>
-                <span class="text-2xl font-black leading-none">${num}</span>
+                <span class="text-[7px] font-black leading-none mb-1 opacity-80">AREA</span>
+                <span class="text-3xl font-black leading-none">${num}</span>
             </div>
         `;
     });
@@ -2466,7 +2466,7 @@ function confirmStatusUI(finalStatus, logTime, fullRes = null) {
             badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-2xl z-10 tracking-widest transition-all duration-500 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
         }
         // >>> เพิ่มบรรทัดนี้ลงไปเพื่อให้วาด Badge เลขพื้นที่ <<<
-        renderResultAreaBadges(fullRes.cardInfo.areaAccessIds);
+        //renderResultAreaBadges(fullRes.cardInfo.areaAccessIds);
         // ----------------------------------------------
         // --- อัปเดตวันเวลาที่บันทึกสำเร็จ ---
         const resTimeEl = document.getElementById('resTime');
