@@ -2416,27 +2416,35 @@ function clearAllFailedScans() {
 /**
  * ฟังก์ชันวาด Badge เลขพื้นที่ในหน้าแสกนสำเร็จ
  */
+/**
+ * ฟังก์ชันวาด Badge เลขพื้นที่ในหน้าแสกนสำเร็จ (เวอร์ชันปรับปรุง)
+ */
 function renderResultAreaBadges(areaIdsStr) {
     const container = document.getElementById('resAreaBadges');
     if (!container) return;
-    container.innerHTML = ''; // ล้างค่าเก่า
     
-    if (!areaIdsStr || String(areaIdsStr).trim() === "") return;
+    // ถ้าไม่มีข้อมูล ให้แสดงตัวหนังสือบอกว่าไม่มีระบุ
+    if (!areaIdsStr || String(areaIdsStr).trim() === "") {
+        container.innerHTML = '<span class="text-[10px] text-gray-300 italic mt-1">ไม่มีระบุ</span>';
+        return;
+    }
 
+    container.innerHTML = ''; // ล้างค่าเก่า
     const ids = String(areaIdsStr).split(',').map(s => s.trim()).filter(s => s !== "");
-    // เรียงเลขพื้นที่จากน้อยไปมาก
     ids.sort((a, b) => parseInt(a) - parseInt(b));
 
     ids.forEach(num => {
         const area = allAreas.find(a => String(a.areaNumber) === String(num));
-        const bgColor = area ? area.colorCode : '#e5e7eb'; // ถ้าไม่เจอสีพื้นที่ ให้ใช้สีเทาอ่อน
-        const textColor = getContrastYIQ(bgColor); // ใช้ฟังก์ชันเดิมหาค่าสีตัวอักษรที่ตัดกัน (ขาว/ดำ)
+        const bgColor = area ? area.colorCode : '#64748b'; // สีเทาถ้าไม่เจอข้อมูล
+        const textColor = getContrastYIQ(bgColor);
 
+        // วาดเป็น Badge สี่เหลี่ยมมน (Square Badge)
         container.innerHTML += `
-            <div class="w-8 h-8 rounded-lg shadow-sm border border-black/10 flex items-center justify-center font-black text-base animate-fadeIn" 
+            <div class="w-9 h-9 rounded-lg shadow-md border border-black/10 flex flex-col items-center justify-center animate-fadeIn transform hover:scale-110 transition-transform" 
                  style="background-color: ${bgColor}; color: ${textColor};" 
-                 title="${area ? area.areaName : ''}">
-                ${num}
+                 title="${area ? area.areaName : 'พื้นที่ ' + num}">
+                <span class="text-xs font-bold leading-none mb-0.5">AREA</span>
+                <span class="text-lg font-black leading-none">${num}</span>
             </div>
         `;
     });
