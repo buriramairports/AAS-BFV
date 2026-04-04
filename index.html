@@ -294,14 +294,14 @@ gap: 1px !important;
         <div id="resCardId" class="bg-gray-800 text-white px-4 py-1.5 rounded-xl shadow-md font-black text-lg tracking-widest inline-block min-w-[140px] border-b-2 border-gray-600">-</div>
     </div>
 
-    <!-- หัวข้อและ Badge สิทธิการเข้าพื้นที่ (ขยายใหญ่ยักษ์ Super Size) -->
-    <div class="w-full text-center">
-        <span class="text-xs font-black text-sky-600 uppercase tracking-[0.2em] block mb-2">สิทธิการเข้าพื้นที่ (AREA ACCESS)</span>
-        <div id="resAreaBadges" class="flex flex-wrap justify-center gap-4 w-full max-w-[260px] mx-auto min-h-[100px] p-4 bg-white rounded-[2rem] border-2 border-dashed border-sky-100 shadow-inner">
-            <!-- Badge พื้นที่ขนาดใหญ่ยักษ์จะถูกวาดที่นี่ -->
-            <span class="text-xs text-gray-300 italic self-center">รอการแสกน...</span>
-        </div>
+    <!-- หัวข้อและ Badge สิทธิการเข้าพื้นที่ -->
+<div class="w-full text-center">
+    <span class="text-xs font-black text-sky-600 uppercase tracking-[0.2em] block mb-3">สิทธิการเข้าพื้นที่ (AREA ACCESS)</span>
+    <!-- ปรับ max-w-sm (ประมาณ 384px) เพื่อให้รองรับสี่เหลี่ยมใหญ่ๆ หลายอัน -->
+    <div id="resAreaBadges" class="flex flex-wrap justify-center gap-5 w-full max-w-sm mx-auto min-h-[120px] p-6 bg-white rounded-[2.5rem] border-2 border-dashed border-sky-100 shadow-inner">
+        <span class="text-xs text-gray-300 italic self-center">รอการแสกน...</span>
     </div>
+</div>
 </div>
                                
                                <!-- รายละเอียด -->
@@ -2430,6 +2430,9 @@ function clearAllFailedScans() {
 /**
  * ฟังก์ชันวาด Badge เลขพื้นที่ขนาดใหญ่ยักษ์ (Super Size)
  */
+/**
+ * ฟังก์ชันวาด Badge เลขพื้นที่แบบสี่เหลี่ยมจัตุรัส (Modern Square Badge)
+ */
 function renderResultAreaBadges(areaIdsStr) {
     const container = document.getElementById('resAreaBadges');
     if (!container) return;
@@ -2448,13 +2451,15 @@ function renderResultAreaBadges(areaIdsStr) {
         const bgColor = area ? area.colorCode : '#475569';
         const textColor = getContrastYIQ(bgColor);
 
-        // วาดเป็น Badge ขนาดใหญ่ยักษ์ (w-20 h-20) หรือประมาณ 80x80 px
+        // วาดเป็นสี่เหลี่ยมจัตุรัสขนาดใหญ่ (96x96 px) พร้อมตัวเลขกึ่งกลาง
         container.innerHTML += `
-            <div class="w-30 h-30 rounded-[1.5rem] shadow-2xl border-2 border-white/20 flex flex-col items-center justify-center animate-fadeIn transform hover:scale-105 transition-all duration-300" 
+            <div class="w-24 h-24 rounded-2xl shadow-2xl border-4 border-white flex items-center justify-center animate-fadeIn transform hover:scale-110 transition-all duration-300" 
                  style="background-color: ${bgColor}; color: ${textColor};" 
                  title="${area ? area.areaName : 'พื้นที่ ' + num}">
-                <span class="text-[10px] font-black leading-none mb-1 opacity-70 tracking-tighter">AREA</span>
-                <span class="text-7xl font-black leading-none drop-shadow-sm">${num}</span>
+                
+                <!-- <span class="text-[10px] font-black leading-none mb-1 opacity-70">AREA</span> -->
+                
+                <span class="text-7xl font-black leading-none drop-shadow-md">${num}</span>
             </div>
         `;
     });
