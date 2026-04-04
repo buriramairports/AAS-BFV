@@ -280,25 +280,25 @@ gap: 1px !important;
                            <div class="flex flex-col sm:flex-row gap-6">
                              <!-- ไอคอนโปรไฟล์ / รูปบัตร / บาร์โค้ด -->
                               <!-- ฝั่งซ้าย: รูปถ่ายและข้อมูลรหัส/สิทธิ -->
-<div class="flex flex-col items-center justify-start shrink-0">
-    <!-- รูปถ่าย (คงเดิม) -->
-    <div class="w-36 h-48 sm:w-44 sm:h-56 bg-gray-100 rounded-2xl border-4 border-white shadow-md flex items-center justify-center text-gray-400 mb-4 overflow-hidden relative">
-        <img id="resCardImage" src="" class="w-full h-full object-cover hidden absolute inset-0 z-10">
-        <i id="resCardIcon" data-lucide="user" class="w-16 h-16 relative z-0"></i>
+<div class="flex flex-col items-center justify-start shrink-0 px-2">
+    <!-- รูปถ่าย (ขนาดใหญ่ขึ้นเล็กน้อย) -->
+    <div class="w-40 h-52 sm:w-48 sm:h-64 bg-gray-100 rounded-2xl border-[6px] border-white shadow-xl flex items-center justify-center text-gray-400 mb-6 overflow-hidden relative group">
+        <img id="resCardImage" src="" class="w-full h-full object-cover hidden absolute inset-0 z-10 transition-transform duration-500 group-hover:scale-110">
+        <i id="resCardIcon" data-lucide="user" class="w-20 h-20 relative z-0 opacity-20"></i>
     </div>
 
-    <!-- หัวข้อและ Badge รหัสพนักงาน -->
-    <div class="w-full text-center mb-4">
-        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">รหัสพนักงาน</span>
-        <div id="resCardId" class="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200 font-black text-gray-800 tracking-widest text-xl inline-block min-w-[140px] border-b-4 border-b-indigo-500">-</div>
+    <!-- หัวข้อและ Badge รหัสพนักงาน (Extra Large) -->
+    <div class="w-full text-center mb-6">
+        <span class="text-xs font-black text-gray-500 uppercase tracking-[0.2em] block mb-2">รหัสพนักงาน</span>
+        <div id="resCardId" class="bg-indigo-900 text-white px-6 py-3 rounded-2xl shadow-lg font-black text-3xl tracking-widest inline-block min-w-[180px] border-b-4 border-indigo-500 animate-fadeIn">-</div>
     </div>
 
-    <!-- หัวข้อและ Badge สิทธิการเข้าพื้นที่ -->
+    <!-- หัวข้อและ Badge สิทธิการเข้าพื้นที่ (Extra Large) -->
     <div class="w-full text-center">
-        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">สิทธิการเข้าพื้นที่</span>
-        <div id="resAreaBadges" class="flex flex-wrap justify-center gap-2 w-full max-w-[170px] mx-auto min-h-[40px] p-2 bg-gray-100/50 rounded-xl border border-dashed border-gray-200">
-            <!-- Badge พื้นที่จะถูกวาดที่นี่ -->
-            <span class="text-[10px] text-gray-300 italic mt-1">ไม่มีระบุ</span>
+        <span class="text-xs font-black text-sky-600 uppercase tracking-[0.2em] block mb-2">สิทธิการเข้าพื้นที่</span>
+        <div id="resAreaBadges" class="flex flex-wrap justify-center gap-3 w-full max-w-[220px] mx-auto min-h-[80px] p-4 bg-white rounded-3xl border-2 border-dashed border-sky-100 shadow-inner">
+            <!-- Badge พื้นที่ขนาดใหญ่จะถูกวาดที่นี่ทันที -->
+            <span class="text-xs text-gray-300 italic self-center">รอการแสกน...</span>
         </div>
     </div>
 </div>
@@ -2280,7 +2280,11 @@ function showInstantUI(card, typeInfo, predictedStatus) {
         <i data-lucide="loader-2" class="w-10 h-10 animate-spin text-white/70"></i>
     </span>`;
     badge.className = `absolute top-0 right-0 px-12 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-xl z-10 tracking-widest ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+    document.getElementById('resCardId').textContent = card.cardId;
     
+    // >>> บรรทัดที่เพิ่มใหม่: สั่งวาด Badge สิทธิทันทีจากข้อมูลในเครื่อง <<<
+    renderResultAreaBadges(card.areaAccessIds);
+    // -----------------------------------------------------------
     document.getElementById('resCardId').textContent = card.cardId;
     document.getElementById('resFullName').textContent = `${card.firstName} ${card.lastName}`;
     document.getElementById('resOrg').textContent = card.organization || 'ไม่ระบุหน่วยงาน';
@@ -2419,13 +2423,15 @@ function clearAllFailedScans() {
 /**
  * ฟังก์ชันวาด Badge เลขพื้นที่ในหน้าแสกนสำเร็จ (เวอร์ชันปรับปรุง)
  */
+/**
+ * ฟังก์ชันวาด Badge เลขพื้นที่ขนาดใหญ่พิเศษ (Instant & Extra Large)
+ */
 function renderResultAreaBadges(areaIdsStr) {
     const container = document.getElementById('resAreaBadges');
     if (!container) return;
     
-    // ถ้าไม่มีข้อมูล ให้แสดงตัวหนังสือบอกว่าไม่มีระบุ
     if (!areaIdsStr || String(areaIdsStr).trim() === "") {
-        container.innerHTML = '<span class="text-[10px] text-gray-300 italic mt-1">ไม่มีระบุ</span>';
+        container.innerHTML = '<span class="text-xs text-gray-300 italic self-center">ไม่มีระบุ</span>';
         return;
     }
 
@@ -2435,16 +2441,16 @@ function renderResultAreaBadges(areaIdsStr) {
 
     ids.forEach(num => {
         const area = allAreas.find(a => String(a.areaNumber) === String(num));
-        const bgColor = area ? area.colorCode : '#64748b'; // สีเทาถ้าไม่เจอข้อมูล
+        const bgColor = area ? area.colorCode : '#64748b';
         const textColor = getContrastYIQ(bgColor);
 
-        // วาดเป็น Badge สี่เหลี่ยมมน (Square Badge)
+        // วาดเป็น Badge ขนาดใหญ่พิเศษ (w-14 h-14)
         container.innerHTML += `
-            <div class="w-9 h-9 rounded-lg shadow-md border border-black/10 flex flex-col items-center justify-center animate-fadeIn transform hover:scale-110 transition-transform" 
+            <div class="w-14 h-14 rounded-2xl shadow-xl border border-black/10 flex flex-col items-center justify-center animate-fadeIn transform hover:scale-110 transition-all duration-300" 
                  style="background-color: ${bgColor}; color: ${textColor};" 
                  title="${area ? area.areaName : 'พื้นที่ ' + num}">
-                <span class="text-xs font-bold leading-none mb-0.5">AREA</span>
-                <span class="text-lg font-black leading-none">${num}</span>
+                <span class="text-[9px] font-black leading-none mb-1 opacity-80">AREA</span>
+                <span class="text-2xl font-black leading-none">${num}</span>
             </div>
         `;
     });
