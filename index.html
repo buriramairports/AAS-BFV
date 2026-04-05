@@ -1543,7 +1543,17 @@ gap: 1px !important;
         </div>
         <div class="p-6 overflow-y-auto space-y-5 bg-gray-50">
             <input type="hidden" id="editVehicleDbId">
-            
+            <!-- ส่วนแสดงบาร์โค้ดสำหรับรถ (ซ่อนไว้เป็นค่าเริ่มต้น จะโชว์ตอนแก้ไข) -->
+<div class="col-span-2 bg-white border border-gray-200 p-4 rounded-2xl flex flex-col items-center justify-center mb-4 shadow-sm relative group hidden" id="vehicleBarcodeDisplayBox">
+    <p class="text-xs text-gray-400 mb-2 font-black uppercase tracking-widest">บาร์โค้ดยานพาหนะ (Barcode)</p>
+    <div class="font-barcode text-gray-800 select-all text-6xl" id="vehicleBarcodeRender"></div>
+    <p class="text-lg font-black text-gray-800 tracking-widest mt-1" id="vehicleBarcodeText"></p>
+    
+    <!-- ปุ่มดาวน์โหลดบาร์โค้ดรถ -->
+    <button onclick="downloadVehicleBarcodeImage()" class="mt-3 text-xs bg-gray-800 text-white hover:bg-black px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition shadow-md active:scale-95">
+        <i data-lucide="download" class="w-4 h-4"></i> บันทึกบาร์โค้ดเป็นรูปภาพ
+    </button>
+</div>
             <!-- รหัสบัตร 3 ช่อง -->
             <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
                 <label class="block text-sm font-bold mb-2 text-gray-700 text-center">สร้างรหัสบัตรยานพาหนะ</label>
@@ -2788,6 +2798,7 @@ function openVehicleModal() {
 	renderAreaCheckboxesGen('', 'vAreaCheckboxes', 'v-area-cb');
     document.getElementById('vIssueDate').value = new Date().toISOString().split('T')[0];
     calcVehicleExpiry();
+	document.getElementById('vehicleBarcodeDisplayBox').classList.add('hidden');
     document.getElementById('vehicleModal').classList.remove('hidden');
     lucide.createIcons();
 }
@@ -3085,6 +3096,16 @@ function populateVehicleModal(v) {
     renderAreaCheckboxesGen(v.areaAccessIds || '', 'vAreaCheckboxes', 'v-area-cb');
     updateVehicleAreaCheckboxState(); 
 
+	// --- เพิ่มส่วนจัดการบาร์โค้ดรถ ---
+    const barcodeBox = document.getElementById('vehicleBarcodeDisplayBox');
+    if (v.cardId) {
+        barcodeBox.classList.remove('hidden');
+        document.getElementById('vehicleBarcodeRender').textContent = `*${v.cardId}*`;
+        document.getElementById('vehicleBarcodeText').textContent = v.cardId;
+    } else {
+        barcodeBox.classList.add('hidden');
+    }
+    // ----------------------------
     document.getElementById('vehicleModal').classList.remove('hidden');
     if (window.lucide) lucide.createIcons();
 }
@@ -6088,6 +6109,42 @@ let tempCardImageBase64 = null;
             showToast('ดาวน์โหลดรูปบาร์โค้ดสำเร็จ', 'success');
         });
     }
+
+	/**
+ * ฟังก์ชันสร้างรูปภาพบาร์โค้ดรถและดาวน์โหลด
+ */
+function downloadVehicleBarcodeImage() {
+    const cardIdText = document.getElementById('vehicleBarcodeText').textContent;
+    if(!cardIdText) return showToast('ไม่พบบาร์โค้ด', 'error');
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 500; 
+    canvas.height = 250;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    document.fonts.ready.then(function() {
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'center';
+        
+        // วาดบาร์โค้ด (Code 39)
+        ctx.font = '100px "Libre Barcode 39"';
+        ctx.fillText(`*${cardIdText}*`, canvas.width / 2, 130);
+        
+        // วาดตัวเลขด้านล่าง
+        ctx.font = 'bold 24px "Prompt"';
+        ctx.fillText(cardIdText, canvas.width / 2, 190);
+
+        const link = document.createElement('a');
+        link.download = `Barcode_Vehicle_${cardIdText.replace(/\//g, '-')}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        
+        showToast('ดาวน์โหลดรูปบาร์โค้ดรถสำเร็จ', 'success');
+    });
+}
 // ==========================================
     // ระบบสกัดใบหน้าจากข้อมูลเก่า (Bulk Face Sync)
     // ==========================================
