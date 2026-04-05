@@ -2454,10 +2454,20 @@ function showVehicleSuccessSummary(session, people, gateName) {
     const btnSave = document.getElementById('btnSaveVehicle');
     const ioColor = session.mode === 'IN' ? 'bg-green-500' : 'bg-orange-500';
 
-    // ปรับปุ่มให้เป็นสีเทา บอกว่าแสกนต่อได้เลย
+    // 1. ปรับปุ่มให้เป็นสีเทา บอกว่าแสกนต่อได้เลย
     btnSave.textContent = "บันทึกแล้ว (แสกนคันต่อไปได้ทันที)";
-    btnSave.classList.replace('bg-blue-600', 'bg-gray-400');
+    btnSave.classList.remove('bg-blue-600', 'bg-emerald-600');
+    btnSave.classList.add('bg-gray-400');
     btnSave.disabled = true;
+
+    // --- [แก้ไขข้อ 1: คืนค่า Placeholder เป็นแสกนบัตรรถทันที] ---
+    const input = document.getElementById('scanInput');
+    if (input) {
+        input.placeholder = "แสกนรหัสบัตรรถ...";
+        input.value = '';
+        input.focus();
+    }
+    // -------------------------------------------------------
 
     let summaryHtml = `
         <div class="p-4 bg-white border-2 border-emerald-100 rounded-3xl shadow-sm animate-fadeIn">
@@ -2491,7 +2501,7 @@ function showVehicleSuccessSummary(session, people, gateName) {
 
     list.innerHTML = summaryHtml;
     lucide.createIcons();
-}  
+}
 // ----------------จบส่วนแสกนรถ--------------
 // เพิ่มในส่วน fetchInitialData หรือ navigateTo('manageVehicles')
 async function fetchVehiclesData() {
