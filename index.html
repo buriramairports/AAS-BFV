@@ -6074,41 +6074,47 @@ let tempCardImageBase64 = null;
     }
     // --- ฟังก์ชันสร้างรูปภาพบาร์โค้ดแล้วดาวน์โหลด ---
     function downloadBarcodeImage() {
-        const cardIdText = document.getElementById('cardBarcodeText').textContent;
-        if(!cardIdText) return showToast('ไม่พบบาร์โค้ด', 'error');
+    // ดึงค่ารหัสพนักงานจาก Element
+    const cardIdText = document.getElementById('cardBarcodeText').textContent;
+    if(!cardIdText) return showToast('ไม่พบบาร์โค้ด', 'error');
 
-        // สร้างผืนผ้าใบ (Canvas) เพื่อวาดรูป
-        const canvas = document.createElement('canvas');
-        canvas.width = 500; 
-        canvas.height = 250;
-        const ctx = canvas.getContext('2d');
+    const canvas = document.createElement('canvas');
+    // ใช้ขนาด 800x300 เพื่อความคมชัดและรองรับรหัสยาวๆ
+    canvas.width = 800; 
+    canvas.height = 300;
+    const ctx = canvas.getContext('2d');
 
-        // เทสีพื้นหลังสีขาว
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // ปิดการลบรอยหยักเพื่อให้เส้นบาร์โค้ดคมกริบ เครื่องแสกนจะอ่านง่ายขึ้นมาก
+    ctx.imageSmoothingEnabled = false;
 
-        // รอให้แน่ใจว่าฟอนต์โหลดเสร็จแล้ว
-        document.fonts.ready.then(function() {
-            ctx.fillStyle = '#000000';
-            ctx.textAlign = 'center';
-            
-            // วาดบาร์โค้ด (ฟอนต์ Libre Barcode 39)
-            ctx.font = '100px "Libre Barcode 39"';
-            ctx.fillText(`*${cardIdText}*`, canvas.width / 2, 130);
-            
-            // วาดตัวหนังสืออ่านออกด้านล่าง
-            ctx.font = 'bold 24px "Prompt"';
-            ctx.fillText(cardIdText, canvas.width / 2, 190);
+    // เทสีพื้นหลังขาว
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // แปลงเป็นรูปและสั่งดาวน์โหลด
-            const link = document.createElement('a');
-            link.download = `Barcode_${cardIdText.replace(/\//g, '-')}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-            
-            showToast('ดาวน์โหลดรูปบาร์โค้ดสำเร็จ', 'success');
-        });
-    }
+    // รอให้ฟอนต์บาร์โค้ดโหลดเสร็จก่อนวาด
+    document.fonts.ready.then(function() {
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // 1. วาดบาร์โค้ด (ใส่ * หน้า-หลัง สำหรับมาตรฐาน Code 39)
+        ctx.font = '120px "Libre Barcode 39"';
+        ctx.fillText(`*${cardIdText}*`, canvas.width / 2, 120);
+        
+        // 2. วาดตัวเลขที่คนอ่านออกด้านล่าง
+        ctx.font = 'bold 30px "Prompt"';
+        ctx.fillText(cardIdText, canvas.width / 2, 220);
+
+        // 3. สร้าง Link สำหรับดาวน์โหลดไฟล์
+        const link = document.createElement('a');
+        // ตั้งชื่อไฟล์ให้ชัดเจนว่าเป็นของพนักงาน (Employee)
+        link.download = `Barcode_Employee_${cardIdText.replace(/\//g, '-')}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        
+        showToast('บันทึกรูปบาร์โค้ดพนักงานแล้ว (มาตรฐาน 800x300)', 'success');
+    });
+}
 
 	/**
  * ฟังก์ชันสร้างรูปภาพบาร์โค้ดรถและดาวน์โหลด
