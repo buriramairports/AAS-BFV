@@ -686,6 +686,17 @@ gap: 1px !important;
     <div class="bg-white rounded-2xl card-shadow overflow-hidden mt-2">
         <div class="p-3 bg-blue-50 border-b flex flex-col lg:flex-row justify-between items-center gap-3">
             <div id="vehicleSearchResultText" class="font-bold text-blue-900 shrink-0 text-sm">กำลังโหลด...</div>
+			 <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
+        <!-- เพิ่ม: ตัวเลือกจำนวนการแสดงผล -->
+        <div class="text-xs text-blue-800 flex items-center gap-2">แสดง 
+            <select id="vehiclesPageSize" onchange="cardsPagination.size = parseInt(this.value); cardsPagination.page=1; renderVehiclesTable();" class="border border-blue-200 rounded px-2 py-1 outline-none bg-white">
+                <option value="10">10</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="500">500</option>
+            </select>
+        </div>
+        <!-- จุดแสดงเลขหน้า -->
             <div id="vehiclesPagination" class="flex gap-1 overflow-x-auto hide-scrollbar"></div>
         </div>
         <div class="overflow-x-auto">
@@ -2607,27 +2618,36 @@ function renderVehicleDashboard(stats) {
  * 3. แก้ไขตาราง (เพิ่มคอลัมน์ และปุ่มจัดการ)
  */
 function renderVehiclesTable() {
-    const size = 10;
-    const cp = cardsPagination.page;
+    // 1. กำหนดค่าพื้นฐานสำหรับการแบ่งหน้า
+    const size = cardsPagination.size || 10; // ดึงขนาดจากตัวแปร Global
+    const cp = cardsPagination.page || 1;
     const start = (cp - 1) * size;
     const list = currentFilteredVehicles || [];
     const tbody = document.getElementById('vehiclesTableBody');
     
-    if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-gray-400">ไม่พบข้อมูลยานพาหนะ</td></tr>';
-        document.getElementById('vehiclesPagination').innerHTML = '';
-        return;
-    }
-
-    const pageItems = list.slice(start, start + size);
+    // 2. เตรียมข้อมูลวันที่ปัจจุบันเพื่อเช็คหมดอายุ
     const now = new Date();
     now.setHours(0,0,0,0);
 
+    // 3. กรณีไม่มีข้อมูล
+    if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="p-12 text-center text-gray-400 flex-col"><i data-lucide="info" class="w-10 h-10 mx-auto mb-2 opacity-20"></i> ไม่พบข้อมูลยานพาหนะตามเงื่อนไขที่เลือก</td></tr>';
+        document.getElementById('vehiclesPagination').innerHTML = '';
+        if (window.lucide) lucide.createIcons();
+        return;
+    }
+
+    // 4. ตัดข้อมูลตามช่วงหน้าที่เลือก
+    const pageItems = list.slice(start, start + size);
+
+    // 5. วาดเนื้อหาตาราง
     tbody.innerHTML = pageItems.map(v => {
+        // ค้นหาประเภทบัตรรถ
         const t = typeVehicles.find(x => Number(x.id) === Number(v.typeId)) || {typeName:'Unknown'};
+        // จัดรูปแบบชื่อผู้ยื่นคำขอ
         const fullName = `${v.applicantFirstName || ''} ${v.applicantLastName || ''}`.trim() || '-';
         
-        // --- Logic ตรวจสอบวันหมดอายุ (ข้อ 2) ---
+        // --- ตรวจสอบสถานะการหมดอายุ ---
         const expDate = new Date(v.expiryDate);
         expDate.setHours(23,59,59,999);
         const isExpired = expDate < now;
@@ -2636,47 +2656,61 @@ function renderVehiclesTable() {
         if (isExpired) {
             expDisplay = `
                 <div class="flex flex-col items-center gap-1">
-                    <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-black border border-red-200 uppercase tracking-tighter">หมดอายุ</span>
-                    <span class="text-xs text-gray-400 line-through">${formatDateOnly(v.expiryDate)}</span>
+                    <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-black border border-red-200 uppercase tracking-tighter shadow-sm">หมดอายุ</span>
+                    <span class="text-xs text-gray-400 line-through decoration-red-400">${formatDateOnly(v.expiryDate)}</span>
                 </div>
             `;
         } else {
-            expDisplay = `<span class="text-gray-700 font-medium">${formatDateOnly(v.expiryDate)}</span>`;
+            expDisplay = `<span class="text-gray-700 font-bold">${formatDateOnly(v.expiryDate)}</span>`;
         }
-        // --------------------------------------
+
+        // --- สถานะบัตร (Active/Inactive) ---
+        const statusBadge = v.status === 'active' ? 
+            `<span class="text-[10px] font-black px-2 py-0.5 rounded border bg-green-50 text-green-700 border-green-200 uppercase">Active</span>` : 
+            `<span class="text-[10px] font-black px-2 py-0.5 rounded border bg-red-50 text-red-700 border-red-200 uppercase">Inactive</span>`;
+
+        // --- สถานะปัจจุบัน (IN/OUT) ---
+        const currentLocBadge = v.currentStatus === 'IN' ? 
+            `<span class="px-2.5 py-1 rounded-lg text-[10px] font-black bg-green-600 text-white shadow-sm ring-2 ring-green-100 animate-pulse">IN</span>` : 
+            `<span class="px-2.5 py-1 rounded-lg text-[10px] font-black bg-gray-200 text-gray-500 uppercase">OUT</span>`;
 
         return `
-        <tr class="border-b border-gray-100 hover:bg-gray-50 transition bg-white">
-            <td class="px-4 py-3 font-black text-blue-700">${v.cardId}</td>
-            <td class="px-4 py-3 font-bold text-gray-800">${v.vehicleReg}</td>
-            <td class="px-4 py-3">
-                <div class="font-bold text-gray-800">${fullName}</div>
-                <div class="text-[10px] text-sky-600 uppercase font-medium">${v.organization || '-'}</div>
+        <tr class="border-b border-gray-100 hover:bg-blue-50/20 transition bg-white group">
+            <td class="px-4 py-4 font-black text-blue-700 select-all">${v.cardId}</td>
+            <td class="px-4 py-4 font-bold text-gray-800">${v.vehicleReg}</td>
+            <td class="px-4 py-4">
+                <div class="font-bold text-gray-800 leading-tight">${fullName}</div>
+                <div class="text-[10px] text-sky-600 uppercase font-black tracking-wider mt-0.5">${v.organization || '-'}</div>
             </td>
-            <td class="px-4 py-3 text-xs font-bold text-gray-500">
-                <span class="bg-gray-100 px-2 py-1 rounded border">${t.typeName}</span>
+            <td class="px-4 py-4">
+                <span class="bg-gray-50 text-gray-500 text-[10px] font-bold px-2 py-1 rounded-md border border-gray-200 uppercase">${t.typeName}</span>
             </td>
-            <td class="px-4 py-3 text-center text-xs font-medium text-gray-600">
+            <td class="px-4 py-4 text-center">
                 ${expDisplay}
             </td>
-            <td class="px-4 py-3 text-center">
-                <span class="text-[10px] font-black px-2 py-0.5 rounded border ${v.status==='active'?'bg-green-50 text-green-700 border-green-200':'bg-red-50 text-red-700 border-red-200'}">
-                    ${v.status.toUpperCase()}
-                </span>
+            <td class="px-4 py-4 text-center">
+                ${statusBadge}
             </td>
-            <td class="px-4 py-3 text-center">
-                <span class="px-2 py-0.5 rounded text-[10px] font-black ${v.currentStatus==='IN'?'bg-green-600 text-white shadow-sm':'bg-gray-200 text-gray-600'}">
-                    ${v.currentStatus || 'OUT'}
-                </span>
+            <td class="px-4 py-4 text-center">
+                ${currentLocBadge}
             </td>
-            <td class="px-4 py-3 text-center whitespace-nowrap">
-                <button onclick="previewVehicleCard(${v.id})" class="text-pink-600 bg-pink-50 hover:bg-pink-100 p-1.5 rounded-lg transition mr-1 shadow-sm"><i data-lucide="printer" class="w-4 h-4 inline"></i></button>
-                <button onclick="editVehicle(${v.id})" class="text-indigo-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg text-xs font-black transition mr-1 shadow-sm border border-blue-100">แก้ไข</button>
-                <button onclick="deleteVehicle(${v.id})" class="text-red-500 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition shadow-sm"><i data-lucide="trash-2" class="w-4 h-4 inline"></i></button>
+            <td class="px-4 py-4 text-center whitespace-nowrap">
+                <div class="flex items-center justify-center gap-1.5">
+                    <button onclick="previewVehicleCard(${v.id})" class="text-pink-600 bg-pink-50 hover:bg-pink-600 hover:text-white p-2 rounded-xl transition shadow-sm border border-pink-100" title="พิมพ์บัตร">
+                        <i data-lucide="printer" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="editVehicle(${v.id})" class="text-indigo-600 bg-blue-50 hover:bg-blue-600 hover:text-white px-3 py-2 rounded-xl text-xs font-black transition shadow-sm border border-blue-100">
+                        แก้ไข
+                    </button>
+                    <button onclick="deleteVehicle(${v.id})" class="text-red-500 bg-red-50 hover:bg-red-500 hover:text-white p-2 rounded-xl transition shadow-sm border border-red-100" title="ลบข้อมูล">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
             </td>
         </tr>`;
     }).join('');
 
+    // 6. สั่งวาดตัวแบ่งหน้า และอัปเดตไอคอน
     renderVehiclesPagination(list.length);
     if (window.lucide) lucide.createIcons();
 }
@@ -8134,8 +8168,10 @@ function filterVehiclesTable() {
     renderVehiclesTable();
     if (window.lucide) lucide.createIcons();
 }
-	  function renderVehiclesPagination(totalItems) {
-    const tp = Math.ceil(totalItems / 10) || 1;
+function renderVehiclesPagination(totalItems) {
+    // --- แก้ไขจุดนี้: ดึงค่า size มาใช้คำนวณหน้า ---
+    const size = cardsPagination.size || 10;
+    const tp = Math.ceil(totalItems / size) || 1;
     const cp = cardsPagination.page;
     let pHtml = '';
     
