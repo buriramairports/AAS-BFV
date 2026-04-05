@@ -2205,14 +2205,22 @@ async function handleVehicleScan(cardId) {
     badge.textContent = vehicleSession.mode;
     badge.className = `px-14 py-6 rounded-[2rem] font-black text-white text-5xl shadow-2xl transition-all duration-500 ${vehicleSession.mode==='IN'?'bg-green-600 ring-8 ring-green-100':'bg-orange-600 ring-8 ring-orange-100'}`;
 
-    if (vehicleSession.mode === 'OUT') {
-        showLoader('กำลังตรวจสอบพนักงานในรถ...');
-        try {
-            const peopleIn = await apiCall('getPeopleInVehicle', { vehicleCardId: v.cardId }, false);
-            vehicleSession.passengers = peopleIn || [];
-        } catch(e) { console.error(e); }
-        hideLoader();
-    } else {
+if (vehicleSession.mode === 'OUT') {
+    showLoader('กำลังตรวจสอบพนักงานในรถ...');
+    try {
+        const peopleIn = await apiCall('getPeopleInVehicle', { vehicleCardId: v.cardId }, false);
+        
+        // แยกคนขับออกจากผู้โดยสารตามข้อมูลใน Log
+        const driverFromLog = peopleIn.find(p => p.isDriver === true);
+        const passengersFromLog = peopleIn.filter(p => p.isDriver !== true);
+        
+        vehicleSession.driver = driverFromLog || null;
+        vehicleSession.passengers = passengersFromLog || [];
+        
+        if(peopleIn.length > 0) showToast('ดึงข้อมูลรายชื่อพนักงานสำเร็จ', 'success');
+    } catch(e) { console.error(e); }
+    hideLoader();
+}else {
         document.getElementById('scanInput').placeholder = "แสกนบัตรคนขับ...";
     }
 
@@ -2413,8 +2421,22 @@ function cancelVehicleSession() {
 
 async function saveVehicleSession() {
     const peopleToSave = [];
-    if (vehicleSession.driver) peopleToSave.push(vehicleSession.driver);
-    vehicleSession.passengers.forEach(p => peopleToSave.push(p));
+    
+    // 1. จัดเตรียมข้อมูลคนขับ (ถ้ามี)
+    if (vehicleSession.driver) {
+        peopleToSave.push({
+            ...vehicleSession.driver,
+            isDriver: true // ระบุว่าเป็นคนขับ
+        });
+    }
+
+    // 2. จัดเตรียมข้อมูลผู้โดยสาร
+    vehicleSession.passengers.forEach(p => {
+        peopleToSave.push({
+            ...p,
+            isDriver: false // ระบุว่าเป็นผู้โดยสาร
+        });
+    });
 
     const gateId = document.getElementById('scanGateSelect').value;
     const gate = allGates.find(g => String(g.id) === String(gateId));
@@ -2430,18 +2452,29 @@ async function saveVehicleSession() {
         });
 
         if (res.success) {
-            // อัปเดต Cache ในเครื่อง
+            // --- อัปเดตสถานะในตัวแปร Cache ของเครื่อง เพื่อให้ระบบจำสถานะล่าสุดได้ทันที ---
+            
+            // อัปเดตสถานะรถ
             const vIdx = allVehicles.findIndex(v => v.cardId === vehicleSession.vehicle.cardId);
             if(vIdx !== -1) allVehicles[vIdx].currentStatus = vehicleSession.mode;
             
-            // แสดงหน้าจอสรุปผลสำเร็จ (Success Summary)
-            showVehicleSuccessSummary(vehicleSession, peopleToSave, gate.name);
+            // อัปเดตสถานะพนักงานทุกคนที่อยู่ในทริปนี้
+            peopleToSave.forEach(p => {
+                const pIdx = allCards.findIndex(c => c.cardId === p.cardId);
+                if(pIdx !== -1) allCards[pIdx].currentStatus = vehicleSession.mode;
+            });
+
+            // แสดงหน้าจอสรุปผลสำเร็จ (Compact Summary)
+            showVehicleSuccessSummary(vehicleSession, peopleToSave, gate ? gate.name : "System");
             
             showToast(`บันทึก ${vehicleSession.mode} สำเร็จ ${res.count} รายการ`, 'success');
-            refreshHomeData(); // อัปเดตตารางประวัติด้านล่าง
+            
+            // รีเฟรชตารางประวัติด้านล่างหน้า Home
+            refreshHomeData(); 
         }
     } catch (e) {
-        showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
+        console.error("Save Vehicle Session Error:", e);
+        showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
     } finally {
         hideLoader();
     }
@@ -5428,26 +5461,25 @@ async function confirmDeleteUser(id, username) {
     // --- เปลี่ยนจาก CSV เป็น Excel พร้อมจัดรูปแบบสีและเส้น ---
    function exportExcel() {
     const list = window.currentReportFiltered || [];
-    if(list.length === 0) return showToast('ไม่มีข้อมูลให้ส่งออก', 'warning');
+    if(list.length === 0) return showToast('ไม่มีข้อมูลให้ส่งออก กรุณากดค้นหาข้อมูลก่อน', 'warning');
     
     const m = document.getElementById('reportMonth').value, y = document.getElementById('reportYear').value, g = document.getElementById('reportGate').value;
     const mText = m ? thaiMonths[parseInt(m)-1] : 'ทุกเดือน';
     const yText = y ? (parseInt(y) + 543) : '';
     
-    // --- ส่วนที่แก้ไข: เปลี่ยนชื่อเวลากด Export Excel ---
     const gText = g === 'SYSTEM_FORCE' ? 'ระบบบังคับออกทั้งหมด' : (g ? g : 'ทุกจุดเข้าออก');
     const title = `รายงานการเข้าออกพื้นที่ ${gText} ประจำเดือน ${mText} ${yText}`;
-    const fileName = `Report_AccessLog_${y}${m?`_${m}`:''}.xls`;
+    const fileName = `Report_AccessLog_${y}${m?`_${m}`:''}_${new Date().getTime()}.xls`;
 
-    // สร้างโครงสร้าง HTML สำหรับเปิดใน Excel พร้อมฝัง CSS Styles
+    // สร้างโครงสร้าง HTML สำหรับ Excel
     let html = `
     <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
     <head><meta charset="utf-8"></head>
     <body>
-        <table border="1" style="border-collapse: collapse; font-family: 'Sarabun', Tahoma, sans-serif; font-size: 11pt; width: 100%;">
-            <!-- หัวรายงาน (ปรับ colspan จาก 9 เป็น 10) -->
+        <table border="1" style="border-collapse: collapse; font-family: 'Sarabun', sans-serif; font-size: 11pt;">
+            <!-- หัวรายงาน (ปรับ colspan เป็น 11 เพื่อคลุมคอลัมน์ทั้งหมด) -->
             <tr>
-                <th colspan="10" style="font-size: 16pt; font-weight: bold; text-align: center; padding: 15px; background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">
+                <th colspan="11" style="font-size: 16pt; font-weight: bold; text-align: center; padding: 15px; background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">
                     ${title}
                 </th>
             </tr> 
@@ -5456,7 +5488,8 @@ async function confirmDeleteUser(id, username) {
                 <th style="padding: 5px; border: 1px solid #14532d;">วัน-เวลา</th>
                 <th style="padding: 5px; border: 1px solid #14532d;">สถานะ</th>
                 <th style="padding: 5px; border: 1px solid #14532d;">จุดเข้าออก</th>
-                <th style="padding: 5px; border: 1px solid #14532d;">ทะเบียนรถ</th> <!-- เพิ่มคอลัมน์ใหม่ -->
+                <th style="padding: 5px; border: 1px solid #14532d;">ทะเบียนรถ</th>
+                <th style="padding: 5px; border: 1px solid #14532d;">ตำแหน่งในรถ</th>
                 <th style="padding: 5px; border: 1px solid #14532d;">รหัสบัตร</th>
                 <th style="padding: 5px; border: 1px solid #14532d;">ประเภทบัตร</th>
                 <th style="padding: 5px; border: 1px solid #14532d;">ชื่อ-นามสกุล</th>
@@ -5467,22 +5500,28 @@ async function confirmDeleteUser(id, username) {
 
     // วนลูปสร้างข้อมูลแต่ละแถว
     list.forEach(L => {
-        // กำหนดสีพื้นหลังสถานะ
         let statusBg = L.ioType === 'IN' ? '#dcfce7' : '#ffedd5';
         let statusColor = L.ioType === 'IN' ? '#166534' : '#9a3412';
         let compInfo = L.companionName ? `${L.companionName} (${L.companionCardId})` : '-';
+        
+        // ตรวจสอบตำแหน่งในรถ
+        let roleInCar = "-";
+        if (L.vehicleCardId) {
+            roleInCar = (L.isDriver === true || L.isDriver === "TRUE") ? "คนขับ (Driver)" : "ผู้โดยสาร (Pax)";
+        }
 
         html += `
             <tr style="height: 25px;">
                 <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb;">${formatDateTime(L.timestamp).replace(' | ', ' ')}</td>
                 <td style="text-align: center; vertical-align: middle; background-color: ${statusBg}; color: ${statusColor}; font-weight: bold; border: 1px solid #e5e7eb;">${L.ioType}</td>
-                <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb;">${L.gateName}</td>
-                <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb; font-weight: bold; color: #1e40af;">${L.vehicleReg || '-'}</td> <!-- เพิ่มข้อมูลทะเบียนรถ -->
+                <td style="vertical-align: middle; border: 1px solid #e5e7eb; padding: 0 5px;">${L.gateName}</td>
+                <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb; font-weight: bold; color: #1e40af;">${L.vehicleReg || '-'}</td>
+                <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb; color: ${roleInCar.includes('Driver') ? '#b45309' : '#64748b'}; font-weight: bold;">${roleInCar}</td>
                 <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb; mso-number-format:'\\@';">${L.cardId}</td>
-                <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb;">${L.cardTypeName || '-'}</td>
-                <td style="vertical-align: middle; border: 1px solid #e5e7eb; padding-left: 5px;">${L.firstName} ${L.lastName}</td>
-                <td style="vertical-align: middle; border: 1px solid #e5e7eb; padding-left: 5px;">${L.organization || '-'}</td>
-                <td style="vertical-align: middle; border: 1px solid #e5e7eb; padding-left: 5px; color: #4338ca;">${compInfo}</td>
+                <td style="vertical-align: middle; border: 1px solid #e5e7eb; padding: 0 5px;">${L.cardTypeName || '-'}</td>
+                <td style="vertical-align: middle; border: 1px solid #e5e7eb; padding: 0 5px;">${L.firstName} ${L.lastName}</td>
+                <td style="vertical-align: middle; border: 1px solid #e5e7eb; padding: 0 5px;">${L.organization || '-'}</td>
+                <td style="vertical-align: middle; border: 1px solid #e5e7eb; padding: 0 5px; color: #4338ca;">${compInfo}</td>
                 <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb;">${L.recordedBy || '-'}</td>
             </tr>`;
     });
@@ -5498,7 +5537,7 @@ async function confirmDeleteUser(id, username) {
     link.click();
     document.body.removeChild(link);
     
-    showToast('ดาวน์โหลดไฟล์ Excel สำเร็จ', 'success');
+    showToast('ดาวน์โหลดไฟล์รายงาน Excel สำเร็จ', 'success');
 }
 
     // ==========================================
