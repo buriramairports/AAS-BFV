@@ -2034,17 +2034,27 @@ function setScanMode(mode) {
     if (mode === 'vehicle') {
         vBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-blue-600 bg-blue-600 text-white transition shadow-sm";
         pBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50";
-        // เปลี่ยนคำอธิบายเป็นโหมดรถ
+        
+        // ล้างข้อมูลรถเดิม (ถ้ามี)
+        vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
+        document.getElementById('vehicleStagingArea').classList.add('hidden');
+        document.getElementById('scanResultEmpty').classList.remove('hidden');
+        
         input.placeholder = "แสกนรหัสบัตรรถ...";
-        input.classList.replace('border-green-400', 'border-blue-400');
+        input.classList.remove('border-green-400');
+        input.classList.add('border-blue-400');
     } else {
         pBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-indigo-600 bg-indigo-600 text-white transition shadow-sm";
         vBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50";
-        // เปลี่ยนคำอธิบายเป็นโหมดคน (ใช้ข้อความดั้งเดิมที่คุณต้องการ)
-        input.placeholder = "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
-        input.classList.replace('border-blue-400', 'border-green-400');
+        
+        // ล้างข้อมูลรถออกเพื่อกลับสู่โหมดคน
         cancelVehicleSession(); 
+        
+        input.placeholder = "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
+        input.classList.remove('border-blue-400');
+        input.classList.add('border-green-400');
     }
+    input.value = '';
     input.focus();
 }
 
@@ -2381,13 +2391,23 @@ function swapToDriver(i) {
 }
 
 function cancelVehicleSession() {
+    // ล้างข้อมูลในตัวแปร
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
+    
+    // จัดการ UI
     document.getElementById('vehicleStagingArea').classList.add('hidden');
     document.getElementById('scanResultEmpty').classList.remove('hidden');
     
-    // --- คืนค่า Placeholder เป็นแสกนรถ ---
     const input = document.getElementById('scanInput');
-    input.placeholder = "แสกนรหัสบัตรรถ...";
+    
+    // --- แก้ไขจุดสำคัญ: เช็คโหมดก่อนใส่ Placeholder ---
+    if (currentScanTarget === 'vehicle') {
+        input.placeholder = "แสกนรหัสบัตรรถ...";
+    } else {
+        input.placeholder = "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
+    }
+    
+    input.value = '';
     input.focus();
 }
 
