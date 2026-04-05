@@ -2034,14 +2034,16 @@ function setScanMode(mode) {
     if (mode === 'vehicle') {
         vBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-blue-600 bg-blue-600 text-white transition shadow-sm";
         pBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50";
+        // เปลี่ยนคำอธิบายเป็นโหมดรถ
         input.placeholder = "แสกนรหัสบัตรรถ...";
         input.classList.replace('border-green-400', 'border-blue-400');
     } else {
         pBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-indigo-600 bg-indigo-600 text-white transition shadow-sm";
         vBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50";
-        input.placeholder = "แสกนรหัสบัตรพนักงาน...";
+        // เปลี่ยนคำอธิบายเป็นโหมดคน (ใช้ข้อความดั้งเดิมที่คุณต้องการ)
+        input.placeholder = "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
         input.classList.replace('border-blue-400', 'border-green-400');
-        cancelVehicleSession(); // ล้าง Session รถถ้าสลับกลับ
+        cancelVehicleSession(); 
     }
     input.focus();
 }
@@ -2103,6 +2105,8 @@ async function handleVehicleScan(cardId) {
     // 1. Reset Session & UI
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
     const btnSave = document.getElementById('btnSaveVehicle');
+    const mainInput = document.getElementById('scanInput'); // ดึงช่อง Input มาเตรียมไว้
+
     if(btnSave) { 
         btnSave.disabled = true; 
         btnSave.classList.remove('bg-gray-400', 'bg-emerald-600');
@@ -2114,13 +2118,35 @@ async function handleVehicleScan(cardId) {
     if (!v) return showAlert('ไม่พบข้อมูลรถ', `ไม่พบรหัสรถ ${cardId} ในระบบ`, 'error');
     if (v.status !== 'active') return showAlert('รถถูกระงับ', `รถคันนี้ถูกระงับการใช้งาน`, 'error');
 
+    // ตรวจสอบวันหมดอายุ
     if (new Date() > new Date(v.expiryDate).setHours(23, 59, 59)) {
         return showAlert('รถหมดอายุ', `บัตรรถหมดอายุแล้วเมื่อ ${formatDateOnly(v.expiryDate)}`, 'error');
     }
 
+    // --- [เพิ่มใหม่: ตรวจสอบสิทธิ์เข้าพื้นที่ของรถ (เฉพาะขาเข้า)] ---
+    const gateId = document.getElementById('scanGateSelect').value;
+    const gate = allGates.find(g => String(g.id) === String(gateId));
+    
+    // ถ้าสถานะปัจจุบันของรถคือ OUT แสดงว่ากำลังจะแสกน IN -> ต้องเช็คสิทธิ์
+    if (v.currentStatus !== 'IN' && gate && gate.allowedAreas) {
+        const gateAreas = String(gate.allowedAreas).split(',').map(s => s.trim());
+        const vehicleAreas = String(v.areaAccessIds || "").split(',').map(s => s.trim());
+        
+        // เช็คว่ารถมีพื้นที่ใดพื้นที่หนึ่งที่ประตูนี้อนุญาตหรือไม่
+        const hasAccess = gateAreas.some(area => vehicleAreas.includes(area));
+        
+        if (!hasAccess) {
+            mainInput.value = ''; mainInput.focus();
+            try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
+            return showAlert('รถไม่มีสิทธิ์เข้าพื้นที่', `บัตรรถรหัส ${v.cardId} ไม่มีสิทธิ์ผ่านจุดนี้\n(พื้นที่ที่อนุญาต: ${gate.allowedAreas})`, 'error');
+        }
+    }
+    // --------------------------------------------------------
+
     vehicleSession.vehicle = v;
     vehicleSession.mode = (v.currentStatus === 'IN') ? 'OUT' : 'IN';
     
+    // แสดง UI ส่วนจัดการรถ
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.add('hidden');
     document.getElementById('vehicleStagingArea').classList.remove('hidden');
@@ -2132,32 +2158,21 @@ async function handleVehicleScan(cardId) {
     const gateIds = String(v.allowedGateIds || '').split(',').filter(x => x !== "");
     const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
 
-    // --- เลย์เอาต์ใหม่: ข้อมูลรถแบบ Dashboard Cards ---
+    // วาดรายละเอียดรถ (Dashboard Cards - โค้ดเดิมที่คุณชอบ)
     let detailHtml = `
-        <!-- Card 1: หน่วยงาน -->
         <div class="bg-white border-2 border-slate-100 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
-            <div class="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center mb-2">
-                <i data-lucide="building-2" class="w-5 h-5"></i>
-            </div>
-            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">หน่วยงาน / สังกัด</span>
+            <div class="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center mb-2"><i data-lucide="building-2" class="w-5 h-5"></i></div>
+            <span class="text-[9px] font-black text-slate-400 uppercase mb-1">หน่วยงาน / สังกัด</span>
             <p class="text-base font-black text-slate-700 leading-tight">${v.organization || 'ไม่ระบุ'}</p>
         </div>
-
-        <!-- Card 2: ประตู -->
         <div class="bg-white border-2 border-blue-50 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
-            <div class="w-10 h-10 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-2">
-                <i data-lucide="map-pin" class="w-5 h-5"></i>
-            </div>
-            <span class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">จุดเข้าออกที่อนุญาต</span>
+            <div class="w-10 h-10 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-2"><i data-lucide="map-pin" class="w-5 h-5"></i></div>
+            <span class="text-[9px] font-black text-blue-400 uppercase mb-1">จุดเข้าออกที่อนุญาต</span>
             <p class="text-sm font-bold text-blue-800 leading-tight">${gateNames || 'ทุกจุดเข้า-ออก'}</p>
         </div>
-
-        <!-- Card 3: สิทธิ์พื้นที่ -->
         <div class="bg-white border-2 border-indigo-50 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
-            <div class="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mb-2">
-                <i data-lucide="shield-check" class="w-5 h-5"></i>
-            </div>
-            <span class="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2">พื้นที่ (Zone Access)</span>
+            <div class="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mb-2"><i data-lucide="shield-check" class="w-5 h-5"></i></div>
+            <span class="text-[9px] font-black text-indigo-400 uppercase mb-2">พื้นที่ (Zone Access)</span>
             <div class="flex flex-wrap justify-center gap-1.5">
                 ${areaIds.length > 0 ? areaIds.map(num => {
                     const area = allAreas.find(a => String(a.areaNumber) === String(num));
@@ -2166,27 +2181,20 @@ async function handleVehicleScan(cardId) {
                 }).join('') : '<span class="text-xs font-bold text-slate-300 italic">ไม่มีสิทธิ์</span>'}
             </div>
         </div>
-
-        <!-- Card 4: วันหมดอายุ -->
         <div class="bg-red-50 border-2 border-red-100 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center relative overflow-hidden">
-            <div class="absolute -right-2 -bottom-2 opacity-10 rotate-12 text-red-600">
-                <i data-lucide="calendar-off" class="w-16 h-16"></i>
-            </div>
-            <div class="w-10 h-10 bg-white text-red-500 rounded-full flex items-center justify-center mb-2 shadow-sm">
-                <i data-lucide="calendar" class="w-5 h-5"></i>
-            </div>
-            <span class="text-[9px] font-black text-red-400 uppercase tracking-widest mb-1">วันหมดอายุบัตรรถ</span>
+            <div class="absolute -right-2 -bottom-2 opacity-10 rotate-12 text-red-600"><i data-lucide="calendar-off" class="w-16 h-16"></i></div>
+            <div class="w-10 h-10 bg-white text-red-500 rounded-full flex items-center justify-center mb-2 shadow-sm"><i data-lucide="calendar" class="w-5 h-5"></i></div>
+            <span class="text-[9px] font-black text-red-400 uppercase mb-1">วันหมดอายุบัตรรถ</span>
             <p class="text-lg font-black text-red-600 leading-none">${formatDateOnly(v.expiryDate)}</p>
         </div>
     `;
     document.getElementById('stgVehicleDetails').innerHTML = detailHtml;
     
-    // ตั้งค่า Badge
+    // ตั้งค่า Badge IN/OUT
     const badge = document.getElementById('stgIoBadge');
     badge.textContent = vehicleSession.mode;
     badge.className = `px-14 py-6 rounded-[2rem] font-black text-white text-5xl shadow-2xl transition-all duration-500 ${vehicleSession.mode==='IN'?'bg-green-600 ring-8 ring-green-100':'bg-orange-600 ring-8 ring-orange-100'}`;
 
-    // จัดการขาออก/ขาเข้า (Logic เดิม)
     if (vehicleSession.mode === 'OUT') {
         showLoader('กำลังตรวจสอบพนักงานในรถ...');
         try {
@@ -2199,6 +2207,7 @@ async function handleVehicleScan(cardId) {
     }
 
     renderStagingList();
+    if(window.lucide) lucide.createIcons();
 }
 
 async function handlePersonForVehicle(cardId) {
