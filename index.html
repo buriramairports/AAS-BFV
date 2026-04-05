@@ -2595,22 +2595,32 @@ async function refreshVehiclesData() {
 }
 
 /**
- * 2. ฟังก์ชันวาด Dashboard หน้าฐานข้อมูลรถ
+ * ฟังก์ชันวาด Dashboard หน้าฐานข้อมูลรถ (อัปเดต: แสดงครบทุกประเภทแม้เป็น 0)
  */
 function renderVehicleDashboard(stats) {
-    if(!stats) return;
+    if(!stats || !typeVehicles) return;
     const container = document.getElementById('vehiclesTypeStats');
-    const typeBreakdown = Object.entries(stats.byType).map(([name, count]) => `
-        <div class="bg-white px-4 py-3 rounded-xl border border-gray-200 shadow-sm shrink-0 min-w-[140px]">
-            <p class="text-[10px] text-gray-500 font-black uppercase mb-1 truncate">${name}</p>
-            <p class="text-xl font-black text-gray-800">${count}</p>
-        </div>
-    `).join('');
 
+    // 1. วนลูปสร้างการ์ดจากรายชื่อประเภทบัตรรถทั้งหมดที่เราตั้งค่าไว้ (typeVehicles)
+    const typeBreakdown = typeVehicles.map(t => {
+        // ดึงจำนวนรถจากค่าที่ Backend ส่งมา ถ้าไม่มีให้แสดงเป็น 0
+        const count = (stats.byType && stats.byType[t.typeName]) ? stats.byType[t.typeName] : 0;
+
+        return `
+            <div class="bg-white px-4 py-3 rounded-xl border border-gray-200 shadow-sm shrink-0 min-w-[160px] transition hover:shadow-md hover:border-blue-300 group">
+                <p class="text-[10px] text-gray-500 font-black uppercase mb-1 truncate group-hover:text-blue-600" title="${t.typeName}">
+                    ${t.typeName}
+                </p>
+                <p class="text-2xl font-black text-gray-800">${count.toLocaleString()}</p>
+            </div>
+        `;
+    }).join('');
+
+    // 2. แสดงผลโดยเอาการ์ด "รถทั้งหมด" วางไว้ข้างหน้าสุด
     container.innerHTML = `
-        <div class="bg-gray-800 px-4 py-3 rounded-xl border border-gray-700 shadow-sm shrink-0 min-w-[140px]">
-            <p class="text-[10px] text-gray-400 font-black uppercase mb-1">รถทั้งหมด</p>
-            <p class="text-xl font-black text-white">${stats.total}</p>
+        <div class="bg-gray-800 px-5 py-3 rounded-xl border border-gray-700 shadow-lg shrink-0 min-w-[160px]">
+            <p class="text-[10px] text-gray-400 font-black uppercase mb-1 tracking-widest">ยานพาหนะรวม</p>
+            <p class="text-2xl font-black text-white">${(stats.total || 0).toLocaleString()}</p>
         </div>
         ${typeBreakdown}
     `;
