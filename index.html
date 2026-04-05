@@ -2787,7 +2787,7 @@ function renderTypeVehiclesTable() {
     tbody.innerHTML = typeVehicles.map(t => {
         let durationDisplay = '';
         if(t.durationType === 'custom') {
-            durationDisplay = '<span class="text-orange-500 font-bold">กำหนดเอง</span>';
+            durationDisplay = '<span class="text-orange-500 font-bold"><i data-lucide="calendar-clock" class="w-4 h-4 inline mr-1"></i>กำหนดเอง (ตอนออกบัตร)</span>';
         } else {
             const dText = t.durationType === 'year' ? 'ปี' : t.durationType === 'month' ? 'เดือน' : 'วัน';
             durationDisplay = `${t.durationValue} ${dText}`;
