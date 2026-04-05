@@ -8021,7 +8021,7 @@ async function previewVehicleCard(id) {
         // 4. จัดการป้าย "บัตรชั่วคราว"
         const tempEl = document.getElementById('renderTempV');
         if (tempEl) {
-            tempEl.className = "absolute top-[120px] left-0 right-0 text-center text-red-600 font-black text-[16px] opacity-0 transition-opacity z-20";
+            tempEl.className = "absolute top-[100px] left-0 right-0 text-center text-red-600 font-black text-[16px] opacity-0 transition-opacity z-20";
             tempEl.style.opacity = isTrue(t.isTemporary) ? '1' : '0';
         }
 
