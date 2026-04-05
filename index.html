@@ -6118,31 +6118,40 @@ function downloadVehicleBarcodeImage() {
     if(!cardIdText) return showToast('ไม่พบบาร์โค้ด', 'error');
 
     const canvas = document.createElement('canvas');
-    canvas.width = 500; 
-    canvas.height = 250;
+    // 1. ขยายความกว้างเป็น 800px เพื่อให้รองรับรหัสยาวๆ โดยไม่โดนบีบเส้น
+    canvas.width = 800; 
+    canvas.height = 300;
     const ctx = canvas.getContext('2d');
 
+    // 2. ตั้งค่าให้ภาพคมชัด ไม่เบลอ (สำคัญมากสำหรับบาร์โค้ด)
+    ctx.imageSmoothingEnabled = false;
+
+    // พื้นหลังขาว
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    // รอให้ฟอนต์พร้อม
     document.fonts.ready.then(function() {
         ctx.fillStyle = '#000000';
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         
-        // วาดบาร์โค้ด (Code 39)
-        ctx.font = '100px "Libre Barcode 39"';
-        ctx.fillText(`*${cardIdText}*`, canvas.width / 2, 130);
+        // 3. วาดตัวบาร์โค้ด (ใส่ * ปิดหัวท้ายเสมอสำหรับ Code 39)
+        // ใช้ขนาด 120px เพื่อความชัดเจน
+        ctx.font = '120px "Libre Barcode 39"';
+        ctx.fillText(`*${cardIdText}*`, canvas.width / 2, 120);
         
-        // วาดตัวเลขด้านล่าง
-        ctx.font = 'bold 24px "Prompt"';
-        ctx.fillText(cardIdText, canvas.width / 2, 190);
+        // 4. วาดตัวเลขที่คนอ่านออกด้านล่าง
+        ctx.font = 'bold 30px "Prompt"';
+        ctx.fillText(cardIdText, canvas.width / 2, 220);
 
+        // 5. สั่งดาวน์โหลด
         const link = document.createElement('a');
         link.download = `Barcode_Vehicle_${cardIdText.replace(/\//g, '-')}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
         
-        showToast('ดาวน์โหลดรูปบาร์โค้ดรถสำเร็จ', 'success');
+        showToast('บันทึกรูปบาร์โค้ดรถแล้ว (ขนาด 800x300)', 'success');
     });
 }
 // ==========================================
