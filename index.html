@@ -1710,7 +1710,7 @@ gap: 1px !important;
 </div>
 
                         <!-- ป้ายบัตรชั่วคราว (ย้ายไปอยู่ด้านบนกรอบตัวเลข) -->
-                        <div id="renderTempV" class="absolute top-[100px] left-0 right-0 text-center text-red-600 font-black text-[18px] opacity-0 transition-opacity">บัตรชั่วคราว</div>
+                        <div id="renderTempV" class="absolute top-[100px] left-0 right-0 text-center text-red-600 font-black text-[20px] opacity-0 transition-opacity">บัตรชั่วคราว</div>
 
                         <!-- ตัวเลขพื้นที่ (กึ่งกลาง) -->
                         <div id="renderAreaBoxesV" class="absolute top-[50px] left-0 right-0 flex justify-center gap-1 h-[90px]"></div>
@@ -8021,7 +8021,7 @@ async function previewVehicleCard(id) {
         // 4. จัดการป้าย "บัตรชั่วคราว"
         const tempEl = document.getElementById('renderTempV');
         if (tempEl) {
-            tempEl.className = "absolute top-[100px] left-0 right-0 text-center text-red-600 font-black text-[16px] opacity-0 transition-opacity z-20";
+            tempEl.className = "absolute top-[100px] left-0 right-0 text-center text-red-600 font-black text-[20px] opacity-0 transition-opacity z-20";
             tempEl.style.opacity = isTrue(t.isTemporary) ? '1' : '0';
         }
 
