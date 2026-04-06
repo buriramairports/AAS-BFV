@@ -1427,7 +1427,7 @@ gap: 1px !important;
                     </div>
                 </div>
                 <!-- ผลลัพธ์รหัสบัตร -->
-                <input type="text" id="cardIdInp" class="w-full border-2 border-green-400 p-3 rounded-xl outline-none focus:ring-2 focus:ring-green-500 uppercase font-black text-xl bg-green-50 text-center tracking-widest shadow-inner text-green-900" placeholder="ผลลัพธ์รหัสบัตร (แก้ไขเองได้)" oninput="this.value = this.value.toUpperCase()">
+                <input type="text" id="cardIdInp" readonly class="w-full border-2 border-green-400 p-3 rounded-xl outline-none focus:ring-2 focus:ring-green-500 uppercase font-black text-xl bg-green-50 text-center tracking-widest shadow-inner text-green-900" placeholder="ผลลัพธ์รหัสบัตร (แก้ไขเองได้)" oninput="this.value = this.value.toUpperCase()">
             </div>
 
             <!-- บรรทัดที่ 1: ประเภทบัตร (เต็มแถว) -->
@@ -1575,7 +1575,7 @@ gap: 1px !important;
                     <input type="number" id="vGenNum" oninput="updateVehicleIdPreview()" class="border p-3 rounded-xl text-center font-bold bg-gray-50" placeholder="เลขลำดับ">
                     <input type="number" id="vGenYear" oninput="updateVehicleIdPreview()" class="border p-3 rounded-xl text-center font-bold bg-gray-50" placeholder="ปี พ.ศ.">
                 </div>
-                <input type="text" id="vCardIdInp" class="w-full border-2 border-blue-400 p-3 rounded-2xl text-center font-black text-2xl bg-blue-50 text-blue-900 tracking-widest" placeholder="รหัสบัตรสุทธิ">
+                <input type="text" id="vCardIdInp" readonly class="w-full border-2 border-blue-400 p-3 rounded-2xl text-center font-black text-2xl bg-blue-50 text-blue-900 tracking-widest" placeholder="รหัสบัตรสุทธิ">
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
