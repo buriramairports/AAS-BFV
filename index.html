@@ -2007,6 +2007,12 @@ gap: 1px !important;
     // ==========================================
     const thaiMonths = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
     let offlineQueue = JSON.parse(localStorage.getItem('aac_offlineQueue') || '[]');
+
+	  // --- เพิ่ม 2 บรรทัดนี้ ---
+let onlineScanQueue = []; // คิวสำหรับส่งข้อมูลปกติทีละรายการ
+let isProcessingScanQueue = false; // ตัวเช็คสถานะว่ากำลังส่งข้อมูลอยู่หรือไม่
+// ----------------------
+	  
     let currentUser = null, currentPage = 'home';
     let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true , aiThreshold: 0.38, aiCooldown: 10, aiInterval: 1000, aiPadX: 15, aiPadTop: 35 };
     let allVehicles = [], typeVehicles = [], currentFilteredVehicles = [];
@@ -3967,7 +3973,8 @@ function showInstantUI(card, typeInfo, predictedStatus, compCard = null) {
     document.getElementById('resOrg').textContent = card.organization || 'ไม่ระบุหน่วยงาน';
     document.getElementById('resCardType').textContent = typeInfo.typeName;
     document.getElementById('resExpiry').textContent = formatDateOnly(card.expiryDate);
-    document.getElementById('resTime').innerHTML = `<span class="text-orange-500 animate-pulse text-sm">กำลังบันทึกข้อมูล...</span>`;
+    //document.getElementById('resTime').innerHTML = `<span class="text-orange-500 animate-pulse text-sm">กำลังบันทึกข้อมูล...</span>`;
+	document.getElementById('resTime').innerHTML = formatDateTime(new Date().toISOString()).replace(' | ', '<br>');
 
     // --- ส่วนที่แก้ไข: แสดงข้อมูลผู้ติดตามทันทีถ้ามีการส่งค่ามา ---
     if (compCard) {
@@ -3994,34 +4001,88 @@ function showInstantUI(card, typeInfo, predictedStatus, compCard = null) {
 }
 
 /**
+ * ระบบประมวลผลคิวแสกน: ส่งทีละรายการ ป้องกัน Google Apps Script ค้าง (แก้ไขปัญหาแสกนพร้อมกัน 5 คน)
+ */
+async function processScanQueue() {
+    if (isProcessingScanQueue || onlineScanQueue.length === 0) return;
+    isProcessingScanQueue = true;
+
+    while (onlineScanQueue.length > 0) {
+        const scanData = onlineScanQueue[0]; // ดูข้อมูลคิวแรกสุด
+
+        try {
+            // ส่งข้อมูลไปบันทึก (ใส่ false เพื่อไม่ให้โชว์หน้าจอมืด Loading)
+            const res = await apiCall('processScan', {
+                gateId: scanData.gateId,
+                cardId: scanData.cardId,
+                companionCardId: scanData.companionCardId,
+                recordedBy: scanData.recordedBy
+            }, false);
+
+            if (res.success) {
+                // บันทึกสำเร็จ เอาออกจากคิวได้
+                onlineScanQueue.shift();
+                
+                // อัปเดตประวัติการเข้าออกด้านล่างเนียนๆ
+                updateRecentLogsList(res, res.logTime, res.newStatus);
+            }
+        } catch (err) {
+            console.error("Queue Send Error:", err);
+            // ถ้าพัง (เช่น เน็ตกระตุกตรงนั้นพอดี หรือหาบัตรไม่เจอ) ให้เด้งไปคิวแจ้งเตือนสีแดง และลบออกจากคิวส่ง
+            addToFailedQueue(scanData.cardId, scanData.fullName);
+            onlineScanQueue.shift();
+        }
+
+        // ดีเลย์ 600ms ก่อนส่งคิวต่อไป เพื่อให้ GAS หายใจและคลาย Lock ทัน
+        await new Promise(resolve => setTimeout(resolve, 600));
+    }
+
+    isProcessingScanQueue = false;
+}
+	  
+/**
  * 5. ปรับปรุงการจัดการ Error: ระบบคิวแจ้งเตือน
  */
 async function executeScanFinal(gateId, cardId, companionCardId, predictedStatus, fullName) {
     const recordedBy = `${currentUser.firstName} ${currentUser.lastName}`;
-    const scanData = { gateId, cardId, companionCardId, recordedBy };
+    const logTimeStr = new Date().toISOString(); // จำลองเวลาแสกน ณ วินาทีนั้นเลย
 
+    // 1. นำข้อมูลเตรียมเข้าคิว
+    const scanData = { gateId, cardId, companionCardId, recordedBy, fullName, predictedStatus };
+
+    // 2. ปรับปรุงสถานะในความจำ (Cache) ของเครื่องทันที (Optimistic UI)
+    const cardIdx = allCards.findIndex(c => String(c.cardId).toUpperCase() === String(cardId).toUpperCase());
+    let cardInfo = { cardId: cardId, firstName: fullName.split(' ')[0], lastName: fullName.split(' ')[1] || '' };
+    let typeInfo = { typeName: 'พนักงาน' };
+    
+    if (cardIdx !== -1) {
+        allCards[cardIdx].currentStatus = predictedStatus;
+        allCards[cardIdx].lastLogTime = logTimeStr;
+        cardInfo = allCards[cardIdx];
+        typeInfo = typeCards.find(t => String(t.id) === String(cardInfo.typeId)) || typeInfo;
+    }
+
+    // 3. แสดงผล UI ความสำเร็จ และเล่นเสียงทันที! ไม่ต้องรอ Server ตอบกลับ
+    confirmStatusUI(predictedStatus, logTimeStr, {
+        cardInfo: cardInfo,
+        typeInfo: typeInfo,
+        gateName: allGates.find(g => String(g.id) === String(gateId))?.name || 'System',
+        recordedBy: recordedBy,
+        ioType: predictedStatus
+    });
+    handleScanSounds(predictedStatus, cardInfo.firstName, cardInfo.lastName);
+
+    // 4. จัดการส่งข้อมูล
     if (!navigator.onLine) {
-        const logTime = new Date().toISOString();
-        offlineQueue.push({ ...scanData, offlineTimestamp: logTime });
+        // ถ้าเน็ตหลุด โยนลงคิว Offline
+        offlineQueue.push({ ...scanData, offlineTimestamp: logTimeStr });
         localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
         updateOfflineUI();
-        confirmStatusUI(predictedStatus, logTime);
         showToast('บันทึกออฟไลน์แล้ว', 'warning');
     } else {
-        try {
-            const res = await apiCall('processScan', scanData, false);
-            if (res.success) {
-                const idx = allCards.findIndex(c => String(c.cardId) === String(cardId));
-                if (idx !== -1) allCards[idx].currentStatus = res.newStatus;
-                
-                confirmStatusUI(res.newStatus, res.logTime, res);
-                handleScanSounds(res.newStatus, res.cardInfo.firstName, res.cardInfo.lastName);
-            }
-        } catch (err) {
-            // กรณี Error เช่น Timeout (รอเกิน 10 วินาที)
-            console.error("Scan Error:", err);
-            addToFailedQueue(cardId, fullName);
-        }
+        // ถ้าเน็ตปกติ โยนลงคิว Online แล้วสั่งให้คิวเริ่มทำงาน (ทำงานเป็น Background)
+        onlineScanQueue.push(scanData);
+        processScanQueue();
     }
 }
 
@@ -4314,16 +4375,18 @@ function startBackgroundSync() {
                 lastKnownState.cardCount = serverState.cardCount;
             }
             
+            
             // 2. ตรวจสอบว่ามีการแสกนใหม่หรือไม่ (เพื่ออัปเดต Dashboard และ Logs)
-            if (serverState.lastLogId !== lastKnownState.lastLogId) {
-                console.log("Silent Sync: มีประวัติการแสกนใหม่...");
-                const data = await apiCall('getInitialData', {}, false);
-                recentLogs = data.recentLogs || [];
-                monthlyStats = data.monthlyStats || monthlyStats;
-                renderRecentLogsTable();
-                renderHomeDashboard();
-                lastKnownState.lastLogId = serverState.lastLogId;
-            }
+if (serverState.lastLogId !== lastKnownState.lastLogId) {
+    console.log("Silent Sync: มีประวัติการแสกนใหม่...");
+    const data = await apiCall('getInitialData', {}, false);
+    recentLogs = data.recentLogs || [];
+    monthlyStats = data.monthlyStats || monthlyStats;
+    allCards = data.allCards || allCards; // <-- เพิ่มบรรทัดนี้ (เพื่ออัปเดตสถานะ IN/OUT ล่าสุดจาก Server แบบเนียนๆ)
+    renderRecentLogsTable();
+    renderHomeDashboard();
+    lastKnownState.lastLogId = serverState.lastLogId;
+}
         } catch (e) {
             console.log("Background sync error ignored.");
         }
