@@ -4011,12 +4011,13 @@ async function processScanQueue() {
         const scanData = onlineScanQueue[0]; // ดูข้อมูลคิวแรกสุด
 
         try {
-            // ส่งข้อมูลไปบันทึก (ใส่ false เพื่อไม่ให้โชว์หน้าจอมืด Loading)
+            // ส่งข้อมูลไปบันทึก (แนบเวลา scanTime ไปเป็น offlineTimestamp เพื่อบังคับ Server ให้ใช้เวลานี้)
             const res = await apiCall('processScan', {
                 gateId: scanData.gateId,
                 cardId: scanData.cardId,
                 companionCardId: scanData.companionCardId,
-                recordedBy: scanData.recordedBy
+                recordedBy: scanData.recordedBy,
+                offlineTimestamp: scanData.scanTime // <--- จุดที่เพิ่ม: บังคับเวลาบันทึกให้ตรงกับตอนแสกนเป๊ะๆ
             }, false);
 
             if (res.success) {
@@ -4024,11 +4025,11 @@ async function processScanQueue() {
                 onlineScanQueue.shift();
                 
                 // อัปเดตประวัติการเข้าออกด้านล่างเนียนๆ
-                updateRecentLogsList(res, res.logTime, res.newStatus);
+                updateRecentLogsList(res, scanData.scanTime, res.newStatus); 
             }
         } catch (err) {
             console.error("Queue Send Error:", err);
-            // ถ้าพัง (เช่น เน็ตกระตุกตรงนั้นพอดี หรือหาบัตรไม่เจอ) ให้เด้งไปคิวแจ้งเตือนสีแดง และลบออกจากคิวส่ง
+            // ถ้าพัง ให้เด้งไปคิวแจ้งเตือนสีแดง และลบออกจากคิวส่ง
             addToFailedQueue(scanData.cardId, scanData.fullName);
             onlineScanQueue.shift();
         }
@@ -4047,8 +4048,8 @@ async function executeScanFinal(gateId, cardId, companionCardId, predictedStatus
     const recordedBy = `${currentUser.firstName} ${currentUser.lastName}`;
     const logTimeStr = new Date().toISOString(); // จำลองเวลาแสกน ณ วินาทีนั้นเลย
 
-    // 1. นำข้อมูลเตรียมเข้าคิว
-    const scanData = { gateId, cardId, companionCardId, recordedBy, fullName, predictedStatus };
+    // 1. นำข้อมูลเตรียมเข้าคิว (เพิ่ม scanTime: logTimeStr เข้าไป)
+    const scanData = { gateId, cardId, companionCardId, recordedBy, fullName, predictedStatus, scanTime: logTimeStr };
 
     // 2. ปรับปรุงสถานะในความจำ (Cache) ของเครื่องทันที (Optimistic UI)
     const cardIdx = allCards.findIndex(c => String(c.cardId).toUpperCase() === String(cardId).toUpperCase());
@@ -4062,7 +4063,7 @@ async function executeScanFinal(gateId, cardId, companionCardId, predictedStatus
         typeInfo = typeCards.find(t => String(t.id) === String(cardInfo.typeId)) || typeInfo;
     }
 
-    // 3. แสดงผล UI ความสำเร็จ และเล่นเสียงทันที! ไม่ต้องรอ Server ตอบกลับ
+    // 3. แสดงผล UI ความสำเร็จ และเล่นเสียงทันที!
     confirmStatusUI(predictedStatus, logTimeStr, {
         cardInfo: cardInfo,
         typeInfo: typeInfo,
@@ -4080,7 +4081,7 @@ async function executeScanFinal(gateId, cardId, companionCardId, predictedStatus
         updateOfflineUI();
         showToast('บันทึกออฟไลน์แล้ว', 'warning');
     } else {
-        // ถ้าเน็ตปกติ โยนลงคิว Online แล้วสั่งให้คิวเริ่มทำงาน (ทำงานเป็น Background)
+        // ถ้าเน็ตปกติ โยนลงคิว Online แล้วสั่งให้คิวเริ่มทำงาน
         onlineScanQueue.push(scanData);
         processScanQueue();
     }
