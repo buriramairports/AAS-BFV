@@ -291,16 +291,17 @@ gap: 1px !important;
                    <!-- ปรับเป็น min-h-full เพื่อให้ยืดได้ตามเนื้อหา และเพิ่ม pb-10 (padding-bottom) เพื่อไม่ให้เนื้อหาชิดขอบล่างเกินไป -->
 						<!-- ส่วนแสดงผลข้อมูลบัตรที่แสกนสำเร็จ (ปรับปรุงใหม่: ชัดเจน สวยงาม เน้นจุดสำคัญ) -->
 <!-- ส่วนแสดงผลข้อมูลบัตร (เวอร์ชัน Compact: กะทัดรัด ไม่รกจอ) -->
-<!-- ส่วนแสดงผลข้อมูล (Compact & Fixed IDs) -->
+<!-- ส่วนแสดงผลข้อมูล (Compact & Full-Width Badge) -->
 <div id="scanResultData" class="hidden min-h-full">
-    <div class="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-xl relative overflow-hidden">
+    <div class="bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden flex flex-col">
         
-        <!-- Badge IN/OUT -->
-        <div id="resIoBadge" class="absolute top-0 right-0 px-10 py-4 rounded-bl-[2.5rem] font-black text-4xl text-white shadow-md z-10 transition-all duration-500">
+        <!-- แถบ Badge IN/OUT: เต็มความกว้างด้านบนสุด -->
+        <div id="resIoBadge" class="w-full text-center py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.1em] transition-colors duration-500 uppercase">
             -
         </div>
         
-        <div class="flex flex-col lg:flex-row gap-6">
+        <!-- เนื้อหาข้อมูลบัตร -->
+        <div class="p-6 flex flex-col lg:flex-row gap-6">
             
             <!-- ฝั่งซ้าย: รูปถ่ายและระบุตัวตน -->
             <div class="flex flex-col items-center justify-start shrink-0 px-1 border-r-0 lg:border-r border-gray-100 lg:pr-6">
@@ -322,10 +323,11 @@ gap: 1px !important;
                 </div>
             </div>
             
-            <!-- ฝั่งขวา: รายละเอียดรายละเอียด -->
-            <div class="flex-1 flex flex-col space-y-4 pt-2">
+            <!-- ฝั่งขวา: รายละเอียด -->
+            <div class="flex-1 flex flex-col space-y-4 pt-1">
                 <div class="space-y-1">
-                    <h4 id="resFullName" class="text-3xl font-black text-gray-800 leading-tight tracking-tight">-</h4>
+                    <!-- ใส่ break-words ให้ชื่อยาวๆ ตัดขึ้นบรรทัดใหม่ -->
+                    <h4 id="resFullName" class="text-3xl font-black text-gray-800 leading-tight tracking-tight break-words">-</h4>
                     <div class="flex items-center gap-1.5 text-sky-600 bg-sky-50 px-3 py-1 rounded-xl w-fit border border-sky-100">
                         <i data-lucide="briefcase" class="w-4 h-4"></i>
                         <span id="resOrg" class="font-bold text-sm">-</span>
@@ -381,53 +383,54 @@ gap: 1px !important;
             </div>
         </div>
     </div>
-</div
+</div>
 	<!-- ส่วนแสกนรถ -->
-				   <!-- ส่วนแสดงผลการจัดการรถ (Vehicle Staging) -->
-<!-- ค้นหา id="vehicleStagingArea" แล้วเปลี่ยนเนื้อหาภายในเป็นชุดนี้ -->
+<!-- ส่วนแสดงผลการจัดการรถ (Vehicle Staging) -->
 <div id="vehicleStagingArea" class="hidden min-h-full">
-    <div class="bg-white rounded-[2.5rem] p-6 border border-blue-50 shadow-2xl relative overflow-hidden">
+    <div class="bg-white rounded-[2.5rem] border border-blue-50 shadow-2xl overflow-hidden flex flex-col">
         
-        <!-- Header Section -->
-        <div class="flex justify-between items-center mb-6 bg-slate-50/50 p-4 rounded-[2rem] border border-slate-100">
-            <div class="flex items-center gap-5">
-                <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
+        <!-- แถบ Badge IN/OUT: แบบยาวด้านบนเหมือนบัตรบุคคล -->
+        <div id="stgIoBadge" class="w-full text-center py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.1em] transition-colors duration-500 uppercase">
+            -
+        </div>
+
+        <div class="p-6">
+            <!-- Header Section -->
+            <div class="flex items-center gap-5 mb-6 bg-slate-50/50 p-4 rounded-[2rem] border border-slate-100">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 shrink-0">
                     <i data-lucide="truck" class="w-9 h-9"></i>
                 </div>
-                <div>
-                    <h4 id="stgVehicleReg" class="text-3xl font-black text-slate-800 leading-none">-</h4>
+                <div class="flex-1 overflow-hidden">
+                    <h4 id="stgVehicleReg" class="text-3xl font-black text-slate-800 leading-none truncate">-</h4>
                     <div class="flex items-center gap-2 mt-2">
-                        <span class="bg-blue-100 text-blue-700 px-3 py-0.5 rounded-lg text-xs font-black tracking-widest uppercase">Vehicle ID</span>
-                        <p id="stgVehicleId" class="text-blue-600 font-bold text-lg leading-none">-</p>
+                        <span class="bg-blue-100 text-blue-700 px-3 py-0.5 rounded-lg text-xs font-black tracking-widest uppercase shrink-0">Vehicle ID</span>
+                        <p id="stgVehicleId" class="text-blue-600 font-bold text-lg leading-none truncate">-</p>
                     </div>
                 </div>
             </div>
-            
-            <!-- Badge IN/OUT: ใหญ่และชัดเจน -->
-            <div id="stgIoBadge" class="px-14 py-6 rounded-[2rem] font-black text-white text-5xl shadow-xl transform rotate-3 transition-all duration-500">-</div>
-        </div>
 
-        <!-- รายละเอียดรถ: เปลี่ยนเป็นระบบ Cards Dashboard -->
-        <div id="stgVehicleDetails" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <!-- ข้อมูลการ์ด 4 ใบจะถูกวาดที่นี่ -->
-        </div>
-
-        <!-- รายการคนในรถ -->
-        <div class="space-y-3">
-            <div class="flex justify-between items-center border-b pb-2">
-                <h5 class="font-black text-gray-400 uppercase text-[18px] tracking-[0.2em]">รายชื่อพนักงานในพาหนะ</h5>
-                <span id="stgCount" class="bg-blue-100 px-3 py-1 rounded-full text-xs font-black text-blue-700">0 คน</span>
-            </div>
-            
-            <!-- ปรับความสูงรายการให้พอดีหน้าจอ -->
-            <div id="stgPeopleList" class="space-y-3 max-h-[calc(100vh-550px)] overflow-y-auto pr-1 custom-scrollbar">
-                <!-- รายชื่อพนักงาน -->
+            <!-- รายละเอียดรถ -->
+            <div id="stgVehicleDetails" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <!-- ข้อมูลการ์ด 4 ใบจะถูกวาดที่นี่ -->
             </div>
 
-            <!-- ปุ่มบันทึก -->
-            <div class="pt-4 flex gap-3">
-                <button onclick="cancelVehicleSession()" class="flex-1 py-3 bg-gray-100 text-gray-500 font-bold rounded-2xl hover:bg-gray-200 transition text-sm">ยกเลิก</button>
-                <button onclick="saveVehicleSession()" id="btnSaveVehicle" disabled class="flex-[2] py-3 bg-blue-600 text-white font-black rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed">บันทึกข้อมูล</button>
+            <!-- รายการคนในรถ -->
+            <div class="space-y-3">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h5 class="font-black text-gray-400 uppercase text-[18px] tracking-[0.2em]">รายชื่อพนักงานในพาหนะ</h5>
+                    <span id="stgCount" class="bg-blue-100 px-3 py-1 rounded-full text-xs font-black text-blue-700">0 คน</span>
+                </div>
+                
+                <!-- ปรับความสูงรายการให้พอดีหน้าจอ -->
+                <div id="stgPeopleList" class="space-y-3 max-h-[calc(100vh-550px)] overflow-y-auto pr-1 custom-scrollbar">
+                    <!-- รายชื่อพนักงาน -->
+                </div>
+
+                <!-- ปุ่มบันทึก -->
+                <div class="pt-4 flex gap-3">
+                    <button onclick="cancelVehicleSession()" class="flex-1 py-3 bg-gray-100 text-gray-500 font-bold rounded-2xl hover:bg-gray-200 transition text-sm">ยกเลิก</button>
+                    <button onclick="saveVehicleSession()" id="btnSaveVehicle" disabled class="flex-[2] py-3 bg-blue-600 text-white font-black rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed">บันทึกข้อมูล</button>
+                </div>
             </div>
         </div>
     </div>
@@ -2232,8 +2235,9 @@ async function handleVehicleScan(cardId) {
     
     // ตั้งค่า Badge IN/OUT
     const badge = document.getElementById('stgIoBadge');
-    badge.textContent = vehicleSession.mode;
-    badge.className = `px-14 py-6 rounded-[2rem] font-black text-white text-5xl shadow-2xl transition-all duration-500 ${vehicleSession.mode==='IN'?'bg-green-600 ring-8 ring-green-100':'bg-orange-600 ring-8 ring-orange-100'}`;
+badge.textContent = vehicleSession.mode;
+badge.className = `w-full text-center py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.15em] transition-colors duration-500 uppercase ${vehicleSession.mode === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+	
 
 if (vehicleSession.mode === 'OUT') {
     showLoader('กำลังตรวจสอบพนักงานในรถ...');
@@ -3964,10 +3968,11 @@ function showInstantUI(card, typeInfo, predictedStatus, compCard = null) {
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.remove('hidden');
     
-    const badge = document.getElementById('resIoBadge');
-    badge.textContent = predictedStatus;
-    badge.className = `absolute top-0 right-0 px-16 py-6 rounded-bl-[2.5rem] font-black text-5xl text-white shadow-lg z-10 transition-all duration-500 ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
-    
+const badge = document.getElementById('resIoBadge');
+badge.textContent = predictedStatus;
+badge.className = `w-full text-center py-3 sm:py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.15em] transition-colors duration-500 uppercase ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+
+	
     document.getElementById('resCardId').textContent = card.cardId;
     document.getElementById('resFullName').textContent = `${card.firstName} ${card.lastName}`;
     document.getElementById('resOrg').textContent = card.organization || 'ไม่ระบุหน่วยงาน';
@@ -4234,9 +4239,9 @@ function confirmStatusUI(finalStatus, logTime, fullRes = null) {
 
         // อัปเดตขนาด Badge ให้ใหญ่เท่าตอนแรก
         const badge = document.getElementById('resIoBadge');
-        badge.textContent = finalStatus;
-        badge.className = `absolute top-0 right-0 px-16 py-6 rounded-bl-[2.5rem] font-black text-5xl text-white shadow-lg z-10 transition-all duration-500 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
-
+		badge.textContent = finalStatus;
+		badge.className = `w-full text-center py-3 sm:py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.15em] transition-colors duration-500 uppercase ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+		
         // แสดงเวลาบันทึกจริง
         document.getElementById('resTime').innerHTML = formatDateTime(logTime).replace(' | ', '<br>');
         
@@ -4545,11 +4550,11 @@ if (serverState.lastLogId !== lastKnownState.lastLogId) {
         
         document.getElementById('scanResultEmpty').classList.add('hidden');
         document.getElementById('scanResultData').classList.remove('hidden');
-        
+		
         const badge = document.getElementById('resIoBadge');
 badge.textContent = res.ioType;
-// ขยาย px (ซ้ายขวา) เป็น 12, py (บนล่าง) เป็น 4 และ text (ขนาดอักษร) เป็น 4xl
-const baseBadgeClass = 'absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-[0_4px_20px_rgba(0,0,0,0.2)] z-10 tracking-[0.2em] transition-all duration-300';
+const baseBadgeClass = 'w-full text-center py-3 sm:py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.15em] transition-colors duration-500 uppercase';
+badge.className = `${baseBadgeClass} ${res.ioType === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
 
 if(res.ioType === 'IN') { 
     badge.className = `${baseBadgeClass} bg-green-600 ring-4 ring-green-100`; 
