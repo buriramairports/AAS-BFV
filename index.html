@@ -2014,6 +2014,7 @@ gap: 1px !important;
 	  // --- เพิ่ม 2 บรรทัดนี้ ---
 let onlineScanQueue = []; // คิวสำหรับส่งข้อมูลปกติทีละรายการ
 let isProcessingScanQueue = false; // ตัวเช็คสถานะว่ากำลังส่งข้อมูลอยู่หรือไม่
+let lastManualScan = { cardId: null, time: 0 }; // <-- เพิ่มบรรทัดนี้
 // ----------------------
 	  
     let currentUser = null, currentPage = 'home';
@@ -3907,6 +3908,16 @@ function processMainScan() {
     if (!gateId) return showAlert('ข้อมูลไม่ครบ', 'กรุณาเลือกจุดเข้าออกพื้นที่ก่อน', 'warning');
     if (!cardId) return mainInput.focus();
 
+	// --- เพิ่มโค้ดป้องกันการแสกนเบิ้ล (Double Scan) ตรงนี้ ---
+    const nowTime = Date.now();
+    if (lastManualScan.cardId === cardId && (nowTime - lastManualScan.time) < 2000) {
+        mainInput.value = ''; mainInput.focus();
+        return; // ข้ามการทำงานถ้ารหัสเดิมถูกแสกนซ้ำภายใน 2 วินาที
+    }
+    lastManualScan.cardId = cardId;
+    lastManualScan.time = nowTime;
+    // ----------------------------------------------------
+
     const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
     if (!card) {
         mainInput.value = ''; mainInput.focus();
@@ -4008,6 +4019,8 @@ badge.className = `w-full text-center py-3 sm:py-4 font-black text-4xl sm:text-5
 /**
  * ระบบประมวลผลคิวแสกน: ส่งทีละรายการ ป้องกัน Google Apps Script ค้าง (แก้ไขปัญหาแสกนพร้อมกัน 5 คน)
  */
+let queueRetryCount = 0; // ตัวแปรนับจำนวนครั้งที่ลองส่งใหม่
+
 async function processScanQueue() {
     if (isProcessingScanQueue || onlineScanQueue.length === 0) return;
     isProcessingScanQueue = true;
@@ -4016,27 +4029,34 @@ async function processScanQueue() {
         const scanData = onlineScanQueue[0]; // ดูข้อมูลคิวแรกสุด
 
         try {
-            // ส่งข้อมูลไปบันทึก (แนบเวลา scanTime ไปเป็น offlineTimestamp เพื่อบังคับ Server ให้ใช้เวลานี้)
             const res = await apiCall('processScan', {
                 gateId: scanData.gateId,
                 cardId: scanData.cardId,
                 companionCardId: scanData.companionCardId,
                 recordedBy: scanData.recordedBy,
-                offlineTimestamp: scanData.scanTime // <--- จุดที่เพิ่ม: บังคับเวลาบันทึกให้ตรงกับตอนแสกนเป๊ะๆ
+                offlineTimestamp: scanData.scanTime 
             }, false);
 
             if (res.success) {
-                // บันทึกสำเร็จ เอาออกจากคิวได้
-                onlineScanQueue.shift();
-                
-                // อัปเดตประวัติการเข้าออกด้านล่างเนียนๆ
+                // บันทึกสำเร็จ
+                onlineScanQueue.shift(); // เอาออกจากคิว
+                queueRetryCount = 0; // รีเซ็ตการนับ
                 updateRecentLogsList(res, scanData.scanTime, res.newStatus); 
             }
         } catch (err) {
             console.error("Queue Send Error:", err);
-            // ถ้าพัง ให้เด้งไปคิวแจ้งเตือนสีแดง และลบออกจากคิวส่ง
-            addToFailedQueue(scanData.cardId, scanData.fullName);
-            onlineScanQueue.shift();
+            queueRetryCount++;
+            
+            // ถ้าระบบส่งไม่ผ่านเกิน 3 ครั้ง ค่อยเด้งไปคิวสีแดง (ล้มเหลว)
+            if (queueRetryCount >= 3) {
+                addToFailedQueue(scanData.cardId, scanData.fullName);
+                onlineScanQueue.shift();
+                queueRetryCount = 0;
+            } else {
+                // ถ้ายังไม่เกิน 3 ครั้ง ให้รอ 1 วินาทีแล้วลองส่งข้อมูลชุดเดิมใหม่เงียบๆ
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                continue; // วนลูปกลับไปทำใหม่โดยไม่ดึงคิวออก
+            }
         }
 
         // ดีเลย์ 600ms ก่อนส่งคิวต่อไป เพื่อให้ GAS หายใจและคลาย Lock ทัน
@@ -4388,7 +4408,21 @@ if (serverState.lastLogId !== lastKnownState.lastLogId) {
     const data = await apiCall('getInitialData', {}, false);
     recentLogs = data.recentLogs || [];
     monthlyStats = data.monthlyStats || monthlyStats;
-    allCards = data.allCards || allCards; // <-- เพิ่มบรรทัดนี้ (เพื่ออัปเดตสถานะ IN/OUT ล่าสุดจาก Server แบบเนียนๆ)
+    // --- เปลี่ยนจาก allCards = data.allCards มาเป็นการอัปเดตแบบระมัดระวัง ---
+    if (data.allCards) {
+        const queuedCardIds = onlineScanQueue.map(q => q.cardId); // ดูว่ามีใครกำลังต่อคิวส่งข้อมูลอยู่ไหม
+        data.allCards.forEach(serverCard => {
+            // อัปเดตข้อมูลเฉพาะ "คนที่ไม่ได้อยู่ในคิว" เพื่อป้องกันการเอาสถานะเก่าบนเซิร์ฟเวอร์มาทับ
+            if (!queuedCardIds.includes(serverCard.cardId)) {
+                const localIdx = allCards.findIndex(c => c.cardId === serverCard.cardId);
+                if (localIdx !== -1) {
+                    allCards[localIdx].currentStatus = serverCard.currentStatus;
+                    allCards[localIdx].lastLogTime = serverCard.lastLogTime;
+                }
+            }
+        });
+    }
+    // --------------------------------------------------------------
     renderRecentLogsTable();
     renderHomeDashboard();
     lastKnownState.lastLogId = serverState.lastLogId;
