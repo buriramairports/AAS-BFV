@@ -3826,14 +3826,36 @@ function toggleHybridCamera() {
         if (systemSettings.faviconUrl) document.getElementById('dynamicFavicon').href = systemSettings.faviconUrl;
     }
 
-    async function handleLogin(){
-        const u=document.getElementById('loginUsername').value.trim(), p=document.getElementById('loginPassword').value.trim();
-        if(!u||!p) return showToast('กรอกข้อมูลให้ครบ','error');
-        const users = await apiCall('getUsers');
-        const user = users.find(x=>x.username===u && x.password===p);
-        if(user){ currentUser=user; localStorage.setItem('aac_currentUser',JSON.stringify(user)); showMainApp(true); showToast('เข้าสู่ระบบสำเร็จ','success'); }
-        else showToast('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง','error');
+    async function handleLogin() {
+    const u = document.getElementById('loginUsername').value.trim();
+    const p = document.getElementById('loginPassword').value.trim();
+    
+    if(!u || !p) return showToast('กรอกข้อมูลให้ครบ', 'error');
+    
+    showLoader('กำลังตรวจสอบข้อมูลเข้าสู่ระบบ...'); // เพิ่มหน้าจอโหลดให้ดูโปรขึ้น
+    
+    try {
+        // โหลดข้อมูล User จากระบบ
+        const users = await apiCall('getUsers', {}, false);
+        
+        // --- จุดที่แก้ไข: ใส่ String(...) ครอบตัวแปรเพื่อบังคับให้เป็นข้อความก่อนเปรียบเทียบ ---
+        const user = users.find(x => String(x.username) === String(u) && String(x.password) === String(p));
+        
+        hideLoader();
+        
+        if (user) { 
+            currentUser = user; 
+            localStorage.setItem('aac_currentUser', JSON.stringify(user)); 
+            showMainApp(true); 
+            showToast('เข้าสู่ระบบสำเร็จ', 'success'); 
+        } else { 
+            showToast('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'error'); 
+        }
+    } catch (err) {
+        hideLoader();
+        showToast('เกิดข้อผิดพลาดในการตรวจสอบข้อมูล', 'error');
     }
+}
     function handleLogout() { 
         // 1. ล้างข้อมูลผู้ใช้ในระบบ
         currentUser = null; 
