@@ -300,12 +300,18 @@ gap: 1px !important;
             -
         </div>
 
-		<!-- แถบรอการยืนยันจากเจ้าหน้าที่ (แสดงเฉพาะตอนเปิดโหมด Manual Confirm) -->
+<!-- แถบรอการยืนยันจากเจ้าหน้าที่ (แสดงเฉพาะตอนเปิดโหมด Manual Confirm) -->
 <div id="actionConfirmBox" class="hidden bg-sky-50 border-b-2 border-sky-100 px-6 py-4 flex-col sm:flex-row items-center justify-between gap-4">
     <div class="flex-1 w-full">
-        <p class="text-sky-800 font-black text-lg flex items-center gap-2 mb-2">
-            <i data-lucide="eye" class="w-5 h-5 animate-pulse"></i> กรุณาตรวจสอบและยืนยันตัวตน
-        </p>
+        <div class="flex items-center justify-between mb-2">
+            <p class="text-sky-800 font-black text-lg flex items-center gap-2">
+                <i data-lucide="eye" class="w-5 h-5 animate-pulse"></i> กรุณาตรวจสอบและยืนยันตัวตน
+            </p>
+            <!-- กล่องแสดงตัวเลขเวลา -->
+            <span id="confirmTimePill" class="text-sky-700 bg-sky-200 px-3 py-1 rounded-lg text-sm font-bold shadow-sm transition-colors">
+                <span id="confirmTimeText">10</span> วินาที
+            </span>
+        </div>
         <!-- หลอดวิ่งถอยหลัง -->
         <div class="w-full bg-sky-200 rounded-full h-2.5 overflow-hidden">
             <div id="confirmProgressBar" class="bg-sky-600 h-2.5 rounded-full transition-all duration-1000 ease-linear" style="width: 100%"></div>
@@ -2092,6 +2098,7 @@ let lastManualScan = { cardId: null, time: 0 }; // <-- เพิ่มบรร�
 let faceConfirmTimer = null;
 let faceConfirmTimeLeft = 0;
 let pendingFaceData = null; // เก็บข้อมูลใบหน้าที่รอการกดยืนยัน
+let previousDisplayState = null; // <--- เพิ่มตัวแปรนี้ สำหรับเก็บสำเนาหน้าจอเดิม
 	  
     let allVehicles = [], typeVehicles = [], currentFilteredVehicles = [];
     // Data Caches
@@ -7485,13 +7492,20 @@ function promptFaceConfirmation(card, typeInfo, predictedStatus) {
     isSystemBusy = true; // ล็อคกล้องไม่ให้แสกนคนต่อไป
     pendingFaceData = { cardId: card.cardId, predictedStatus: predictedStatus };
 
-    // 1. อัปเดตข้อความปุ่มคีย์ลัดตามที่ตั้งค่าไว้
+    // 1. ถ่ายสำเนาหน้าจอเดิมเก็บไว้ก่อน (เพื่อกู้คืนถ้ายกเลิก)
+    previousDisplayState = {
+        isEmpty: !document.getElementById('scanResultEmpty').classList.contains('hidden'),
+        html: document.getElementById('scanResultData').innerHTML,
+        cardId: currentDisplayCardId
+    };
+
+    // 2. อัปเดตข้อความปุ่มคีย์ลัดตามที่ตั้งค่าไว้
     const keyConf = systemSettings.aiConfirmKey || 'Enter';
     const keyCanc = systemSettings.aiCancelKey || 'Escape';
     document.getElementById('lblBtnConfirm').textContent = `(${keyConf === ' ' ? 'Space' : keyConf})`;
     document.getElementById('lblBtnCancel').textContent = `(${keyCanc})`;
 
-    // 2. แสดง UI รอการยืนยัน
+    // 3. แสดง UI รอการยืนยัน
     document.getElementById('actionConfirmBox').classList.remove('hidden');
     document.getElementById('actionConfirmBox').classList.add('flex');
     
@@ -7500,39 +7514,48 @@ function promptFaceConfirmation(card, typeInfo, predictedStatus) {
     badge.textContent = "ตรวจสอบความถูกต้อง";
     badge.className = "w-full text-center py-3 sm:py-4 font-black text-2xl sm:text-3xl text-sky-800 bg-sky-200 shadow-md z-10 tracking-widest transition-colors duration-500 uppercase";
 
-    showInstantUI(card, typeInfo, predictedStatus); // โชว์ข้อมูลบัตร (แต่ยังไม่บันทึก)
+    showInstantUI(card, typeInfo, predictedStatus); // โชว์ข้อมูลคนที่ให้ยืนยัน
     
-    // 3. เริ่มจับเวลาถอยหลัง (Progress Bar)
+    // 4. เริ่มจับเวลาถอยหลัง (Progress Bar + Text)
     let totalTime = (systemSettings.aiAutoCancelTime || 10);
     faceConfirmTimeLeft = totalTime;
-    const progressBar = document.getElementById('confirmProgressBar');
-    progressBar.style.width = "100%";
-    progressBar.style.transition = "none"; // รีเซ็ต Animation ก่อน
     
-    // บังคับบราวเซอร์ให้วาดใหม่
-    void progressBar.offsetWidth; 
+    document.getElementById('confirmTimeText').textContent = faceConfirmTimeLeft;
+    
+    const progressBar = document.getElementById('confirmProgressBar');
+    const timePill = document.getElementById('confirmTimePill');
+    
+    // รีเซ็ตสีกลับเป็นสีฟ้า
+    progressBar.classList.replace('bg-red-500', 'bg-sky-600');
+    timePill.className = "text-sky-700 bg-sky-200 px-3 py-1 rounded-lg text-sm font-bold shadow-sm transition-colors";
+    
+    progressBar.style.width = "100%";
+    progressBar.style.transition = "none"; 
+    void progressBar.offsetWidth; // บังคับให้บราวเซอร์วาดใหม่
     progressBar.style.transition = `width 1s linear`;
 
     if (faceConfirmTimer) clearInterval(faceConfirmTimer);
     
     faceConfirmTimer = setInterval(() => {
         faceConfirmTimeLeft--;
+        document.getElementById('confirmTimeText').textContent = faceConfirmTimeLeft; // อัปเดตตัวเลขเวลา
+        
         const pct = (faceConfirmTimeLeft / totalTime) * 100;
         progressBar.style.width = `${pct}%`;
 
-        // เปลี่ยนสีหลอดเป็นสีแดงเมื่อเวลาเหลือน้อย (ต่ำกว่า 30%)
+        // เปลี่ยนสีหลอดและกล่องเวลาเป็น "สีแดง" เมื่อเวลาเหลือน้อย (ต่ำกว่า 30%)
         if (pct <= 30) {
             progressBar.classList.replace('bg-sky-600', 'bg-red-500');
-        } else {
-            progressBar.classList.replace('bg-red-500', 'bg-sky-600');
+            timePill.classList.replace('bg-sky-200', 'bg-red-200');
+            timePill.classList.replace('text-sky-700', 'text-red-700');
         }
 
         if (faceConfirmTimeLeft <= 0) {
-            cancelFaceScan(true); // ยกเลิกอัตโนมัติ
+            cancelFaceScan(true); // ยกเลิกอัตโนมัติเมื่อเวลาหมด
         }
     }, 1000);
 
-    // 4. ผูก Event Listener ดักจับการกดคีย์บอร์ด
+    // 5. ผูก Event Listener ดักจับการกดคีย์บอร์ด
     window.addEventListener('keydown', handleConfirmKeydown);
 }
 
@@ -7547,6 +7570,8 @@ function confirmFaceScan() {
     window.removeEventListener('keydown', handleConfirmKeydown);
     document.getElementById('actionConfirmBox').classList.add('hidden');
     document.getElementById('actionConfirmBox').classList.remove('flex');
+    
+    previousDisplayState = null; // เคลียร์สำเนาทิ้ง เพราะยืนยันสำเร็จแล้ว
 
     // 2. ดึงข้อมูลที่รอไว้มาส่งบันทึกจริง
     const cardId = pendingFaceData.cardId;
@@ -7559,7 +7584,7 @@ function confirmFaceScan() {
     
     // 4. ล้างข้อมูลพัก ปลดล็อคระบบ
     pendingFaceData = null;
-    setTimeout(() => { isSystemBusy = false; }, 1000); // หน่วงเวลา 1 วิให้พร้อมแสกนคนต่อไป
+    setTimeout(() => { isSystemBusy = false; }, 1000);
 }
 
 /**
@@ -7574,17 +7599,32 @@ function cancelFaceScan(isAuto = false) {
     document.getElementById('actionConfirmBox').classList.add('hidden');
     document.getElementById('actionConfirmBox').classList.remove('flex');
 
-    // 2. รีเซ็ตหน้าจอกลับเป็นรอแสกน
-    document.getElementById('scanResultData').classList.add('hidden');
-    document.getElementById('scanResultEmpty').classList.remove('hidden');
+    // 2. กู้คืนหน้าจอเดิม (ก่อนที่ AI จะแสกนโดน)
+    if (previousDisplayState) {
+        if (previousDisplayState.isEmpty) {
+            // ถ้าก่อนหน้านี้เป็นจอว่างเปล่า ก็คืนเป็นจอว่าง
+            document.getElementById('scanResultData').classList.add('hidden');
+            document.getElementById('scanResultEmpty').classList.remove('hidden');
+        } else {
+            // ถ้าก่อนหน้านี้มีบัตรคนก่อนหน้าโชว์อยู่ ก็เอาโค้ดเดิมกลับมาแปะเลย
+            document.getElementById('scanResultData').innerHTML = previousDisplayState.html;
+            document.getElementById('scanResultData').classList.remove('hidden');
+            document.getElementById('scanResultEmpty').classList.add('hidden');
+            
+            // คืนค่ารหัสบัตรล่าสุดกลับเป็นคนเดิม (ป้องกันการแสกนเบิ้ลผิดพลาด)
+            currentDisplayCardId = previousDisplayState.cardId; 
+        }
+        previousDisplayState = null; // ล้างสำเนาทิ้ง
+    }
 
+    // 3. แจ้งเตือน
     if (isAuto) {
         showToast('ยกเลิกอัตโนมัติเนื่องจากหมดเวลา', 'warning');
     } else {
         showToast('ยกเลิกการบันทึกแล้ว กรุณาแสกนใหม่', 'info');
     }
 
-    // 3. ล้างข้อมูลพัก ปลดล็อคระบบ
+    // 4. ล้างข้อมูลพัก ปลดล็อคระบบ ให้แสกนต่อได้
     pendingFaceData = null;
     setTimeout(() => { isSystemBusy = false; }, 500);
 }
