@@ -2099,6 +2099,10 @@ let faceConfirmTimer = null;
 let faceConfirmTimeLeft = 0;
 let pendingFaceData = null; // เก็บข้อมูลใบหน้าที่รอการกดยืนยัน
 let previousDisplayState = null; // <--- เพิ่มตัวแปรนี้ สำหรับเก็บสำเนาหน้าจอเดิม
+
+// ตัวแปรสำหรับเก็บสำเนาหน้าจอล่าสุดของแต่ละโหมด
+let cachedPersonHTML = null;
+let cachedVehicleHTML = null;
 	  
     let allVehicles = [], typeVehicles = [], currentFilteredVehicles = [];
     // Data Caches
@@ -2146,14 +2150,9 @@ function setScanMode(mode) {
     const vBtn = document.getElementById('modeVehicleBtn');
     const input = document.getElementById('scanInput');
 
-    // 1. ซ่อนกล่องแสดงผลทุกชนิด และโชว์กล่อง "รอการแสกน" แทนเสมอ
-    document.getElementById('scanResultData').classList.add('hidden');
+    // 1. ซ่อนกล่องแจ้งเตือนยืนยันต่างๆ และเคลียร์สถานะรอการยืนยัน
     document.getElementById('actionConfirmBox').classList.add('hidden');
     document.getElementById('actionConfirmBox').classList.remove('flex');
-    document.getElementById('vehicleStagingArea').classList.add('hidden');
-    document.getElementById('scanResultEmpty').classList.remove('hidden');
-    
-    // 2. เคลียร์สถานะการรอยืนยันต่างๆ ทิ้ง (ป้องกันบั๊กค้าง)
     if (faceConfirmTimer) clearInterval(faceConfirmTimer);
     window.removeEventListener('keydown', handleConfirmKeydown);
     pendingFaceData = null;
@@ -2163,26 +2162,51 @@ function setScanMode(mode) {
     if (mode === 'vehicle') {
         vBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-blue-600 bg-blue-600 text-white transition shadow-sm";
         pBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50";
-        
-        // ล้างข้อมูลรถเดิม
+
+        // ล้างข้อมูลตะกร้ารถที่อาจทำค้างไว้
         vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
-        
         input.placeholder = "แสกนรหัสบัตรรถ...";
         input.classList.remove('border-green-400');
         input.classList.add('border-blue-400');
+
+        // --- ระบบกู้คืนหน้าจอรคันล่าสุด (State Caching) ---
+        document.getElementById('scanResultData').classList.add('hidden'); // ซ่อนฝั่งคน
+        if (cachedVehicleHTML) {
+            const stagingArea = document.getElementById('vehicleStagingArea');
+            stagingArea.innerHTML = cachedVehicleHTML; // แปะสำเนากลับไป
+            stagingArea.classList.remove('hidden');
+            document.getElementById('scanResultEmpty').classList.add('hidden');
+        } else {
+            document.getElementById('vehicleStagingArea').classList.add('hidden');
+            document.getElementById('scanResultEmpty').classList.remove('hidden');
+        }
+
     } else {
         pBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-indigo-600 bg-indigo-600 text-white transition shadow-sm";
         vBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50";
-        
-        // ล้างข้อมูลรถออกเพื่อกลับสู่โหมดคน
+
+        // ล้างข้อมูลตะกร้ารถออก
         vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
-        
         input.placeholder = "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
         input.classList.remove('border-blue-400');
         input.classList.add('border-green-400');
+
+        // --- ระบบกู้คืนหน้าจอคนล่าสุด (State Caching) ---
+        document.getElementById('vehicleStagingArea').classList.add('hidden'); // ซ่อนฝั่งรถ
+        if (cachedPersonHTML) {
+            const scanDataArea = document.getElementById('scanResultData');
+            scanDataArea.innerHTML = cachedPersonHTML; // แปะสำเนากลับไป
+            scanDataArea.classList.remove('hidden');
+            document.getElementById('scanResultEmpty').classList.add('hidden');
+        } else {
+            document.getElementById('scanResultData').classList.add('hidden');
+            document.getElementById('scanResultEmpty').classList.remove('hidden');
+        }
     }
+
     input.value = '';
     input.focus();
+    if (window.lucide) lucide.createIcons(); // สั่งวาดไอคอนใหม่ให้สมบูรณ์
 }
 
 // 2. ปรับปรุงฟังก์ชันบันทึกจุดเข้าออก (แสดง/ซ่อนปุ่มสลับโหมด)
@@ -2529,22 +2553,30 @@ function swapToDriver(i) {
 function cancelVehicleSession() {
     // ล้างข้อมูลในตัวแปร
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
-    
-    // จัดการ UI
-    document.getElementById('vehicleStagingArea').classList.add('hidden');
-    document.getElementById('scanResultEmpty').classList.remove('hidden');
-    document.getElementById('scanResultData').classList.add('hidden'); // ให้ชัวร์ว่าซ่อนบัตรคนด้วย
-    
+
     const input = document.getElementById('scanInput');
-    
     if (currentScanTarget === 'vehicle') {
         input.placeholder = "แสกนรหัสบัตรรถ...";
     } else {
         input.placeholder = "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
     }
-    
+
+    // --- กู้คืนหน้าจอรคันล่าสุด แทนการเคลียร์เป็นจอว่างๆ ---
+    document.getElementById('scanResultData').classList.add('hidden'); // ให้ชัวร์ว่าซ่อนบัตรคนด้วย
+
+    if (cachedVehicleHTML) {
+        const stagingArea = document.getElementById('vehicleStagingArea');
+        stagingArea.innerHTML = cachedVehicleHTML;
+        stagingArea.classList.remove('hidden');
+        document.getElementById('scanResultEmpty').classList.add('hidden');
+    } else {
+        document.getElementById('vehicleStagingArea').classList.add('hidden');
+        document.getElementById('scanResultEmpty').classList.remove('hidden');
+    }
+
     input.value = '';
     input.focus();
+    if (window.lucide) lucide.createIcons();
 }
 
 async function saveVehicleSession() {
@@ -2662,6 +2694,8 @@ function showVehicleSuccessSummary(session, people, gateName) {
 
     list.innerHTML = summaryHtml;
     lucide.createIcons();
+	// --- เพิ่มบรรทัดนี้ลงไปท้ายสุดของฟังก์ชัน ---
+    cachedVehicleHTML = document.getElementById('vehicleStagingArea').innerHTML;
 }
 // ----------------จบส่วนแสกนรถ--------------
 // เพิ่มในส่วน fetchInitialData หรือ navigateTo('manageVehicles')
@@ -4376,6 +4410,8 @@ function confirmStatusUI(finalStatus, logTime, fullRes = null) {
         showSuccessToast(fullRes.cardInfo.cardId, fullRes.cardInfo.firstName, finalStatus);
     }
     if (fullRes) updateRecentLogsList(fullRes, logTime, finalStatus);
+	// --- เพิ่มบรรทัดนี้ลงไปท้ายสุดของฟังก์ชัน ---
+    cachedPersonHTML = document.getElementById('scanResultData').innerHTML;
 }
 
 /**
@@ -4742,6 +4778,8 @@ if(res.ioType === 'IN') {
         
         renderHomeDashboard();
         renderRecentLogsTable();
+		// --- เพิ่มบรรทัดนี้ลงไปท้ายสุดของฟังก์ชัน ---
+    cachedPersonHTML = document.getElementById('scanResultData').innerHTML;
     }
 
      // --- อัปเดตตารางแสดงผลเพื่อโชว์คอลัมน์ผู้บันทึก ---
