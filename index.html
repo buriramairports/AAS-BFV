@@ -962,9 +962,9 @@ gap: 1px !important;
                <button onclick="refreshActiveInsideData()" class="px-4 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl flex items-center gap-2 text-sm font-bold transition shadow-sm hover:bg-gray-50">
                    <i data-lucide="refresh-cw" class="w-4 h-4"></i> โหลดข้อมูลใหม่
                </button>
-               <button onclick="forceOutAll()" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg text-sm font-bold transition hover:-translate-y-1">
-                   <i data-lucide="log-out" class="w-4 h-4"></i> บังคับออกทั้งหมด
-               </button>
+               <button id="btnForceOutAll" onclick="forceOutAll()" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg text-sm font-bold transition hover:-translate-y-1">
+    				<i data-lucide="log-out" class="w-4 h-4"></i> บังคับออกทั้งหมด
+				</button>
            </div>
        </div>
 
@@ -3874,7 +3874,7 @@ function toggleHybridCamera() {
             title: 'หน้าหลักและติดตาม',
             items: [
                 { id: 'home', icon: 'scan-line', label: 'แสกนเข้า-ออก', r: ['user', 'admin'] },
-                { id: 'activeInside', icon: 'user-check', label: 'ผู้ตกค้างในพื้นที่', r: ['admin'] }
+                { id: 'activeInside', icon: 'user-check', label: 'ผู้ตกค้างในพื้นที่', r: ['user', 'admin'] }
             ]
         },
         {
@@ -3953,7 +3953,16 @@ function toggleHybridCamera() {
         if(p==='home') { initBanner(); renderHomeDashboard(); renderRecentLogsTable(); setTimeout(()=>document.getElementById('scanInput').focus(), 300); }
         else if(p==='manageCards') fetchAllCardsAndRender();
         // --- แทรกลงตรงนี้ครับ ---
-        else if(p==='activeInside') { fetchAllCardsAndRender().then(() => renderActiveInsideTable()); }
+        else if(p === 'activeInside') { 
+    		fetchAllCardsAndRender().then(() => renderActiveInsideTable()); 
+    
+   		 // --- เพิ่ม 3 บรรทัดนี้เข้าไป ---
+   		 if (currentUser.role === 'user') {
+        	document.getElementById('btnForceOutAll').style.display = 'none'; // ซ่อนปุ่มถ้าเป็น User
+    	} else {
+        	document.getElementById('btnForceOutAll').style.display = 'flex'; // โชว์ปุ่มถ้าเป็น Admin
+    	}
+}
         // ---------------------
         else if(p==='manageTypeCards') renderTypeCardsTable();
 		else if(p==='manageAreas') renderAreasTable();
