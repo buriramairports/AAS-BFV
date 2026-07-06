@@ -7421,7 +7421,40 @@ function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
     lastScannedFaceId = cardId;
     setTimeout(() => { lastScannedFaceId = null; }, (systemSettings.aiCooldown || 10) * 1000);
 
-    // แสดง % ความแม่นยำ
+    // เช็คว่าแหล่งที่มาคือ บาร์โค้ด(Quagga) หรือ หน้าคน(AI)
+    // ถ้ายิงจากบาร์โค้ด ตัวแปร descriptor จะถูกส่งมาเป็น null
+    const isBarcode = !descriptor;
+
+    // =========================================================
+    // --- 1. จัดการแยกการทำงานสำหรับ โหมดรถ (Vehicle Mode) ---
+    // =========================================================
+    if (currentScanTarget === 'vehicle') {
+        if (!isBarcode) {
+            // กรณีเป็น AI จับใบหน้า
+            if (!vehicleSession.vehicle) {
+                // 1.1 ถ้ายังไม่ได้แสกนบัตรรถ -> ให้เมินหน้าคนไปเลย (กล้องจะได้ไม่เด้งกวนใจ)
+                return; 
+            } else {
+                // 1.2 ถ้ามีรถจอดรอในจอแล้ว -> โยนชื่อเข้าตะกร้ารถเลย (ไม่ต้องผ่านจอ Manual Confirm)
+                try {
+                    // เล่นเสียงติ๊ดให้เจ้าหน้าที่รู้ว่า ดึงหน้าลงรถเรียบร้อย
+                    const beep = new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3');
+                    beep.volume = parseFloat(systemSettings.beepVolume || 0.5);
+                    beep.play();
+                } catch(e) {}
+                
+                handlePersonForVehicle(cardId);
+                return; // จบการทำงานสำหรับโหมดรถ
+            }
+        }
+        // *ถ้าเป็นบาร์โค้ด (เช่นยิงบาร์โค้ดรถ หรือยิงบาร์โค้ดคน) จะปล่อยให้รันต่อลงไปข้างล่าง
+    }
+
+    // =========================================================
+    // --- 2. การทำงานสำหรับ โหมดบุคคลปกติ (Person Mode) ---
+    // =========================================================
+
+    // แสดง % ความแม่นยำ (ถ้ามี Element มารับ)
     const scoreValEl = document.getElementById('lowScoreVal');
     if (scoreValEl && matchPercent) {
         scoreValEl.textContent = matchPercent; 
@@ -7434,16 +7467,16 @@ function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
         score: matchPercent || 0
     };
 
-    // --- ส่วนที่เพิ่มใหม่: ตรวจสอบโหมด Manual Confirm ---
     const gateId = document.getElementById('scanGateSelect').value;
     const card = allCards.find(c => String(c.cardId) === String(cardId));
     
-    if (systemSettings.aiManualConfirm && card && gateId) {
-        // กรณีเปิดโหมดให้เจ้าหน้าที่ยืนยันก่อนบันทึก
+    // ตรวจสอบว่าเข้าเงื่อนไขโหมด "มนุษย์ยืนยัน" หรือไม่ (และต้องเป็น AI เท่านั้น บาร์โค้ดไม่ต้องรอ)
+    if (systemSettings.aiManualConfirm && !isBarcode && card && gateId) {
+        
         const typeInfo = typeCards.find(t => String(t.id) === String(card.typeId));
         let predictedStatus = (card.currentStatus === 'IN') ? 'OUT' : 'IN';
         
-        // เช็คผู้ติดตามก่อน ถ้าต้องมีผู้ติดตาม ให้เด้ง Modal ผู้ติดตามไปเลย (ไม่ต้องรอยืนยันหน้า)
+        // เช็คผู้ติดตามก่อน ถ้าต้องมีผู้ติดตาม ให้เด้ง Modal ผู้ติดตามไปเลย
         if (typeInfo.requireCompanion && predictedStatus === 'IN') {
              document.getElementById('companionModalMainCardId').value = card.cardId;
              document.getElementById('compBarcode').value = '';
@@ -7452,15 +7485,15 @@ function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
              return;
         }
 
-        // เรียกระบบรอยืนยันขึ้นมาทำงาน (กล้องจะหยุดชั่วคราวและโชว์ปุ่มให้กดยืนยัน)
+        // เรียกระบบรอยืนยันขึ้นมาทำงาน (กล้องหยุดชั่วคราวและโชว์ปุ่มให้กดยืนยัน)
         promptFaceConfirmation(card, typeInfo, predictedStatus);
 
     } else {
-        // กรณีปิดโหมดไว้ (Auto) ให้เข้าสู่กระบวนการบันทึกอัตโนมัติทันที
+        // กรณี ปิดโหมดรอยืนยันไว้ หรือ ยิงด้วยบาร์โค้ด ให้ส่งไปบันทึกทันที
         const mainInput = document.getElementById('scanInput');
         if (mainInput) {
             mainInput.value = cardId;
-            processMainScan(); // ส่งเข้ากระบวนการบันทึก IN/OUT ทันที
+            processMainScan(); 
         }
     }
 }
