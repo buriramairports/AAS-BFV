@@ -299,7 +299,29 @@ gap: 1px !important;
         <div id="resIoBadge" class="w-full text-center py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.1em] transition-colors duration-500 uppercase">
             -
         </div>
-        
+
+		<!-- แถบรอการยืนยันจากเจ้าหน้าที่ (แสดงเฉพาะตอนเปิดโหมด Manual Confirm) -->
+<div id="actionConfirmBox" class="hidden bg-sky-50 border-b-2 border-sky-100 px-6 py-4 flex-col sm:flex-row items-center justify-between gap-4">
+    <div class="flex-1 w-full">
+        <p class="text-sky-800 font-black text-lg flex items-center gap-2 mb-2">
+            <i data-lucide="eye" class="w-5 h-5 animate-pulse"></i> กรุณาตรวจสอบและยืนยันตัวตน
+        </p>
+        <!-- หลอดวิ่งถอยหลัง -->
+        <div class="w-full bg-sky-200 rounded-full h-2.5 overflow-hidden">
+            <div id="confirmProgressBar" class="bg-sky-600 h-2.5 rounded-full transition-all duration-1000 ease-linear" style="width: 100%"></div>
+        </div>
+    </div>
+    
+    <div class="flex gap-2 w-full sm:w-auto shrink-0">
+        <button onclick="cancelFaceScan()" class="flex-1 sm:flex-none px-4 py-3 bg-red-100 hover:bg-red-500 text-red-700 hover:text-white rounded-xl font-black transition text-sm border border-red-200 shadow-sm">
+            <i data-lucide="x" class="w-4 h-4 inline mr-1"></i> ยกเลิก <span id="lblBtnCancel" class="font-normal opacity-80">(ESC)</span>
+        </button>
+        <button onclick="confirmFaceScan()" class="flex-1 sm:flex-none px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-black transition text-sm shadow-md">
+            <i data-lucide="check" class="w-4 h-4 inline mr-1"></i> ยืนยันบันทึก <span id="lblBtnConfirm" class="font-normal opacity-80">(Enter)</span>
+        </button>
+    </div>
+</div>
+		
         <!-- เนื้อหาข้อมูลบัตร -->
         <div class="p-6 flex flex-col lg:flex-row gap-6">
             
@@ -1075,6 +1097,43 @@ gap: 1px !important;
                </div>
 
            </div>
+
+		   <!-- โหมดยืนยันใบหน้าก่อนบันทึก (Manual Confirmation) -->
+<div class="bg-sky-50/50 p-4 rounded-xl border border-sky-100 md:col-span-2 mt-2">
+    <div class="flex items-center justify-between mb-3 border-b border-sky-200 pb-3">
+        <div>
+            <label class="block text-sm font-bold text-sky-900"><i data-lucide="user-check" class="w-4 h-4 inline"></i> โหมดรอเจ้าหน้าที่กดยืนยันใบหน้า (Manual Confirm)</label>
+            <p class="text-[10px] text-sky-700 mt-1">ป้องกัน AI บันทึกผิดคน โดยระบบจะหยุดรอให้เจ้าหน้าที่ดูหน้าจอแล้วกดยืนยันก่อน</p>
+        </div>
+        <label class="flex items-center gap-2 cursor-pointer text-sm font-bold text-sky-700 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-sky-200">
+            <input type="checkbox" id="aiManualConfirm" class="w-5 h-5 text-sky-600 rounded"> เปิดใช้งาน
+        </label>
+    </div>
+    
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">คีย์ลัด "ยืนยัน"</label>
+            <select id="aiConfirmKey" class="w-full border p-2 rounded-lg outline-none focus:ring-2 focus:ring-sky-500 bg-white text-sm font-bold text-green-700">
+                <option value="Enter">Enter</option>
+                <option value=" ">Spacebar (สเปซบาร์)</option>
+                <option value="ArrowRight">ลูกศรขวา (Arrow Right)</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">คีย์ลัด "ยกเลิก"</label>
+            <select id="aiCancelKey" class="w-full border p-2 rounded-lg outline-none focus:ring-2 focus:ring-sky-500 bg-white text-sm font-bold text-red-600">
+                <option value="Escape">ESC (Escape)</option>
+                <option value="Backspace">Backspace (ปุ่มลบ)</option>
+                <option value="ArrowLeft">ลูกศรซ้าย (Arrow Left)</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">เวลายกเลิกอัตโนมัติ (วินาที)</label>
+            <input type="number" id="aiAutoCancelTime" min="3" max="60" class="w-full border p-2 rounded-lg outline-none focus:ring-2 focus:ring-sky-500 bg-white text-sm font-bold text-center" placeholder="เช่น 10">
+        </div>
+    </div>
+</div>
+		   
        </div>
 
 	<!-- Settings: Card Template & Labels -->
@@ -2018,7 +2077,22 @@ let lastManualScan = { cardId: null, time: 0 }; // <-- เพิ่มบรร�
 // ----------------------
 	  
     let currentUser = null, currentPage = 'home';
-    let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true , aiThreshold: 0.38, aiCooldown: 10, aiInterval: 1000, aiPadX: 15, aiPadTop: 35 };
+    let systemSettings = { 
+    systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', 
+    logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], 
+    autoCheckoutEnabled: true, aiThreshold: 0.38, aiCooldown: 10, aiInterval: 1000, aiPadX: 15, aiPadTop: 35,
+    // --- เพิ่มการตั้งค่าใหม่สำหรับโหมดยืนยันใบหน้า ---
+    aiManualConfirm: false,
+    aiConfirmKey: 'Enter',
+    aiCancelKey: 'Escape',
+    aiAutoCancelTime: 10
+};
+
+// ตัวแปรสำหรับระบบนับถอยหลังกดยืนยัน
+let faceConfirmTimer = null;
+let faceConfirmTimeLeft = 0;
+let pendingFaceData = null; // เก็บข้อมูลใบหน้าที่รอการกดยืนยัน
+	  
     let allVehicles = [], typeVehicles = [], currentFilteredVehicles = [];
     // Data Caches
     let allGates = [], typeCards = [], allCards = [], allSystemUsers = [], allAreas = [];
@@ -5802,6 +5876,12 @@ document.getElementById('cardFooterV3').value = systemSettings.cardFooterV3 || '
 		document.getElementById('lblOrgV').value = systemSettings.lblOrgV || 'สังกัด';
 document.getElementById('lblRegV').value = systemSettings.lblRegV || 'เลขทะเบียน';
 document.getElementById('lblIdV').value = systemSettings.lblIdV || 'ทะเบียนควบคุมเลขที่';
+
+document.getElementById('aiManualConfirm').checked = systemSettings.aiManualConfirm || false;
+document.getElementById('aiConfirmKey').value = systemSettings.aiConfirmKey || 'Enter';
+document.getElementById('aiCancelKey').value = systemSettings.aiCancelKey || 'Escape';
+document.getElementById('aiAutoCancelTime').value = systemSettings.aiAutoCancelTime || 10;
+		
     // 3. ตั้งค่าเสียง AI & แจ้งเตือน
 	const delay = systemSettings.announcementDelay || 600;
 document.getElementById('announcementDelay').value = delay;
@@ -5890,6 +5970,11 @@ systemSettings.lblIdV = document.getElementById('lblIdV').value.trim();
     systemSettings.cardFooterLine2 = document.getElementById('cardFooterLine2').value.trim();
     systemSettings.cardFooterLine3 = document.getElementById('cardFooterLine3').value.trim();
 
+
+	systemSettings.aiManualConfirm = document.getElementById('aiManualConfirm').checked;
+systemSettings.aiConfirmKey = document.getElementById('aiConfirmKey').value;
+systemSettings.aiCancelKey = document.getElementById('aiCancelKey').value;
+systemSettings.aiAutoCancelTime = parseInt(document.getElementById('aiAutoCancelTime').value) || 10;   
     // 3. เสียง AI & แจ้งเตือน
     systemSettings.announcementMode = document.getElementById('announcementMode').value;
     systemSettings.beepVolume = document.getElementById('beepVolume').value;
@@ -7335,18 +7420,6 @@ function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
         scoreValEl.textContent = matchPercent; 
     }
 
-    // --- แก้ไขจุดนี้: จังหวะการพูดแบบที่ 1 (พูดทันที) ---
-    /*if (systemSettings.ttsTimingMode === 'immediate') {
-        // ใช้การ Find แบบไม่สนตัวพิมพ์เล็กใหญ่และช่องว่าง
-        const matched = allCards.find(c => 
-            String(c.cardId).trim().toUpperCase() === String(cardId).trim().toUpperCase()
-        );
-        
-        if (matched) {
-            speakImmediateGreeting(matched.firstName, matched.lastName);
-        }
-    }*/
-
     // เก็บข้อมูลสำหรับการกด Improve AI
     lastMatchData = {
         cardId: cardId,
@@ -7354,11 +7427,166 @@ function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
         score: matchPercent || 0
     };
 
-    const mainInput = document.getElementById('scanInput');
-    if (mainInput) {
-        mainInput.value = cardId;
-        processMainScan(); // ส่งเข้ากระบวนการบันทึก IN/OUT
+    // --- ส่วนที่เพิ่มใหม่: ตรวจสอบโหมด Manual Confirm ---
+    const gateId = document.getElementById('scanGateSelect').value;
+    const card = allCards.find(c => String(c.cardId) === String(cardId));
+    
+    if (systemSettings.aiManualConfirm && card && gateId) {
+        // กรณีเปิดโหมดให้เจ้าหน้าที่ยืนยันก่อนบันทึก
+        const typeInfo = typeCards.find(t => String(t.id) === String(card.typeId));
+        let predictedStatus = (card.currentStatus === 'IN') ? 'OUT' : 'IN';
+        
+        // เช็คผู้ติดตามก่อน ถ้าต้องมีผู้ติดตาม ให้เด้ง Modal ผู้ติดตามไปเลย (ไม่ต้องรอยืนยันหน้า)
+        if (typeInfo.requireCompanion && predictedStatus === 'IN') {
+             document.getElementById('companionModalMainCardId').value = card.cardId;
+             document.getElementById('compBarcode').value = '';
+             document.getElementById('companionModal').classList.remove('hidden');
+             setTimeout(() => document.getElementById('compBarcode').focus(), 100);
+             return;
+        }
+
+        // เรียกระบบรอยืนยันขึ้นมาทำงาน (กล้องจะหยุดชั่วคราวและโชว์ปุ่มให้กดยืนยัน)
+        promptFaceConfirmation(card, typeInfo, predictedStatus);
+
+    } else {
+        // กรณีปิดโหมดไว้ (Auto) ให้เข้าสู่กระบวนการบันทึกอัตโนมัติทันที
+        const mainInput = document.getElementById('scanInput');
+        if (mainInput) {
+            mainInput.value = cardId;
+            processMainScan(); // ส่งเข้ากระบวนการบันทึก IN/OUT ทันที
+        }
     }
+}
+
+/**
+ * ดักจับ Keyboard Shortcut ตอนที่เปิดโหมดรอการยืนยัน
+ */
+function handleConfirmKeydown(e) {
+    if (!pendingFaceData) return; // ถ้าไม่ได้อยู่ในโหมดรอการยืนยัน ให้ข้ามไป
+
+    const confirmKey = systemSettings.aiConfirmKey || 'Enter';
+    const cancelKey = systemSettings.aiCancelKey || 'Escape';
+
+    // เช็คว่ากดตรงกับปุ่มที่ตั้งค่าไว้ไหม
+    // ใช้ e.key หรือ e.code ก็ได้ แต่ในกรณี Spacebar e.key จะเป็น " "
+    if (e.key === confirmKey || (confirmKey === ' ' && e.code === 'Space')) {
+        e.preventDefault();
+        confirmFaceScan();
+    } else if (e.key === cancelKey) {
+        e.preventDefault();
+        cancelFaceScan();
+    }
+}
+
+/**
+ * ฟังก์ชันเริ่มกระบวนการรอเจ้าหน้าที่ยืนยัน
+ */
+function promptFaceConfirmation(card, typeInfo, predictedStatus) {
+    isSystemBusy = true; // ล็อคกล้องไม่ให้แสกนคนต่อไป
+    pendingFaceData = { cardId: card.cardId, predictedStatus: predictedStatus };
+
+    // 1. อัปเดตข้อความปุ่มคีย์ลัดตามที่ตั้งค่าไว้
+    const keyConf = systemSettings.aiConfirmKey || 'Enter';
+    const keyCanc = systemSettings.aiCancelKey || 'Escape';
+    document.getElementById('lblBtnConfirm').textContent = `(${keyConf === ' ' ? 'Space' : keyConf})`;
+    document.getElementById('lblBtnCancel').textContent = `(${keyCanc})`;
+
+    // 2. แสดง UI รอการยืนยัน
+    document.getElementById('actionConfirmBox').classList.remove('hidden');
+    document.getElementById('actionConfirmBox').classList.add('flex');
+    
+    // เปลี่ยนป้ายเป็นสีฟ้า "รอการยืนยัน"
+    const badge = document.getElementById('resIoBadge');
+    badge.textContent = "ตรวจสอบความถูกต้อง";
+    badge.className = "w-full text-center py-3 sm:py-4 font-black text-2xl sm:text-3xl text-sky-800 bg-sky-200 shadow-md z-10 tracking-widest transition-colors duration-500 uppercase";
+
+    showInstantUI(card, typeInfo, predictedStatus); // โชว์ข้อมูลบัตร (แต่ยังไม่บันทึก)
+    
+    // 3. เริ่มจับเวลาถอยหลัง (Progress Bar)
+    let totalTime = (systemSettings.aiAutoCancelTime || 10);
+    faceConfirmTimeLeft = totalTime;
+    const progressBar = document.getElementById('confirmProgressBar');
+    progressBar.style.width = "100%";
+    progressBar.style.transition = "none"; // รีเซ็ต Animation ก่อน
+    
+    // บังคับบราวเซอร์ให้วาดใหม่
+    void progressBar.offsetWidth; 
+    progressBar.style.transition = `width 1s linear`;
+
+    if (faceConfirmTimer) clearInterval(faceConfirmTimer);
+    
+    faceConfirmTimer = setInterval(() => {
+        faceConfirmTimeLeft--;
+        const pct = (faceConfirmTimeLeft / totalTime) * 100;
+        progressBar.style.width = `${pct}%`;
+
+        // เปลี่ยนสีหลอดเป็นสีแดงเมื่อเวลาเหลือน้อย (ต่ำกว่า 30%)
+        if (pct <= 30) {
+            progressBar.classList.replace('bg-sky-600', 'bg-red-500');
+        } else {
+            progressBar.classList.replace('bg-red-500', 'bg-sky-600');
+        }
+
+        if (faceConfirmTimeLeft <= 0) {
+            cancelFaceScan(true); // ยกเลิกอัตโนมัติ
+        }
+    }, 1000);
+
+    // 4. ผูก Event Listener ดักจับการกดคีย์บอร์ด
+    window.addEventListener('keydown', handleConfirmKeydown);
+}
+
+/**
+ * เมื่อเจ้าหน้าที่กดยืนยัน (หรือกดคีย์ลัด)
+ */
+function confirmFaceScan() {
+    if (!pendingFaceData) return;
+    
+    // 1. ล้าง Timer และ Event
+    clearInterval(faceConfirmTimer);
+    window.removeEventListener('keydown', handleConfirmKeydown);
+    document.getElementById('actionConfirmBox').classList.add('hidden');
+    document.getElementById('actionConfirmBox').classList.remove('flex');
+
+    // 2. ดึงข้อมูลที่รอไว้มาส่งบันทึกจริง
+    const cardId = pendingFaceData.cardId;
+    const card = allCards.find(c => String(c.cardId) === String(cardId));
+    const gateId = document.getElementById('scanGateSelect').value;
+    const fullName = `${card.firstName} ${card.lastName}`;
+    
+    // 3. สั่งบันทึก
+    executeScanFinal(gateId, cardId, null, pendingFaceData.predictedStatus, fullName);
+    
+    // 4. ล้างข้อมูลพัก ปลดล็อคระบบ
+    pendingFaceData = null;
+    setTimeout(() => { isSystemBusy = false; }, 1000); // หน่วงเวลา 1 วิให้พร้อมแสกนคนต่อไป
+}
+
+/**
+ * เมื่อเจ้าหน้าที่กดยกเลิก หรือหมดเวลา (Auto Cancel)
+ */
+function cancelFaceScan(isAuto = false) {
+    if (!pendingFaceData) return;
+
+    // 1. ล้าง Timer และ Event
+    clearInterval(faceConfirmTimer);
+    window.removeEventListener('keydown', handleConfirmKeydown);
+    document.getElementById('actionConfirmBox').classList.add('hidden');
+    document.getElementById('actionConfirmBox').classList.remove('flex');
+
+    // 2. รีเซ็ตหน้าจอกลับเป็นรอแสกน
+    document.getElementById('scanResultData').classList.add('hidden');
+    document.getElementById('scanResultEmpty').classList.remove('hidden');
+
+    if (isAuto) {
+        showToast('ยกเลิกอัตโนมัติเนื่องจากหมดเวลา', 'warning');
+    } else {
+        showToast('ยกเลิกการบันทึกแล้ว กรุณาแสกนใหม่', 'info');
+    }
+
+    // 3. ล้างข้อมูลพัก ปลดล็อคระบบ
+    pendingFaceData = null;
+    setTimeout(() => { isSystemBusy = false; }, 500);
 }
 
 // ฟังก์ชันเปิด Modal ถ่ายรูปเสริม
