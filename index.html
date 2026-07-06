@@ -2477,9 +2477,10 @@ function renderStagingList() {
                 </div>
 
                 <!-- 3. หน่วยงาน (กว้าง 200px) -->
-                <div class="shrink-0">
-                    <span class="text-[9px] font-black text-gray-400 uppercase block mb-1">หน่วยงาน / สังกัด</span>
-                    <p class="text-base font-bold text-gray-700 truncate">${p.organization || '-'}</p>
+                <div class="shrink-0 overflow-hidden pr-2">
+                    <span class="text-[9px] font-black text-gray-400 uppercase block mb-1">หน่วยงาน / ตำแหน่ง</span>
+                    <p class="text-base font-bold text-gray-700 truncate leading-tight">${p.organization || '-'}</p>
+                    <p class="text-xs font-medium text-gray-500 truncate">${p.position || '-'}</p>
                 </div>
 
                 <!-- 4. Zone (กว้าง 100px - ทำ Badge ขนาดพอดี) -->
@@ -2687,18 +2688,23 @@ function showVehicleSuccessSummary(session, people, gateName) {
                     <img src="${imgUrl}" class="w-14 h-14 rounded-xl object-cover border-2 border-white shadow-sm" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
                     <span class="absolute -bottom-1 -right-1 text-[7px] font-black ${isDriver ? 'bg-amber-500' : 'bg-slate-500'} text-white px-1.5 py-0.5 rounded-full uppercase border border-white shadow-sm">${isDriver ? 'Driver' : 'Pax'}</span>
                 </div>
+                
                 <!-- ชื่อและรหัส -->
                 <div class="overflow-hidden">
                     <p class="text-base font-black text-gray-800 leading-tight truncate">${p.firstName} ${p.lastName}</p>
                     <p class="text-sm font-bold text-blue-600">${p.cardId}</p>
                 </div>
+                
                 <!-- หน่วยงาน/ตำแหน่ง -->
-                <div class="shrink-0">
+                <div class="shrink-0 overflow-hidden pr-2">
+                    <span class="text-[8px] font-black text-gray-400 uppercase block mb-0.5">หน่วยงาน / ตำแหน่ง</span>
                     <p class="text-xs font-bold text-gray-700 truncate">${p.organization || '-'}</p>
                     <p class="text-[10px] font-medium text-gray-500 truncate">${p.position || '-'}</p>
                 </div>
+                
                 <!-- Zone -->
                 <div class="shrink-0 text-center">
+                    <span class="text-[8px] font-black text-indigo-400 uppercase block mb-0.5">ZONE</span>
                     <div class="flex gap-0.5 justify-center flex-wrap">
                         ${areaIds.map(num => {
                             const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
@@ -2707,9 +2713,10 @@ function showVehicleSuccessSummary(session, people, gateName) {
                         }).join('')}
                     </div>
                 </div>
+                
                 <!-- วันหมดอายุ -->
                 <div class="shrink-0 text-right pr-2">
-                    <span class="text-[8px] font-black text-gray-400 uppercase block">วันหมดอายุ</span>
+                    <span class="text-[8px] font-black text-gray-400 uppercase block mb-0.5">วันหมดอายุ</span>
                     <p class="text-sm font-black ${isExp ? 'text-red-600' : 'text-slate-800'}">${formatDateOnly(p.expiryDate)}</p>
                 </div>
             </div>
