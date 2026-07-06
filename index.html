@@ -2492,11 +2492,11 @@ function renderStagingList() {
             const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
             const color = areaSetting ? areaSetting.colorCode : '#4f46e5';
             const textColor = getContrastYIQ(color);
-            
+            //<span class="text-[8px] font-bold opacity-80 leading-none">เขต</span>
             return `
                 <div style="background-color: ${color}; color: ${textColor}; border-color: ${color}" 
                      class="w-12 h-12 rounded-xl flex flex-col items-center justify-center shadow-md border-2 filter brightness-95">
-                    <span class="text-[8px] font-bold opacity-80 leading-none">เขต</span>
+                    
                     <span class="text-xl font-black leading-none">${num}</span>
                 </div>
             `;
