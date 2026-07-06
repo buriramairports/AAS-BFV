@@ -2146,14 +2146,26 @@ function setScanMode(mode) {
     const vBtn = document.getElementById('modeVehicleBtn');
     const input = document.getElementById('scanInput');
 
+    // 1. ซ่อนกล่องแสดงผลทุกชนิด และโชว์กล่อง "รอการแสกน" แทนเสมอ
+    document.getElementById('scanResultData').classList.add('hidden');
+    document.getElementById('actionConfirmBox').classList.add('hidden');
+    document.getElementById('actionConfirmBox').classList.remove('flex');
+    document.getElementById('vehicleStagingArea').classList.add('hidden');
+    document.getElementById('scanResultEmpty').classList.remove('hidden');
+    
+    // 2. เคลียร์สถานะการรอยืนยันต่างๆ ทิ้ง (ป้องกันบั๊กค้าง)
+    if (faceConfirmTimer) clearInterval(faceConfirmTimer);
+    window.removeEventListener('keydown', handleConfirmKeydown);
+    pendingFaceData = null;
+    previousDisplayState = null;
+    currentDisplayCardId = "";
+
     if (mode === 'vehicle') {
         vBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-blue-600 bg-blue-600 text-white transition shadow-sm";
         pBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50";
         
-        // ล้างข้อมูลรถเดิม (ถ้ามี)
+        // ล้างข้อมูลรถเดิม
         vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
-        document.getElementById('vehicleStagingArea').classList.add('hidden');
-        document.getElementById('scanResultEmpty').classList.remove('hidden');
         
         input.placeholder = "แสกนรหัสบัตรรถ...";
         input.classList.remove('border-green-400');
@@ -2163,7 +2175,7 @@ function setScanMode(mode) {
         vBtn.className = "py-2 rounded-xl font-bold text-xs border-2 border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50";
         
         // ล้างข้อมูลรถออกเพื่อกลับสู่โหมดคน
-        cancelVehicleSession(); 
+        vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
         
         input.placeholder = "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
         input.classList.remove('border-blue-400');
@@ -2521,10 +2533,10 @@ function cancelVehicleSession() {
     // จัดการ UI
     document.getElementById('vehicleStagingArea').classList.add('hidden');
     document.getElementById('scanResultEmpty').classList.remove('hidden');
+    document.getElementById('scanResultData').classList.add('hidden'); // ให้ชัวร์ว่าซ่อนบัตรคนด้วย
     
     const input = document.getElementById('scanInput');
     
-    // --- แก้ไขจุดสำคัญ: เช็คโหมดก่อนใส่ Placeholder ---
     if (currentScanTarget === 'vehicle') {
         input.placeholder = "แสกนรหัสบัตรรถ...";
     } else {
@@ -7639,15 +7651,22 @@ function cancelFaceScan(isAuto = false) {
             document.getElementById('scanResultData').classList.add('hidden');
             document.getElementById('scanResultEmpty').classList.remove('hidden');
         } else {
-            // ถ้าก่อนหน้านี้มีบัตรคนก่อนหน้าโชว์อยู่ ก็เอาโค้ดเดิมกลับมาแปะเลย
+            // ถ้าก่อนหน้านี้มีบัตรคนก่อนหน้าโชว์อยู่ ก็เอาโค้ดเดิมกลับมาแปะ
             document.getElementById('scanResultData').innerHTML = previousDisplayState.html;
             document.getElementById('scanResultData').classList.remove('hidden');
             document.getElementById('scanResultEmpty').classList.add('hidden');
             
             // คืนค่ารหัสบัตรล่าสุดกลับเป็นคนเดิม (ป้องกันการแสกนเบิ้ลผิดพลาด)
             currentDisplayCardId = previousDisplayState.cardId; 
+            
+            // *** สั่งบังคับวาดไอคอนใหม่ (แก้ปัญหาไอคอนหาย เลย์เอาต์แหว่ง) ***
+            if (window.lucide) lucide.createIcons();
         }
         previousDisplayState = null; // ล้างสำเนาทิ้ง
+    } else {
+        // เผื่อกรณีไม่มีสำเนา ให้กลับไปหน้าจอว่าง
+        document.getElementById('scanResultData').classList.add('hidden');
+        document.getElementById('scanResultEmpty').classList.remove('hidden');
     }
 
     // 3. แจ้งเตือน
