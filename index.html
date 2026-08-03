@@ -11,6 +11,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -567,6 +569,11 @@ gap: 1px !important;
                <button onclick="syncMissingFaces()" class="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center gap-2 text-sm font-bold transition shadow-lg hover:-translate-y-1">
                    <i data-lucide="scan-face" class="w-4 h-4"></i> สกัดใบหน้าอัตโนมัติ (ระบบแสกนใบหน้า)
                </button>
+
+			   <!-- ปุ่มเพิ่มบัตรแบบนำเข้า Excel (แทรกตรงนี้) -->
+				<button onclick="openBulkImportModal()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center gap-2 text-sm font-bold transition shadow-lg hover:-translate-y-1">
+    			<i data-lucide="upload-cloud" class="w-4 h-4"></i> นำเข้าข้อมูล (Excel)
+			</button>
                
                <!-- ปุ่มเพิ่มบัตรใหม่ -->
                <button onclick="openCardModal()" class="btn-primary text-white px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg text-sm font-bold hover:-translate-y-1">
@@ -2083,7 +2090,178 @@ gap: 1px !important;
 
    <!-- Modal Alert -->
    <div id="customAlertModal" class="fixed inset-0 z-[150] hidden flex items-center justify-center p-4"><div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeAlert()"></div><div class="relative bg-white rounded-3xl w-full max-w-sm flex flex-col shadow-2xl animate-fadeIn p-8 text-center"><div id="alertIconContainer" class="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-5 shadow-inner"></div><h3 id="alertTitle" class="text-2xl font-black text-gray-800 mb-2">แจ้งเตือน</h3><p id="alertMessage" class="text-gray-600 mb-8 text-sm font-medium leading-relaxed whitespace-pre-line"></p><button onclick="closeAlert()" class="w-full py-4 rounded-xl font-bold text-lg text-white transition shadow-lg" id="alertBtn">ตกลง</button></div></div>
-   
+
+	<!-- ========================================================================= -->
+<!-- Modal: นำเข้าข้อมูลจำนวนมาก (Bulk Import) -->
+<div id="bulkImportModal" class="fixed inset-0 z-[100] hidden flex flex-col items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm">
+    <div class="relative bg-white rounded-2xl w-full max-w-7xl h-[95vh] flex flex-col shadow-2xl animate-fadeIn overflow-hidden">
+        <!-- Header -->
+        <div class="bg-indigo-600 text-white p-4 flex justify-between items-center shrink-0">
+            <h3 class="font-bold flex items-center gap-2 text-lg"><i data-lucide="upload-cloud"></i> นำเข้าข้อมูลบัตรพนักงาน (Bulk Import)</h3>
+            <button onclick="closeBulkImportModal()" class="hover:bg-white/20 p-1.5 rounded-lg transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+
+        <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+            <!-- ฝั่งซ้าย: Master Settings (350px) -->
+            <div class="w-full lg:w-[350px] bg-gray-50 border-r border-gray-200 p-4 overflow-y-auto shrink-0 flex flex-col custom-scrollbar">
+                
+                <!-- คำแนะนำและปุ่มอัปโหลด -->
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-4">
+                    <h4 class="font-bold text-indigo-800 text-sm mb-2"><i data-lucide="info" class="w-4 h-4 inline mr-1"></i> คำแนะนำการใช้งาน</h4>
+                    <ul class="text-[10px] text-gray-600 list-disc pl-4 space-y-1 mb-3">
+                        <li>รองรับสูงสุด <span class="text-red-500 font-bold">100 รายการ/ครั้ง</span></li>
+                        <li>ดาวน์โหลดฟอร์ม <span class="font-bold">ห้ามแก้ไขหัวคอลัมน์</span></li>
+                        <li>กรอกแค่ <span class="font-bold">ชื่อ | นามสกุล | ตำแหน่ง | หน่วยงาน</span> ในไฟล์</li>
+                        <li>สามารถแก้ไขข้อมูลในตารางด้านขวาได้ก่อนบันทึกจริง</li>
+                    </ul>
+                    <button onclick="downloadBulkTemplate()" class="w-full py-2 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200 hover:bg-indigo-100 transition mb-2">
+                        <i data-lucide="download" class="w-3.5 h-3.5 inline mr-1"></i> โหลดแบบฟอร์ม Excel
+                    </button>
+                    
+                    <div class="relative mt-2">
+                        <input type="file" id="bulkExcelInput" accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="handleBulkExcelUpload(event)">
+                        <div class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 transition text-white rounded-lg text-xs font-bold text-center flex items-center justify-center gap-2 shadow-md">
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> เริ่มอัปโหลดไฟล์ Excel
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Master Settings (จางไว้จนกว่าจะอัปโหลดไฟล์) -->
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex-1 flex flex-col opacity-50 pointer-events-none transition-opacity duration-300" id="bulkMasterSettings">
+                    <h4 class="font-bold text-gray-800 text-sm mb-3 border-b pb-2"><i data-lucide="settings-2" class="w-4 h-4 inline"></i> ตั้งค่าเหมือนกันทุกคน (Master)</h4>
+                    
+                    <!-- โซนอัปโหลดรูปรวม (โลโก้ / VIP) -->
+                    <div class="flex flex-col items-center justify-center p-2 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 mb-3 relative group">
+                        <input type="file" id="bulkImageInput" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="handleBulkImageUpload(event)">
+                        <div id="bulkImagePlaceholder" class="flex flex-col items-center text-gray-400 group-hover:text-indigo-500 transition py-2">
+                            <i data-lucide="camera" class="w-6 h-6 mb-1"></i>
+                            <p class="text-[10px] font-bold text-center">อัปโหลดรูปหลัก (VIP / โลโก้บริษัท)</p>
+                        </div>
+                        <div id="bulkImagePreviewBox" class="hidden relative z-20 flex-col items-center">
+                            <img id="bulkImagePreview" src="" class="w-16 h-16 object-cover rounded shadow-sm mb-1 border-2 border-white">
+                            <button onclick="removeBulkImage()" class="text-[9px] bg-red-50 text-red-600 px-2 py-0.5 rounded shadow-sm font-bold border border-red-100 relative z-30">ลบรูปทิ้ง</button>
+                        </div>
+                    </div>
+                    <p class="text-[9px] text-gray-400 text-center mb-3 leading-tight">* รูปหลักจะไม่ถูกดึงเข้า AI Face Scan<br>(สามารถจิ้มเปลี่ยนรูปเฉพาะคนได้ที่ตารางด้านขวา)</p>
+
+                    <!-- รหัสบัตร Auto -->
+                    <div class="mb-3 border border-gray-200 p-2 rounded-lg bg-gray-50 shadow-inner">
+                        <label class="block text-[10px] font-bold text-gray-700 mb-1">สร้างรหัสบัตรอัตโนมัติ (Auto-ID)</label>
+                        <div class="flex gap-1">
+                            <input type="text" id="bulkPrefix" class="w-1/3 border p-1.5 text-xs rounded text-center uppercase focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="อักษรนำ">
+                            <input type="number" id="bulkStartNum" class="w-1/3 border p-1.5 text-xs rounded text-center font-bold text-indigo-700 focus:ring-1 outline-none" placeholder="ลำดับเริ่ม">
+                            <input type="number" id="bulkYear" class="w-1/3 border p-1.5 text-xs rounded text-center focus:ring-1 outline-none" placeholder="ปี พ.ศ.">
+                        </div>
+                    </div>
+
+                    <!-- ประเภทบัตรและสิทธิ์ -->
+                    <div class="mb-2">
+                        <label class="block text-[10px] font-bold text-gray-700 mb-0.5">ประเภทบัตร</label>
+                        <select id="bulkTypeInp" class="w-full border p-1.5 rounded text-xs bg-white focus:ring-1 outline-none" onchange="calcBulkExpiryDate()"></select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <div><label class="block text-[10px] font-bold text-gray-700 mb-0.5">วันออกบัตร</label><input type="date" id="bulkIssueDate" class="w-full border p-1.5 rounded text-[10px] bg-white focus:ring-1 outline-none" onchange="calcBulkExpiryDate()"></div>
+                        <div><label class="block text-[10px] font-bold text-red-600 mb-0.5" id="bulkExpiryLabel">วันหมดอายุ</label><input type="date" id="bulkExpiryDate" class="w-full border p-1.5 rounded text-[10px] bg-red-50 text-red-700" readonly></div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="block text-[10px] font-bold text-gray-700 mb-0.5">พื้นที่อนุญาต (สูงสุด 4)</label>
+                        <div id="bulkAreaCheckboxes" class="grid grid-cols-4 gap-1 bg-white p-1 rounded border shadow-inner max-h-[80px] overflow-y-auto"></div>
+                    </div>
+
+                    <label class="flex items-center gap-1.5 cursor-pointer mb-4 p-1.5 bg-blue-50 hover:bg-blue-100 transition rounded border border-blue-100">
+                        <input type="checkbox" id="bulkCanDrive" class="w-3.5 h-3.5 text-blue-600 rounded">
+                        <span class="text-[10px] font-bold text-blue-800">อนุญาตให้ขับขี่ยานพาหนะ (DRIVE)</span>
+                    </label>
+
+                    <!-- ปุ่มนำไปใช้ -->
+                    <button onclick="applyBulkMasterToAll()" class="mt-auto w-full py-3 bg-indigo-100 hover:bg-indigo-600 text-indigo-700 hover:text-white rounded-lg text-sm font-bold transition shadow flex items-center justify-center gap-2">
+                        <i data-lucide="chevrons-right" class="w-4 h-4"></i> นำการตั้งค่าไปใช้กับทุกคน
+                    </button>
+                </div>
+            </div>
+
+            <!-- ฝั่งขวา: Data Table -->
+            <div class="flex-1 flex flex-col bg-white overflow-hidden relative">
+                <!-- แถบเครื่องมือ -->
+                <div class="bg-gray-100 border-b border-gray-200 p-3 flex justify-between items-center shrink-0">
+                    <div class="text-sm font-bold text-gray-700 pl-2">รายการข้อมูล <span id="bulkCount" class="text-indigo-600 ml-1 bg-indigo-100 px-2 py-0.5 rounded">0</span> / 100</div>
+                    <button onclick="clearBulkTable()" class="text-xs bg-white border border-gray-300 text-red-600 px-3 py-1.5 rounded hover:bg-red-50 transition font-bold flex items-center gap-1"><i data-lucide="trash" class="w-3.5 h-3.5"></i> ล้างตาราง</button>
+                </div>
+                
+                <!-- ตาราง -->
+                <div class="flex-1 overflow-auto bg-gray-50 p-2 custom-scrollbar">
+                    <table class="w-full text-left text-[11px] whitespace-nowrap" id="bulkTable">
+                        <thead class="bg-white border-b sticky top-0 z-10 shadow-sm text-gray-600">
+                            <tr>
+                                <th class="px-2 py-3 w-10 text-center">ลำดับ</th>
+                                <th class="px-2 py-3 text-center">รูปภาพ</th>
+                                <th class="px-2 py-3">รหัสบัตร</th>
+                                <th class="px-2 py-3">ชื่อ</th>
+                                <th class="px-2 py-3">นามสกุล</th>
+                                <th class="px-2 py-3">ตำแหน่ง</th>
+                                <th class="px-2 py-3">หน่วยงาน</th>
+                                <th class="px-2 py-3">ทะเบียนรถ</th>
+                                <th class="px-2 py-3 text-center">ลบ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulkTableBody" class="divide-y divide-gray-200">
+                            <tr><td colspan="9" class="p-12 text-center text-gray-400 flex-col"><i data-lucide="sheet" class="w-10 h-10 mx-auto mb-2 opacity-20"></i> กรุณาอัปโหลดไฟล์ Excel ด้านซ้ายมือเพื่อแสดงข้อมูล</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- ฟุตเตอร์ปุ่มบันทึก -->
+                <div class="p-4 bg-white border-t border-gray-200 flex justify-end shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] gap-3">
+                    <button onclick="closeBulkImportModal()" class="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">ยกเลิก</button>
+                    <button onclick="startBulkSaveProcess()" id="btnBulkSave" disabled class="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i data-lucide="save" class="w-5 h-5"></i> นำเข้าข้อมูลเข้าสู่ระบบ
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: สรุปผลหลังบันทึก (Summary & Trigger AI) -->
+<div id="bulkSummaryModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+    <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-fadeIn">
+        <div class="bg-emerald-500 p-6 flex flex-col items-center justify-center text-white text-center">
+            <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4 ring-4 ring-emerald-400">
+                <i data-lucide="check-circle" class="w-10 h-10"></i>
+            </div>
+            <h3 class="text-2xl font-black mb-1">บันทึกข้อมูลสำเร็จ!</h3>
+            <p class="text-emerald-100 font-medium text-sm">เพิ่มบัตรพนักงานใหม่เรียบร้อยแล้ว</p>
+        </div>
+        
+        <div class="p-6">
+            <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl mb-3 border border-gray-100">
+                <span class="text-sm font-bold text-gray-600">บันทึกฐานข้อมูลสำเร็จ</span>
+                <span class="text-2xl font-black text-gray-800" id="bulkSummarySuccessCount">0</span>
+            </div>
+            <div class="flex justify-between items-center p-4 bg-indigo-50 rounded-xl mb-4 border border-indigo-100">
+                <span class="text-sm font-bold text-indigo-700">มีรูปภาพพร้อมทำระบบแสกนใบหน้า</span>
+                <span class="text-2xl font-black text-indigo-700" id="bulkSummaryFaceCount">0</span>
+            </div>
+            
+            <p class="text-[10px] text-center text-gray-500 mb-6 bg-yellow-50 p-2 rounded text-yellow-800 border border-yellow-200">
+                * หากต้องการให้พนักงานใช้ประตู "แสกนใบหน้า (AI)" ได้ กรุณากดปุ่มสีม่วงด้านล่าง (ระบบจะข้ามรูปภาพส่วนกลาง/VIP ให้อัตโนมัติ)
+            </p>
+            
+            <div class="flex flex-col gap-3">
+                <button onclick="startAiExtractionFromBulk()" class="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl shadow-lg hover:shadow-purple-500/30 transition flex justify-center items-center gap-2 hover:-translate-y-1">
+                    <i data-lucide="scan-face" class="w-5 h-5"></i> สกัดใบหน้าอัตโนมัติ (AI) ต่อทันที
+                </button>
+                <button onclick="closeBulkSummaryModal()" class="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl transition text-sm">
+                    ข้ามและปิดหน้าต่าง
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ========================================================================= -->
+		 
    <!-- Toast -->
    <div id="toastContainer" class="fixed bottom-4 right-4 z-[160] space-y-2 pointer-events-none flex flex-col items-end"></div>
   </div>
@@ -8885,6 +9063,409 @@ saveGateToLocal = function() {
     document.getElementById('scanInput').focus();
 };	  
 	  //-----------------
+
+
+// ==========================================
+// ระบบนำเข้าข้อมูลจำนวนมาก (Bulk Import)
+// ==========================================
+let bulkImportData = []; 
+let bulkMasterImageBase64 = null;
+
+function openBulkImportModal() {
+    bulkImportData = [];
+    document.getElementById('bulkExcelInput').value = '';
+    clearBulkTable();
+    removeBulkImage();
+
+    // ดึงประเภทบัตรมาใส่ Dropdown
+    const typeSel = document.getElementById('bulkTypeInp');
+    typeSel.innerHTML = typeCards.map(t => `<option value="${t.id}">${t.typeName}</option>`).join('');
+    
+    // คำนวณรหัสเริ่มต้น
+    const currentYear = new Date().getFullYear() + 543;
+    let maxNum = 0;
+    const suffix = '/' + currentYear;
+    allCards.forEach(c => {
+        if(c.cardId && c.cardId.endsWith(suffix)) {
+            const prefixAndNum = c.cardId.replace(suffix, '');
+            const numMatch = prefixAndNum.match(/\d+$/);
+            if(numMatch) {
+                const num = parseInt(numMatch[0]);
+                if(!isNaN(num) && num > maxNum) maxNum = num;
+            }
+        }
+    });
+    
+    document.getElementById('bulkPrefix').value = '';
+    document.getElementById('bulkStartNum').value = maxNum + 1;
+    document.getElementById('bulkYear').value = currentYear;
+
+    // ตั้งค่าเริ่มต้น
+    document.getElementById('bulkIssueDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('bulkCanDrive').checked = false;
+
+    renderAreaCheckboxesGen('', 'bulkAreaCheckboxes', 'input-bulk-area-cb');
+    calcBulkExpiryDate();
+    
+    // ปิดเมนูจนกว่าจะอัปโหลด
+    document.getElementById('bulkMasterSettings').classList.add('opacity-50', 'pointer-events-none');
+    document.getElementById('btnBulkSave').disabled = true;
+
+    document.getElementById('bulkImportModal').classList.remove('hidden');
+    if(window.lucide) lucide.createIcons();
+}
+
+function closeBulkImportModal() {
+    document.getElementById('bulkImportModal').classList.add('hidden');
+}
+
+// 1. สร้างไฟล์ Excel เปล่าให้ดาวน์โหลด
+function downloadBulkTemplate() {
+    const data = [
+        ["ชื่อ", "นามสกุล", "ตำแหน่ง", "หน่วยงาน"],
+        ["สมชาย", "ใจดี", "ช่างไฟฟ้า", "บริษัท A"],
+        ["สมหญิง", "รักงาน", "ธุรการ", "บริษัท A"]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Employee_Data");
+    XLSX.writeFile(wb, "Template_Bulk_Cards.xlsx");
+}
+
+// 2. อ่านไฟล์ Excel
+function handleBulkExcelUpload(e) {
+    const file = e.target.files[0];
+    if(!file) return;
+
+    showLoader('กำลังอ่านไฟล์ Excel...');
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        try {
+            const data = new Uint8Array(evt.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+            
+            if(json.length < 2) { hideLoader(); return showToast('ไม่พบข้อมูลในไฟล์ Excel', 'warning'); }
+            
+            // จำกัด 100 บรรทัด (ลบหัวคอลัมน์แล้ว)
+            if(json.length - 1 > 100) {
+                hideLoader();
+                showAlert('ไฟล์ใหญ่เกินกำหนด', `ไฟล์นี้มีข้อมูล ${json.length - 1} รายการ ซึ่งเกินขีดจำกัดที่ระบบรองรับได้ (สูงสุด 100 รายการ/ครั้ง)\n\nเพื่อป้องกันระบบขัดข้อง กรุณาแบ่งไฟล์แล้วทำรายการใหม่ครับ`, 'warning');
+                document.getElementById('bulkExcelInput').value = '';
+                return;
+            }
+
+            bulkImportData = [];
+            for(let i = 1; i < json.length; i++) {
+                const row = json[i];
+                if(row.length === 0 || (!row[0] && !row[1])) continue; 
+
+                bulkImportData.push({
+                    id: i, 
+                    firstName: row[0] ? String(row[0]).trim() : '',
+                    lastName: row[1] ? String(row[1]).trim() : '',
+                    position: row[2] ? String(row[2]).trim() : '',
+                    organization: row[3] ? String(row[3]).trim() : '',
+                    cardId: '',
+                    vehicleReg: '',
+                    imageBase64: null, 
+                    typeId: document.getElementById('bulkTypeInp').value,
+                    issueDate: document.getElementById('bulkIssueDate').value,
+                    expiryDate: document.getElementById('bulkExpiryDate').value,
+                    areaAccessIds: '',
+                    canDrive: false,
+                    hasCustomImage: false // ดักไว้ว่าคนนี้อัปรูปส่วนตัวหรือเปล่า
+                });
+            }
+
+            renderBulkTable();
+            
+            // เปิดให้กดตั้งค่าและบันทึกได้
+            document.getElementById('bulkMasterSettings').classList.remove('opacity-50', 'pointer-events-none');
+            document.getElementById('btnBulkSave').disabled = false;
+            
+            hideLoader();
+            showToast(`อ่านข้อมูลสำเร็จ ${bulkImportData.length} รายการ`, 'success');
+
+        } catch (error) {
+            hideLoader();
+            console.error(error);
+            showToast('เกิดข้อผิดพลาดในการอ่านไฟล์ Excel', 'error');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function clearBulkTable() {
+    bulkImportData = [];
+    document.getElementById('bulkTableBody').innerHTML = '<tr><td colspan="9" class="p-12 text-center text-gray-400 flex-col"><i data-lucide="sheet" class="w-10 h-10 mx-auto mb-2 opacity-20"></i> กรุณาอัปโหลดไฟล์ Excel ด้านซ้ายมือเพื่อแสดงข้อมูล</td></tr>';
+    document.getElementById('bulkCount').textContent = '0';
+    document.getElementById('bulkMasterSettings').classList.add('opacity-50', 'pointer-events-none');
+    document.getElementById('btnBulkSave').disabled = true;
+    document.getElementById('bulkExcelInput').value = '';
+    if(window.lucide) lucide.createIcons();
+}
+
+function removeBulkRow(idx) {
+    bulkImportData.splice(idx, 1);
+    if(bulkImportData.length === 0) clearBulkTable();
+    else renderBulkTable();
+}
+
+// 3. จัดการรูปภาพ (Master & Individual)
+function handleBulkImageUpload(event) {
+    const file = event.target.files[0];
+    if(!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() { 
+            const canvas = document.createElement('canvas');
+            const MAX_SIZE = 600; 
+            let width = img.width; let height = img.height;
+            if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } } 
+            else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
+            canvas.width = width; canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            
+            bulkMasterImageBase64 = canvas.toDataURL('image/jpeg', 0.8);
+            document.getElementById('bulkImagePreview').src = bulkMasterImageBase64;
+            document.getElementById('bulkImagePreviewBox').classList.remove('hidden');
+            document.getElementById('bulkImagePreviewBox').classList.add('flex');
+            document.getElementById('bulkImagePlaceholder').classList.add('hidden');
+        }
+        img.src = e.target.result;
+    }
+    reader.readAsDataURL(file);
+}
+
+function removeBulkImage() {
+    bulkMasterImageBase64 = null;
+    document.getElementById('bulkImageInput').value = '';
+    document.getElementById('bulkImagePreviewBox').classList.add('hidden');
+    document.getElementById('bulkImagePreviewBox').classList.remove('flex');
+    document.getElementById('bulkImagePlaceholder').classList.remove('hidden');
+}
+
+function handleIndividualImageUpload(event, index) {
+    const file = event.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() { 
+            const canvas = document.createElement('canvas');
+            const MAX_SIZE = 600; 
+            let width = img.width; let height = img.height;
+            if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } } 
+            else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
+            canvas.width = width; canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            
+            bulkImportData[index].imageBase64 = canvas.toDataURL('image/jpeg', 0.8);
+            bulkImportData[index].hasCustomImage = true; // ระบุว่าคนนี้แก้รูปแยก
+            renderBulkTable();
+        }
+        img.src = e.target.result;
+    }
+    reader.readAsDataURL(file);
+}
+
+// 4. คำนวณวันหมดอายุของ Master
+function calcBulkExpiryDate() {
+    const typeId = document.getElementById('bulkTypeInp').value;
+    const issueStr = document.getElementById('bulkIssueDate').value;
+    const expInput = document.getElementById('bulkExpiryDate');
+    const expLabel = document.getElementById('bulkExpiryLabel');
+
+    if(!typeId || !issueStr) return;
+    const typeInfo = typeCards.find(t => parseInt(t.id) === parseInt(typeId));
+    if(!typeInfo) return;
+
+    if(typeInfo.durationType === 'custom') {
+        expInput.readOnly = false;
+        expInput.classList.replace('bg-red-50', 'bg-orange-50');
+        expInput.classList.replace('text-red-700', 'text-orange-800');
+        expLabel.innerHTML = 'วันหมดอายุ (กำหนดเอง)';
+        expLabel.className = 'block text-[10px] font-bold text-orange-600 mb-0.5';
+        if(!expInput.value || expInput.hasAttribute('data-auto')) {
+            expInput.value = issueStr;
+            expInput.removeAttribute('data-auto');
+        }
+        expInput.min = issueStr; 
+    } else {
+        expInput.readOnly = true;
+        expInput.classList.replace('bg-orange-50', 'bg-red-50');
+        expInput.classList.replace('text-orange-800', 'text-red-700');
+        expInput.setAttribute('data-auto', 'true');
+        expLabel.innerHTML = 'วันหมดอายุ';
+        expLabel.className = 'block text-[10px] font-bold text-red-600 mb-0.5';
+
+        let date = new Date(issueStr);
+        const val = parseInt(typeInfo.durationValue);
+        
+        if(typeInfo.durationType === 'year') date.setFullYear(date.getFullYear() + val);
+        else if(typeInfo.durationType === 'month') date.setMonth(date.getMonth() + val);
+        else if(typeInfo.durationType === 'day') date.setDate(date.getDate() + val);
+
+        expInput.value = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+    }
+}
+
+// จำกัดการคลิกพื้นที่ของ Master
+document.getElementById('bulkAreaCheckboxes').addEventListener('change', function(e) {
+    if (e.target.classList.contains('input-bulk-area-cb')) {
+        const checkboxes = document.querySelectorAll('.input-bulk-area-cb');
+        const checkedBoxes = document.querySelectorAll('.input-bulk-area-cb:checked');
+        checkboxes.forEach(cb => { cb.disabled = (checkedBoxes.length >= 4 && !cb.checked); });
+    }
+});
+
+// 5. ปุ่ม "นำไปใช้กับทุกคน (Apply to All)"
+function applyBulkMasterToAll() {
+    const p = document.getElementById('bulkPrefix').value.toUpperCase().trim();
+    const startNumStr = document.getElementById('bulkStartNum').value;
+    const y = document.getElementById('bulkYear').value;
+    const startNum = parseInt(startNumStr) || 1;
+
+    const typeId = document.getElementById('bulkTypeInp').value;
+    const issueDate = document.getElementById('bulkIssueDate').value;
+    const expiryDate = document.getElementById('bulkExpiryDate').value;
+    const canDrive = document.getElementById('bulkCanDrive').checked;
+    const checkedAreas = Array.from(document.querySelectorAll('.input-bulk-area-cb:checked')).map(cb => cb.value).join(',');
+
+    bulkImportData.forEach((row, index) => {
+        // รันเลขบัตร
+        let numPad = (startNum + index).toString();
+        if ((startNum + index) < 1000 && startNumStr.length >= 3) {
+            numPad = numPad.padStart(3, '0');
+        }
+        let generatedId = p + numPad;
+        if(y) generatedId += '/' + y;
+        
+        row.cardId = generatedId;
+        
+        // ถ้าคนไหนไม่ได้อัปรูปส่วนตัว ให้ทับด้วยรูป Master
+        if(!row.hasCustomImage) {
+            row.imageBase64 = bulkMasterImageBase64;
+        }
+
+        row.typeId = typeId;
+        row.issueDate = issueDate;
+        row.expiryDate = expiryDate;
+        row.canDrive = canDrive;
+        row.areaAccessIds = checkedAreas;
+    });
+
+    renderBulkTable();
+    showToast('นำการตั้งค่าและรหัสบัตรไปใช้กับทุกคนในตารางเรียบร้อย', 'success');
+}
+
+// 6. วาดตาราง (Render Table)
+function renderBulkTable() {
+    const tbody = document.getElementById('bulkTableBody');
+    document.getElementById('bulkCount').textContent = bulkImportData.length;
+
+    tbody.innerHTML = bulkImportData.map((r, i) => {
+        const imgDisplay = r.imageBase64 
+            ? `<div class="w-10 h-10 mx-auto rounded overflow-hidden relative group cursor-pointer border ${r.hasCustomImage ? 'border-green-500 ring-2 ring-green-200' : 'border-gray-200'}" onclick="document.getElementById('bulkImgInp_${i}').click()" title="${r.hasCustomImage ? 'รูปภาพส่วนตัว (พร้อมทำ AI)' : 'รูปภาพหลักส่วนกลาง'}">
+                 <img src="${r.imageBase64}" class="w-full h-full object-cover">
+                 <div class="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-white"><i data-lucide="edit-2" class="w-3 h-3"></i></div>
+               </div>`
+            : `<div class="w-10 h-10 mx-auto bg-gray-200 rounded flex items-center justify-center cursor-pointer hover:bg-gray-300 transition border border-dashed border-gray-400" onclick="document.getElementById('bulkImgInp_${i}').click()" title="คลิกเพื่ออัปโหลดรูป">
+                 <i data-lucide="camera" class="w-4 h-4 text-gray-500"></i>
+               </div>`;
+
+        return `
+        <tr class="hover:bg-indigo-50/50 transition">
+            <td class="px-2 py-1.5 text-center font-bold text-gray-500">${i+1}</td>
+            <td class="px-2 py-1.5 text-center align-middle relative">
+                ${imgDisplay}
+                <input type="file" id="bulkImgInp_${i}" accept="image/*" class="hidden" onchange="handleIndividualImageUpload(event, ${i})">
+            </td>
+            <td class="px-2 py-1.5"><input type="text" value="${r.cardId}" onchange="bulkImportData[${i}].cardId=this.value.toUpperCase()" class="w-24 border border-gray-300 p-1.5 rounded uppercase font-bold text-center outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-indigo-700 bg-white"></td>
+            <td class="px-2 py-1.5"><input type="text" value="${r.firstName}" onchange="bulkImportData[${i}].firstName=this.value" class="w-full border border-gray-200 p-1.5 rounded outline-none focus:border-indigo-500 bg-white"></td>
+            <td class="px-2 py-1.5"><input type="text" value="${r.lastName}" onchange="bulkImportData[${i}].lastName=this.value" class="w-full border border-gray-200 p-1.5 rounded outline-none focus:border-indigo-500 bg-white"></td>
+            <td class="px-2 py-1.5"><input type="text" value="${r.position}" onchange="bulkImportData[${i}].position=this.value" class="w-full border border-gray-200 p-1.5 rounded outline-none focus:border-indigo-500 bg-white"></td>
+            <td class="px-2 py-1.5"><input type="text" value="${r.organization}" onchange="bulkImportData[${i}].organization=this.value" class="w-full border border-gray-200 p-1.5 rounded outline-none focus:border-indigo-500 bg-white"></td>
+            <td class="px-2 py-1.5"><input type="text" value="${r.vehicleReg}" onchange="bulkImportData[${i}].vehicleReg=this.value" class="w-20 border border-gray-200 p-1.5 rounded outline-none focus:border-indigo-500 bg-white" placeholder="กท-1234"></td>
+            <td class="px-2 py-1.5 text-center">
+                <button onclick="removeBulkRow(${i})" class="text-red-500 hover:text-white bg-red-50 hover:bg-red-500 p-1.5 rounded transition shadow-sm border border-red-100"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            </td>
+        </tr>`;
+    }).join('');
+    
+    if(window.lucide) lucide.createIcons();
+}
+
+// 7. สั่งบันทึกข้อมูล (ส่งไป Backend)
+async function startBulkSaveProcess() {
+    if(bulkImportData.length === 0) return;
+    
+    // ตรวจสอบความครบถ้วน
+    const emptyIds = bulkImportData.filter(r => !r.cardId || !r.cardId.trim());
+    if(emptyIds.length > 0) return showToast('มีบางรายการที่ยังไม่ได้ใส่รหัสบัตร กรุณากดปุ่มนำไปใช้กับทุกคนก่อน', 'error');
+    
+    const emptyNames = bulkImportData.filter(r => !r.firstName || !r.firstName.trim());
+    if(emptyNames.length > 0) return showToast('มีบางรายการที่ไม่มีชื่อ', 'error');
+
+    // เตรียมแพคเกจข้อมูล
+    const payload = bulkImportData.map(r => ({
+        cardId: r.cardId.trim().toUpperCase(),
+        typeId: r.typeId,
+        firstName: r.firstName.trim(),
+        lastName: r.lastName.trim(),
+        position: r.position.trim(),
+        organization: r.organization.trim(),
+        vehicleReg: r.vehicleReg.trim(),
+        areaAccessIds: r.areaAccessIds,
+        canDrive: r.canDrive,
+        issueDate: r.issueDate,
+        expiryDate: r.expiryDate,
+        status: 'active',
+        imageBase64: r.imageBase64,
+        hasCustomImage: r.hasCustomImage // ส่งไปด้วยเพื่อให้ Backend รู้ว่าต้องเตรียมเข้า AI ไหม
+    }));
+
+    closeBulkImportModal();
+    
+    // สร้างหน้าจอโหลดแบบอลังการ
+    showLoader(`กำลังบันทึกข้อมูล ${payload.length} รายการ...<br><span class="text-xs text-green-200 mt-2 block font-normal tracking-wide leading-relaxed">ขั้นตอนนี้อาจใช้เวลา 10-20 วินาที ขึ้นอยู่กับความเร็วอินเทอร์เน็ต<br>(กรุณาอย่าปิดหน้าต่างนี้)</span>`);
+
+    try {
+        // ส่งไปทำงานฝั่ง Google Apps Script
+        const result = await apiCall('addBulkCards', payload);
+        hideLoader();
+        
+        if (result) {
+            // อัปเดตตัวเลขในหน้าสรุปผล
+            document.getElementById('bulkSummarySuccessCount').textContent = result.successCount || 0;
+            document.getElementById('bulkSummaryFaceCount').textContent = result.facesReadyToExtract || 0;
+            
+            document.getElementById('bulkSummaryModal').classList.remove('hidden');
+            
+            // รีเฟรชตารางหน้าจอหลัก
+            refreshCardsData(); 
+        }
+
+    } catch (err) {
+        console.error(err);
+        hideLoader();
+        showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูลแบบกลุ่ม', 'error');
+    }
+}
+
+function closeBulkSummaryModal() {
+    document.getElementById('bulkSummaryModal').classList.add('hidden');
+}
+
+// 8. เชื่อมต่อไปยังฟังก์ชัน AI เดิมของคุณ
+function startAiExtractionFromBulk() {
+    closeBulkSummaryModal();
+    syncMissingFaces(); // ฟังก์ชันนี้มีอยู่แล้วในโค้ดเดิมของคุณ มันจะจัดการสกัดหน้าให้เลยครับ
+}
   </script>
 </body>
 </html>
