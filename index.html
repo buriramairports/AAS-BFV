@@ -6822,16 +6822,35 @@ function downloadVehicleBarcodeImage() {
     });
 }
 // ==========================================
-    // ระบบสกัดใบหน้าจากข้อมูลเก่า (Bulk Face Sync)
-    // ==========================================
-    async function syncMissingFaces() {
-        const cardsToProcess = allCards.filter(c => c.imageUrl && c.imageUrl.trim() !== '' && (!c.faceDescriptor || c.faceDescriptor.trim() === ''));
+// ระบบสกัดใบหน้าจากข้อมูลเก่า (Bulk Face Sync)
+// ==========================================
+async function syncMissingFaces() {
+    showLoader('กำลังตรวจสอบข้อมูลใบหน้าในระบบ...');
+    
+    try {
+        // 1. ดึงประวัติใบหน้าทั้งหมดจากตาราง cardFaces
+        const allFaces = await apiCall('getCardFaces', {}, false);
         
+        // 2. กรองหาพนักงานที่ "มีรูป" แต่ "ยังไม่เคยถูกบันทึกลง cardFaces"
+        const cardsToProcess = allCards.filter(c => {
+            if (!c.imageUrl || c.imageUrl.trim() === '') return false;
+            
+            // หาว่าคนนี้เคยประมวลผลไปหรือยัง (รวมถึงพวก SKIP_AI และ NO_FACE ด้วย)
+            const existingFace = allFaces.find(f => String(f.cardId) === String(c.cardId) && f.faceType === 'main');
+            
+            // ถ้ามีประวัติแล้ว ให้ข้ามคนนี้ไปเลย (ไม่สแกนซ้ำ)
+            if (existingFace) return false; 
+            
+            return true;
+        });
+        
+        hideLoader();
+
         if (cardsToProcess.length === 0) {
-            return showToast('ไม่พบข้อมูลที่ต้องอัปเดต (ทุกคนมีรหัสใบหน้าหมดแล้ว หรือไม่มีรูปภาพ)', 'info');
+            return showToast('ไม่พบข้อมูลที่ต้องอัปเดต (ทุกคนมีรหัสใบหน้าแล้ว หรือเป็นรูป VIP ที่ถูกข้าม)', 'info');
         }
 
-        if (!confirm(`พบผู้ใช้งาน ${cardsToProcess.length} รายการ ที่มีรูปภาพแต่ยังไม่สกัดรหัสใบหน้า\nต้องการให้ระบบประมวลผลดึงรหัสใบหน้าตอนนี้เลยหรือไม่?\n\n* หมายเหตุ: ห้ามปิดหน้านี้จนกว่าระบบจะทำงานเสร็จ`)) {
+        if (!confirm(`พบผู้ใช้งาน ${cardsToProcess.length} รายการ ที่ต้องสกัดรหัสใบหน้า\nต้องการให้ระบบประมวลผลดึงรหัสใบหน้าตอนนี้เลยหรือไม่?\n\n* หมายเหตุ: ห้ามปิดหน้านี้จนกว่าระบบจะทำงานเสร็จ`)) {
             return;
         }
 
@@ -6843,18 +6862,15 @@ function downloadVehicleBarcodeImage() {
         let failCount = 0;
         const total = cardsToProcess.length;
 
-        // เรียกหน้าโหลดดิ้งหลักขึ้นมา (ทำครั้งเดียว)
         showLoader();
         updateLoaderProgress(0, total, 'กำลังเตรียมสกัดใบหน้าสำหรับระบบแสกน...');
 
         for (let i = 0; i < total; i++) {
             const card = cardsToProcess[i];
             
-            // อัปเดตหลอดตามรอบ
             updateLoaderProgress(i, total, `กำลังสกัดใบหน้า...<br><span class="text-sm font-normal text-green-300 mt-2 block tracking-widest">รหัสบัตร: ${card.cardId}</span>`);
             
             try {
-                // *** ใส่ false ต่อท้าย เพื่อไม่ให้ apiCall ไปรบกวนหน้าโหลดดิ้ง ***
                 const base64Img = await apiCall('getDriveImageBase64', { url: card.imageUrl }, false);
                 
                 if (base64Img) {
@@ -6865,21 +6881,26 @@ function downloadVehicleBarcodeImage() {
                         img.src = base64Img;
                     });
 
+                    // ให้ AI สกัดใบหน้า
                     const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
                     
+                    let descriptorStr = "NO_FACE";
                     if (detection) {
-                        const descriptorStr = JSON.stringify(Array.from(detection.descriptor));
-                        
-                        // *** ใส่ false ต่อท้าย เช่นกัน ***
-                        await apiCall('updateFaceDescriptor', { id: card.id, faceDescriptor: descriptorStr }, false);
-                        
-                        const idx = allCards.findIndex(x => x.id === card.id);
-                        if (idx !== -1) allCards[idx].faceDescriptor = descriptorStr;
-                        
+                        descriptorStr = JSON.stringify(Array.from(detection.descriptor));
                         successCount++;
                     } else {
                         failCount++;
                     }
+
+                    // บันทึกลงตาราง cardFaces แบบ Main (ใช้คำสั่งที่มีอยู่แล้ว)
+                    await apiCall('saveSupplementalFace', {
+                        cardId: card.cardId,
+                        imageBase64: base64Img,
+                        faceDescriptor: descriptorStr,
+                        faceType: 'main',
+                        confidence: 100
+                    }, false);
+                    
                 } else {
                     failCount++;
                 }
@@ -6889,17 +6910,23 @@ function downloadVehicleBarcodeImage() {
             }
         }
 
-        // ดันหลอดให้เต็ม 100% ตอนจบ
         updateLoaderProgress(total, total, 'ประมวลผลเสร็จสิ้น กำลังบันทึกข้อมูล...');
         
         setTimeout(() => {
-            hideLoader(); // ซ่อนหน้าโหลดดิ้งทั้งหมดเมื่อเสร็จ
+            hideLoader();
             let finalMsg = `ประมวลผลเสร็จสิ้น!\nสำเร็จ: ${successCount} รายการ`;
-            if (failCount > 0) finalMsg += `\nไม่พบใบหน้า/ล้มเหลว: ${failCount} รายการ`;
+            if (failCount > 0) finalMsg += `\nไม่พบใบหน้าในรูป: ${failCount} รายการ (ระบบจะจำไว้และข้ามการสแกนในครั้งต่อไป)`;
             
             showAlert('ผลการสกัดใบหน้า', finalMsg, successCount > 0 ? 'success' : 'warning');
+            
+            initFaceMatcherForWebcam(); // รีโหลด Model AI ให้จำหน้าคนใหม่ทันที
         }, 800);
+
+    } catch (e) {
+        hideLoader();
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูลใบหน้า', 'error');
     }
+}
 
 
     // --- ฟังก์ชันควบคุม Tab ---
