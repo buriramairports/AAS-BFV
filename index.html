@@ -560,10 +560,18 @@ gap: 1px !important;
            <h2 class="text-xl font-bold flex items-center gap-2 text-gray-800"><i data-lucide="credit-card" class="w-6 h-6 text-green-600"></i> จัดการฐานข้อมูลบัตร</h2>
            <div class="flex items-center gap-2 flex-wrap justify-end">
 
-				<!-- ปุ่มลบหลายรายการ (ซ่อนไว้ก่อนถ้าไม่ได้เลือก) -->
-<button id="btnBulkDeleteCards" onclick="deleteSelectedCards()" class="hidden px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl items-center gap-2 text-sm font-bold transition shadow-lg hover:-translate-y-1">
-    <i data-lucide="trash-2" class="w-4 h-4"></i> ลบที่เลือก (<span id="bulkDeleteCount">0</span>)
-</button>
+<!-- กลุ่มปุ่มจัดการหลายรายการ (ซ่อนไว้จนกว่าจะติ๊กเลือก) -->
+<div id="bulkActionButtons" class="hidden items-center gap-2">
+    <span class="text-sm font-bold text-indigo-700 bg-indigo-50 px-3 py-2.5 rounded-xl border border-indigo-100 shadow-sm">
+        เลือกแล้ว <span id="bulkSelectedCount" class="text-lg font-black">0</span> รายการ
+    </span>
+    <button onclick="openBulkStatusModal()" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center gap-2 text-sm font-bold transition shadow-lg hover:-translate-y-1">
+        <i data-lucide="toggle-left" class="w-4 h-4"></i> เปลี่ยนสถานะที่เลือก
+    </button>
+    <button onclick="deleteSelectedCards()" class="px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center gap-2 text-sm font-bold transition shadow-lg hover:-translate-y-1">
+        <i data-lucide="trash-2" class="w-4 h-4"></i> ลบที่เลือกทิ้ง
+    </button>
+</div>
 			   
                <!-- ปุ่มอัปเดตข้อมูล -->
                <button onclick="refreshCardsData()" class="px-4 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-600 border border-sky-200 rounded-xl flex items-center gap-2 text-sm font-bold transition shadow-sm">
@@ -575,10 +583,10 @@ gap: 1px !important;
                    <i data-lucide="scan-face" class="w-4 h-4"></i> สกัดใบหน้าอัตโนมัติ (ระบบแสกนใบหน้า)
                </button>
 
-			   <!-- ปุ่มระงับบัตรแบบกลุ่ม -->
+			   <!-- ปุ่มระงับบัตรแบบกลุ่ม >
 				<button onclick="openBulkSuspendModal()" class="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl flex items-center gap-2 text-sm font-bold transition shadow-sm hover:-translate-y-1">
     			<i data-lucide="shield-banned" class="w-4 h-4"></i> ระงับบัตรกลุ่ม (Bulk Inactive)
-				</button>
+		  	 </button-->
 
 			   <!-- ปุ่มเพิ่มบัตรแบบนำเข้า Excel (แทรกตรงนี้) -->
 				<button onclick="openBulkImportModal()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center gap-2 text-sm font-bold transition shadow-lg hover:-translate-y-1">
@@ -2271,7 +2279,31 @@ gap: 1px !important;
     </div>
 </div>
 
-<!-- Modal: ระงับบัตรแบบกลุ่ม (Bulk Suspend) -->
+<!-- Modal: เปลี่ยนสถานะหลายรายการ -->
+<div id="bulkStatusModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm modal-overlay" onclick="closeBulkStatusModal()"></div>
+    <div class="relative bg-white rounded-2xl w-full max-w-sm flex flex-col shadow-2xl animate-fadeIn">
+        <div class="bg-amber-500 text-white p-4 rounded-t-2xl flex justify-between items-center">
+            <h3 class="font-bold flex items-center gap-2 text-lg"><i data-lucide="toggle-left"></i> เปลี่ยนสถานะบัตร</h3>
+            <button onclick="closeBulkStatusModal()" class="hover:bg-white/20 p-1.5 rounded-lg transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 bg-gray-50">
+            <label class="block text-sm font-bold text-gray-800 mb-2">เลือกสถานะใหม่ที่ต้องการ</label>
+            <select id="bulkNewStatus" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 bg-white font-bold text-gray-700 shadow-sm">
+                <option value="active">เปิดใช้งาน (Active)</option>
+                <option value="inactive">ระงับการใช้งาน (Inactive)</option>
+            </select>
+        </div>
+        <div class="p-4 border-t bg-white rounded-b-2xl flex justify-end gap-3 shadow-inner">
+            <button onclick="closeBulkStatusModal()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">ยกเลิก</button>
+            <button onclick="processBulkStatusChange()" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2">
+                <i data-lucide="save" class="w-4 h-4"></i> ยืนยัน
+            </button>
+        </div>
+    </div>
+</div>
+	
+<!-- Modal: ระงับบัตรแบบกลุ่ม (Bulk Suspend)>
 <div id="bulkSuspendModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/60 backdrop-blur-sm modal-overlay" onclick="closeBulkSuspendModal()"></div>
     <div class="relative bg-white rounded-2xl w-full max-w-lg flex flex-col shadow-2xl animate-fadeIn">
@@ -2300,7 +2332,7 @@ gap: 1px !important;
             </button>
         </div>
     </div>
-</div>
+</div-->
 <!-- ========================================================================= -->
 		 
    <!-- Toast -->
@@ -5311,12 +5343,15 @@ if(res.ioType === 'IN') {
 }
 
     // ตัวแปรสำหรับเก็บรายการที่ถูกเลือก
-let selectedCardsForDelete = [];
+// ==========================================
+// ระบบจัดการบัตรหลายรายการ (Batch Actions)
+// ==========================================
+let selectedCardsArray = []; 
 
 function toggleCardSelection(id, isChecked) {
-    if (isChecked) selectedCardsForDelete.push(id);
-    else selectedCardsForDelete = selectedCardsForDelete.filter(x => x !== id);
-    updateBulkDeleteButton();
+    if (isChecked) selectedCardsArray.push(parseInt(id));
+    else selectedCardsArray = selectedCardsArray.filter(x => x !== parseInt(id));
+    updateBulkActionsUI();
 }
 
 function toggleAllCardsSelection(isChecked) {
@@ -5324,22 +5359,91 @@ function toggleAllCardsSelection(isChecked) {
     cbs.forEach(cb => {
         cb.checked = isChecked;
         const id = parseInt(cb.value);
-        if (isChecked && !selectedCardsForDelete.includes(id)) selectedCardsForDelete.push(id);
-        if (!isChecked) selectedCardsForDelete = selectedCardsForDelete.filter(x => x !== id);
+        if (isChecked && !selectedCardsArray.includes(id)) selectedCardsArray.push(id);
+        if (!isChecked) selectedCardsArray = selectedCardsArray.filter(x => x !== id);
     });
-    updateBulkDeleteButton();
+    updateBulkActionsUI();
 }
 
-function updateBulkDeleteButton() {
-    const btn = document.getElementById('btnBulkDeleteCards');
-    if (!btn) return;
-    if (selectedCardsForDelete.length > 0) {
-        btn.classList.remove('hidden');
-        btn.classList.add('flex');
-        document.getElementById('bulkDeleteCount').textContent = selectedCardsForDelete.length;
+function updateBulkActionsUI() {
+    const container = document.getElementById('bulkActionButtons');
+    if (!container) return;
+    if (selectedCardsArray.length > 0) {
+        container.classList.remove('hidden');
+        container.classList.add('flex');
+        document.getElementById('bulkSelectedCount').textContent = selectedCardsArray.length;
     } else {
-        btn.classList.add('hidden');
-        btn.classList.remove('flex');
+        container.classList.add('hidden');
+        container.classList.remove('flex');
+    }
+}
+
+// 1. ฟังก์ชันเปลี่ยนสถานะ (Status)
+function openBulkStatusModal() {
+    document.getElementById('bulkStatusModal').classList.remove('hidden');
+    if(window.lucide) lucide.createIcons();
+}
+
+function closeBulkStatusModal() {
+    document.getElementById('bulkStatusModal').classList.add('hidden');
+}
+
+async function processBulkStatusChange() {
+    const newStatus = document.getElementById('bulkNewStatus').value;
+    const statusText = newStatus === 'active' ? 'เปิดใช้งาน (Active)' : 'ระงับการใช้งาน (Inactive)';
+    
+    if(!confirm(`ยืนยันการเปลี่ยนสถานะบัตรที่เลือกจำนวน ${selectedCardsArray.length} รายการ เป็น "${statusText}" หรือไม่?`)) return;
+
+    showLoader('กำลังอัปเดตสถานะ...');
+    try {
+        const res = await apiCall('bulkUpdateCardStatus', { ids: selectedCardsArray, status: newStatus });
+        
+        if(res.success) {
+            // อัปเดตข้อมูลในเครื่อง (Cache)
+            selectedCardsArray.forEach(id => {
+                const idx = allCards.findIndex(c => parseInt(c.id) === parseInt(id));
+                if(idx !== -1) allCards[idx].status = newStatus;
+            });
+            
+            // ล้างการเลือก
+            selectedCardsArray = []; 
+            updateBulkActionsUI();
+            const selectAllCb = document.querySelector('th input[type="checkbox"]');
+            if(selectAllCb) selectAllCb.checked = false;
+
+            filterCardsTable(); // รีเฟรชตาราง
+            showToast(`อัปเดตสถานะสำเร็จ ${res.count} รายการ`, 'success');
+        }
+    } catch(e) {
+        showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+    } finally {
+        hideLoader();
+        closeBulkStatusModal();
+    }
+}
+
+// 2. ฟังก์ชันลบทิ้ง (Delete) - อัปเดตให้ใช้ตัวแปรใหม่
+async function deleteSelectedCards() {
+    if (!confirm(`ยืนยันการลบบัตรที่เลือกจำนวน ${selectedCardsArray.length} รายการ?\n\n(ลบแล้วกู้คืนไม่ได้ รูปภาพและใบหน้าจะถูกลบทิ้งทั้งหมด)`)) return;
+    
+    showLoader('กำลังลบข้อมูลหลายรายการ...');
+    try {
+        await apiCall('deleteBulkCards', { ids: selectedCardsArray });
+        
+        allCards = allCards.filter(c => !selectedCardsArray.includes(parseInt(c.id)));
+        selectedCardsArray = []; 
+        
+        updateBulkActionsUI();
+        const selectAllCb = document.querySelector('th input[type="checkbox"]');
+        if(selectAllCb) selectAllCb.checked = false;
+
+        filterCardsTable(); 
+        showToast('ลบข้อมูลที่เลือกสำเร็จ', 'success');
+        initFaceMatcherForWebcam(); 
+    } catch (e) {
+        showToast('เกิดข้อผิดพลาดในการลบ', 'error');
+    } finally {
+        hideLoader();
     }
 }
 
@@ -5378,7 +5482,7 @@ function renderCardsTable() {
         return `
         <tr class="border-b border-gray-100 hover:bg-gray-50 bg-white transition">
             <td class="p-3 text-center">
-                <input type="checkbox" value="${c.id}" ${selectedCardsForDelete.includes(parseInt(c.id)) ? 'checked' : ''} onchange="toggleCardSelection(${c.id}, this.checked)" class="card-delete-cb w-4 h-4 rounded text-red-600 cursor-pointer">
+                <input type="checkbox" value="${c.id}" ${selectedCardsArray.includes(parseInt(c.id)) ? 'checked' : ''} onchange="toggleCardSelection(${c.id}, this.checked)" class="card-delete-cb w-4 h-4 rounded text-red-600 cursor-pointer">
             </td>
             <td class="p-3 text-sm font-black text-gray-800 select-all">${c.cardId}</td>
             <td class="p-3 text-sm font-bold text-gray-800">${c.firstName} ${c.lastName}</td>
@@ -9700,29 +9804,7 @@ function startAiExtractionFromBulk() {
     syncMissingFaces(); // ฟังก์ชันนี้มีอยู่แล้วในโค้ดเดิมของคุณ มันจะจัดการสกัดหน้าให้เลยครับ
 }
 
-	  async function deleteSelectedCards() {
-    if (!confirm(`ยืนยันการลบบัตรที่เลือกจำนวน ${selectedCardsForDelete.length} รายการ?\n\n(ลบแล้วกู้คืนไม่ได้ รูปภาพและข้อมูลใบหน้าจะถูกลบทิ้งทั้งหมด)`)) return;
-    
-    showLoader('กำลังลบข้อมูลหลายรายการ (อาจใช้เวลาสักครู่)...');
-    try {
-        await apiCall('deleteBulkCards', { ids: selectedCardsForDelete });
-        
-        // ลบข้อมูลออกจากอาร์เรย์ในเครื่อง (Memory)
-        allCards = allCards.filter(c => !selectedCardsForDelete.includes(parseInt(c.id)));
-        selectedCardsForDelete = []; // เคลียร์รายการที่เลือก
-        
-        updateBulkDeleteButton();
-        filterCardsTable(); // รีเฟรชตาราง
-        
-        hideLoader();
-        showToast('ลบข้อมูลที่เลือกสำเร็จ', 'success');
-        
-        initFaceMatcherForWebcam(); // โหลด AI ใหม่เผื่อลบหน้าคนออกไป
-    } catch (e) {
-        hideLoader();
-        showToast('เกิดข้อผิดพลาดในการลบ', 'error');
-    }
-}
+
 
 // ==========================================
 // ฟังก์ชันระงับบัตรแบบกลุ่ม (Bulk Suspend UI)
