@@ -4450,7 +4450,7 @@ async function processScanQueue() {
     isProcessingScanQueue = true;
 
     while (onlineScanQueue.length > 0) {
-        const scanData = onlineScanQueue[0]; // ดูข้อมูลคิวแรกสุด
+        const scanData = onlineScanQueue[0];
 
         try {
             const res = await apiCall('processScan', {
@@ -4465,25 +4465,24 @@ async function processScanQueue() {
                 // บันทึกสำเร็จ
                 onlineScanQueue.shift(); // เอาออกจากคิว
                 queueRetryCount = 0; // รีเซ็ตการนับ
-                updateRecentLogsList(res, scanData.scanTime, res.newStatus); 
+
+                // ❌ ลบบรรทัด updateRecentLogsList ออกไปแล้ว 
+                // เพราะหน้าจอได้โชว์ข้อมูลไปตั้งแต่ตอนแสกนปุ๊บแรกแล้ว ไม่ต้องโชว์ซ้ำครับ
             }
         } catch (err) {
             console.error("Queue Send Error:", err);
             queueRetryCount++;
             
-            // ถ้าระบบส่งไม่ผ่านเกิน 3 ครั้ง ค่อยเด้งไปคิวสีแดง (ล้มเหลว)
             if (queueRetryCount >= 3) {
                 addToFailedQueue(scanData.cardId, scanData.fullName);
                 onlineScanQueue.shift();
                 queueRetryCount = 0;
             } else {
-                // ถ้ายังไม่เกิน 3 ครั้ง ให้รอ 1 วินาทีแล้วลองส่งข้อมูลชุดเดิมใหม่เงียบๆ
                 await new Promise(resolve => setTimeout(resolve, 1000));
-                continue; // วนลูปกลับไปทำใหม่โดยไม่ดึงคิวออก
+                continue; 
             }
         }
 
-        // ดีเลย์ 600ms ก่อนส่งคิวต่อไป เพื่อให้ GAS หายใจและคลาย Lock ทัน
         await new Promise(resolve => setTimeout(resolve, 600));
     }
 
