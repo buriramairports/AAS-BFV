@@ -575,6 +575,11 @@ gap: 1px !important;
                    <i data-lucide="scan-face" class="w-4 h-4"></i> สกัดใบหน้าอัตโนมัติ (ระบบแสกนใบหน้า)
                </button>
 
+			   <!-- ปุ่มระงับบัตรแบบกลุ่ม -->
+				<button onclick="openBulkSuspendModal()" class="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl flex items-center gap-2 text-sm font-bold transition shadow-sm hover:-translate-y-1">
+    			<i data-lucide="shield-banned" class="w-4 h-4"></i> ระงับบัตรกลุ่ม (Bulk Inactive)
+				</button>
+
 			   <!-- ปุ่มเพิ่มบัตรแบบนำเข้า Excel (แทรกตรงนี้) -->
 				<button onclick="openBulkImportModal()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center gap-2 text-sm font-bold transition shadow-lg hover:-translate-y-1">
     			<i data-lucide="upload-cloud" class="w-4 h-4"></i> นำเข้าข้อมูล (Excel)
@@ -2262,6 +2267,37 @@ gap: 1px !important;
                     ข้ามและปิดหน้าต่าง
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: ระงับบัตรแบบกลุ่ม (Bulk Suspend) -->
+<div id="bulkSuspendModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm modal-overlay" onclick="closeBulkSuspendModal()"></div>
+    <div class="relative bg-white rounded-2xl w-full max-w-lg flex flex-col shadow-2xl animate-fadeIn">
+        <div class="bg-red-600 text-white p-4 rounded-t-2xl flex justify-between items-center">
+            <h3 class="font-bold flex items-center gap-2 text-lg"><i data-lucide="shield-banned"></i> ระงับการใช้งานบัตรแบบกลุ่ม</h3>
+            <button onclick="closeBulkSuspendModal()" class="hover:bg-white/20 p-1.5 rounded-lg transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 bg-gray-50">
+            <div class="mb-4">
+                <label class="block text-sm font-bold text-gray-800 mb-2">กรอกรหัสบัตรที่ต้องการระงับ (Card IDs)</label>
+                <p class="text-xs text-gray-500 mb-2">กรอกรหัสบัตร 1 รหัส ต่อ 1 บรรทัด (หรือคั่นด้วยเครื่องหมายลูกน้ำ)</p>
+                <textarea id="bulkSuspendInput" rows="6" class="w-full border-2 border-red-200 p-3 rounded-xl outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 text-sm font-bold text-gray-700 bg-white placeholder-gray-300" placeholder="001/2569&#10;002/2569&#10;003/2569"></textarea>
+            </div>
+            <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg flex gap-3 items-start">
+                <i data-lucide="alert-triangle" class="w-5 h-5 text-yellow-600 shrink-0 mt-0.5"></i>
+                <p class="text-xs font-bold text-yellow-800 leading-relaxed">
+                    การกระทำนี้จะเปลี่ยนสถานะบัตรทุกใบที่ระบุให้เป็น <span class="text-red-600">"Inactive (ระงับใช้งาน)"</span> ทันที 
+                    ซึ่งจะทำให้พนักงานกลุ่มนี้ไม่สามารถแสกนผ่านจุดเข้า-ออกได้
+                </p>
+            </div>
+        </div>
+        <div class="p-4 border-t bg-white rounded-b-2xl flex justify-end gap-3 shadow-inner">
+            <button onclick="closeBulkSuspendModal()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">ยกเลิก</button>
+            <button onclick="processBulkSuspend()" class="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2">
+                <i data-lucide="slash" class="w-4 h-4"></i> ยืนยันการระงับบัตร
+            </button>
         </div>
     </div>
 </div>
@@ -9685,6 +9721,64 @@ function startAiExtractionFromBulk() {
     } catch (e) {
         hideLoader();
         showToast('เกิดข้อผิดพลาดในการลบ', 'error');
+    }
+}
+
+// ==========================================
+// ฟังก์ชันระงับบัตรแบบกลุ่ม (Bulk Suspend UI)
+// ==========================================
+function openBulkSuspendModal() {
+    document.getElementById('bulkSuspendInput').value = '';
+    document.getElementById('bulkSuspendModal').classList.remove('hidden');
+    if(window.lucide) lucide.createIcons();
+}
+
+function closeBulkSuspendModal() {
+    document.getElementById('bulkSuspendModal').classList.add('hidden');
+}
+
+async function processBulkSuspend() {
+    const rawInput = document.getElementById('bulkSuspendInput').value;
+    
+    // แปลงข้อความที่กรอกมา ตัดช่องว่าง แยกลูกน้ำ หรือ แยกบรรทัด
+    const cardIdsArray = rawInput.split(/[\n,]+/)
+        .map(id => id.trim().toUpperCase())
+        .filter(id => id !== '');
+
+    if (cardIdsArray.length === 0) {
+        return showToast('กรุณากรอกรหัสบัตรอย่างน้อย 1 รหัส', 'warning');
+    }
+
+    if (!confirm(`ยืนยันการระงับใช้งานบัตรจำนวน ${cardIdsArray.length} รหัส หรือไม่?`)) {
+        return;
+    }
+
+    showLoader(`กำลังดำเนินการระงับบัตร ${cardIdsArray.length} ใบ...`);
+
+    try {
+        const res = await apiCall('bulkSuspendCards', { cardIds: cardIdsArray });
+        
+        hideLoader();
+        closeBulkSuspendModal();
+
+        if (res.success) {
+            let msg = `ระงับบัตรสำเร็จ ${res.count} ใบ!`;
+            
+            // ถ้าระบบหาบางรหัสไม่เจอ ให้แจ้งเตือนแอดมินด้วย
+            if (res.notFound && res.notFound.length > 0) {
+                msg += `\n\n⚠️ ไม่พบรหัสเหล่านี้ในระบบ:\n${res.notFound.join(', ')}`;
+                showAlert('ผลการดำเนินการ', msg, 'warning');
+            } else {
+                showToast(msg, 'success');
+            }
+            
+            // รีเฟรชตารางข้อมูลในหน้าเว็บ
+            refreshCardsData();
+        }
+
+    } catch (e) {
+        hideLoader();
+        showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
     }
 }
   </script>
