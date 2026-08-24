@@ -6791,7 +6791,7 @@ async function forceOutVehicle(dbId, reg) {
         lucide.createIcons();
     }
 
-    function syncOfflineData() {
+   /* function syncOfflineData() {
         // ถ้าระบบออฟไลน์อยู่ หรือไม่มีคิว หรือ "กำลังซิงค์อยู่ (ล็อคกุญแจแล้ว)" -> ให้ข้ามไปเลย ห้ามทำซ้ำ
         if (!navigator.onLine || offlineQueue.length === 0 || isSyncing) return;
 
@@ -6820,7 +6820,60 @@ async function forceOutVehicle(dbId, reg) {
                 isSyncing = false; // ปลดล็อคกุญแจ ให้รอบหน้าลองใหม่
                 console.log("การซิงค์ล้มเหลว จะพยายามใหม่ในภายหลัง");
             });
+    }*/
+
+	function syncOfflineData() {
+    // 1. ดึงคิวจากความจำเครื่อง
+    let currentQueue = JSON.parse(localStorage.getItem('aac_offlineQueue') || '[]');
+
+    // --- ระบบปราบผี: ลบข้อมูลที่ค้างเก่าเกิน 24 ชั่วโมงทิ้งอัตโนมัติ ---
+    const nowMs = new Date().getTime();
+    const validQueue = currentQueue.filter(item => {
+        const scanTime = new Date(item.offlineTimestamp).getTime();
+        const diffHours = (nowMs - scanTime) / (1000 * 60 * 60);
+        return diffHours <= 24; // เก็บไว้เฉพาะที่แสกนภายใน 24 ชม. ล่าสุด
+    });
+
+    // อัปเดตความจำเครื่องถ้ามีการทำลายข้อมูลเก่าทิ้ง
+    if (validQueue.length !== currentQueue.length) {
+        offlineQueue = validQueue;
+        localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
+        updateOfflineUI();
     }
+
+    if (!navigator.onLine || offlineQueue.length === 0 || isSyncing) return;
+
+    isSyncing = true;
+
+    // --- ระบบกันค้าง: ดึงคิวส่งแค่ "ทีละ 5 รายการ" ต่อ 1 รอบ ---
+    const BATCH_SIZE = 5;
+    const queueLengthToSync = Math.min(offlineQueue.length, BATCH_SIZE);
+    const queueToSync = offlineQueue.slice(0, queueLengthToSync);
+
+    apiCall('processBulkOfflineScans', queueToSync, false)
+        .then(res => {
+            isSyncing = false;
+
+            // ลบเฉพาะ 5 รายการที่ส่งสำเร็จแล้วออก
+            offlineQueue.splice(0, queueLengthToSync);
+            localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
+            updateOfflineUI();
+
+            if(res && res.successCount > 0) {
+                showToast(`ซิงค์ข้อมูลออฟไลน์สำเร็จ ${res.successCount} รายการ`, 'success');
+                refreshHomeData();
+            }
+
+            // ถ้ายังมีคิวเหลืออยู่ ให้เรียกตัวเองซ้ำเพื่อทยอยส่งชุดต่อไป
+            if (offlineQueue.length > 0) {
+                setTimeout(syncOfflineData, 2000); // พักหายใจ 2 วิ แล้วลุยต่อ
+            }
+        })
+        .catch(err => {
+            isSyncing = false;
+            console.log("Offline Sync Network Error, will retry later.");
+        });
+}
 
     // สั่งให้ระบบเช็ค Offline UI ตั้งแต่ตอนเปิดเว็บ
     window.addEventListener('load', () => {
