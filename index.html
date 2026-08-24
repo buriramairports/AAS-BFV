@@ -2349,7 +2349,8 @@ gap: 1px !important;
 	  // --- เพิ่ม 2 บรรทัดนี้ ---
 let onlineScanQueue = []; // คิวสำหรับส่งข้อมูลปกติทีละรายการ
 let isProcessingScanQueue = false; // ตัวเช็คสถานะว่ากำลังส่งข้อมูลอยู่หรือไม่
-let lastManualScan = { cardId: null, time: 0 }; // <-- เพิ่มบรรทัดนี้
+//let lastManualScan = { cardId: null, time: 0 }; // <-- เพิ่มบรรทัดนี้
+let globalScanTracker = {};
 // ----------------------
 	  
     let currentUser = null, currentPage = 'home';
@@ -4389,69 +4390,110 @@ let currentDisplayCardId = "";
 let failedScansQueue = [];
 
 /**
- * 3. ปรับปรุงฟังก์ชันแสกนหลัก: เพิ่มระบบ Request ID
+ * ฟังก์ชันประมวลผลการแสกนหลัก (ฝั่งหน้าเว็บ)
+ * อัปเกรด: เพิ่มระบบดักจับการแสกนรัว (Anti-Spam 5 วินาที) ให้ตรงกับฝั่งเซิร์ฟเวอร์
  */
 function processMainScan() {
-    const gateId = document.getElementById('scanGateSelect').value;
-    const mainInput = document.getElementById('scanInput');
-    const cardId = String(mainInput.value).trim().toUpperCase();
+    if (currentScanTarget === 'person') {
+        const gateId = document.getElementById('scanGateSelect').value;
+        const mainInput = document.getElementById('scanInput');
+        const cardId = String(mainInput.value).trim().toUpperCase();
 
-    if (!gateId) return showAlert('ข้อมูลไม่ครบ', 'กรุณาเลือกจุดเข้าออกพื้นที่ก่อน', 'warning');
-    if (!cardId) return mainInput.focus();
+        if (!gateId) return showAlert('ข้อมูลไม่ครบ', 'กรุณาเลือกจุดเข้าออกพื้นที่ก่อน', 'warning');
+        if (!cardId) return mainInput.focus();
 
-	// --- เพิ่มโค้ดป้องกันการแสกนเบิ้ล (Double Scan) ตรงนี้ ---
-    const nowTime = Date.now();
-    if (lastManualScan.cardId === cardId && (nowTime - lastManualScan.time) < 2000) {
+        // =========================================================
+        // >>> ระบบป้องกันแสกนรัว (Frontend Debounce) 5 วินาที <<<
+        // =========================================================
+        const nowTime = Date.now();
+        if (globalScanTracker[cardId]) {
+            const timeDiff = nowTime - globalScanTracker[cardId];
+            if (timeDiff < 5000) { // ถ้าแสกนซ้ำภายใน 5 วินาที (5000ms)
+                mainInput.value = ''; 
+                mainInput.focus();
+                
+                // เล่นเสียง Error แจ้งเตือนเจ้าหน้าที่ว่าแสกนไวไป
+                try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
+                
+                // โชว์แจ้งเตือน และ ตัดการทำงานทิ้งทันที (ไม่เปลี่ยนหน้าจอ ไม่ส่ง Server)
+                showToast(`รหัส ${cardId} เพิ่งทำรายการไป (รอ 5 วินาที)`, 'warning');
+                return; 
+            }
+        }
+        // บันทึกเวลาล่าสุดที่คนนี้แสกนผ่าน เพื่อเอาไว้ดักในรอบหน้า
+        globalScanTracker[cardId] = nowTime;
+        // =========================================================
+
+        const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
+        if (!card) {
+            mainInput.value = ''; mainInput.focus();
+            return showAlert('ไม่พบข้อมูลบัตร', `บัตรหมายเลข ${cardId} ไม่พบในระบบ`, 'error');
+        }
+
+        if (card.status !== 'active') {
+            mainInput.value = ''; mainInput.focus();
+            return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error');
+        }
+      
+        if (systemSettings.ttsTimingMode === 'immediate') {
+            speakImmediateGreeting(card.firstName, card.lastName);
+        }
+
+        const now = new Date();
+        const expiryDate = new Date(card.expiryDate);
+        expiryDate.setHours(23, 59, 59, 999);
+        if (now > expiryDate) {
+            mainInput.value = ''; mainInput.focus();
+            return showAlert('บัตรหมดอายุ', `บัตรหมายเลข ${cardId} หมดอายุเมื่อ ${formatDateOnly(card.expiryDate)}`, 'error');
+        }
+
+        const typeInfo = typeCards.find(t => String(t.id) === String(card.typeId));
+        let predictedStatus = (card.currentStatus === 'IN') ? 'OUT' : 'IN';
+
+        if (typeInfo.requireCompanion && predictedStatus === 'IN') {
+            document.getElementById('companionModalMainCardId').value = card.cardId;
+            document.getElementById('compBarcode').value = '';
+            document.getElementById('companionModal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('compBarcode').focus(), 100);
+            return;
+        }
+
+        currentDisplayCardId = card.cardId;
         mainInput.value = ''; mainInput.focus();
-        return; // ข้ามการทำงานถ้ารหัสเดิมถูกแสกนซ้ำภายใน 2 วินาที
+
+        showInstantUI(card, typeInfo, predictedStatus);
+        executeScanFinal(gateId, card.cardId, null, predictedStatus, `${card.firstName} ${card.lastName}`);
+
+    } else {
+        // --- ส่วนของโหมดรถ (Vehicle) ---
+        const input = document.getElementById('scanInput');
+        const code = input.value.trim().toUpperCase();
+        if (!code) return;
+
+        const isVehicleCard = allVehicles.some(x => String(x.cardId).toUpperCase() === code);
+
+        if (isVehicleCard) {
+            handleVehicleScan(code);
+        } else {
+            if (vehicleSession.vehicle) {
+                // เพิ่มการป้องกันแสกนคนรัวๆ ในรถ
+                const nowTime = Date.now();
+                if (globalScanTracker[code] && (nowTime - globalScanTracker[code]) < 5000) {
+                    input.value = ''; input.focus();
+                    try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
+                    showToast(`รหัส ${code} เพิ่งทำรายการไป (รอ 5 วินาที)`, 'warning');
+                    return; 
+                }
+                globalScanTracker[code] = nowTime;
+                
+                handlePersonForVehicle(code);
+            } else {
+                showAlert('กรุณาแสกนรถก่อน', 'กรุณาแสกนบัตรรถก่อนที่จะแสกนบัตรพนักงาน', 'warning');
+            }
+        }
+        input.value = '';
+        input.focus();
     }
-    lastManualScan.cardId = cardId;
-    lastManualScan.time = nowTime;
-    // ----------------------------------------------------
-
-    const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
-    if (!card) {
-        mainInput.value = ''; mainInput.focus();
-        return showAlert('ไม่พบข้อมูลบัตร', `บัตรหมายเลข ${cardId} ไม่พบในระบบ`, 'error');
-    }
-
-    if (card.status !== 'active') {
-        mainInput.value = ''; mainInput.focus();
-        return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error');
-    }
-  // --- ส่วนที่เพิ่มใหม่: จังหวะการพูดแบบที่ 1 (พูดทันที) สำหรับทุกช่องทาง ---
-    if (systemSettings.ttsTimingMode === 'immediate') {
-        speakImmediateGreeting(card.firstName, card.lastName);
-    }
-    // -----------------------------------------------------------
-    const now = new Date();
-    const expiryDate = new Date(card.expiryDate);
-    expiryDate.setHours(23, 59, 59, 999);
-    if (now > expiryDate) {
-        mainInput.value = ''; mainInput.focus();
-        return showAlert('บัตรหมดอายุ', `บัตรหมายเลข ${cardId} หมดอายุเมื่อ ${formatDateOnly(card.expiryDate)}`, 'error');
-    }
-
-    const typeInfo = typeCards.find(t => String(t.id) === String(card.typeId));
-    let predictedStatus = (card.currentStatus === 'IN') ? 'OUT' : 'IN';
-
-    if (typeInfo.requireCompanion && predictedStatus === 'IN') {
-        document.getElementById('companionModalMainCardId').value = card.cardId;
-        document.getElementById('compBarcode').value = '';
-        document.getElementById('companionModal').classList.remove('hidden');
-        setTimeout(() => document.getElementById('compBarcode').focus(), 100);
-        return;
-    }
-
-    // --- จดจำว่าตอนนี้กำลังโชว์รหัสอะไร ---
-    currentDisplayCardId = card.cardId;
-    mainInput.value = ''; mainInput.focus();
-
-    // แสดงผล UI ทันที (สถานะจางๆ)
-    showInstantUI(card, typeInfo, predictedStatus);
-
-    // ส่งไป Server
-    executeScanFinal(gateId, card.cardId, null, predictedStatus, `${card.firstName} ${card.lastName}`);
 }
 
 /**
