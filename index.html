@@ -2107,7 +2107,7 @@ gap: 1px !important;
    <div id="imagePreviewModal" class="fixed inset-0 z-[120] hidden"><div class="absolute inset-0 bg-black/95" onclick="closeImagePreview()"></div><div class="absolute inset-0 overflow-auto p-4 flex justify-center items-center" onclick="closeImagePreview()"><img id="previewImage" src="" class="w-[95vw] md:w-[80vw] max-w-none h-auto transition-transform duration-300 rounded-xl shadow-2xl bg-white/5" onclick="event.stopPropagation()"></div><button onclick="closeImagePreview()" class="fixed top-4 right-4 bg-white/10 text-white hover:bg-red-500 p-2 rounded-full transition shadow-lg backdrop-blur-sm z-[130]"><i data-lucide="x" class="w-8 h-8"></i></button></div>
 
    <!-- Modal Alert -->
-   <div id="customAlertModal" class="fixed inset-0 z-[150] hidden flex items-center justify-center p-4"><div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeAlert()"></div><div class="relative bg-white rounded-3xl w-full max-w-sm flex flex-col shadow-2xl animate-fadeIn p-8 text-center"><div id="alertIconContainer" class="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-5 shadow-inner"></div><h3 id="alertTitle" class="text-2xl font-black text-gray-800 mb-2">แจ้งเตือน</h3><p id="alertMessage" class="text-gray-600 mb-8 text-sm font-medium leading-relaxed whitespace-pre-line"></p><button onclick="closeAlert()" class="w-full py-4 rounded-xl font-bold text-lg text-white transition shadow-lg" id="alertBtn">ตกลง</button></div></div>
+   <div id="customAlertModal" class="fixed inset-0 z-[10005] hidden flex items-center justify-center p-4"><div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeAlert()"></div><div class="relative bg-white rounded-3xl w-full max-w-sm flex flex-col shadow-2xl animate-fadeIn p-8 text-center"><div id="alertIconContainer" class="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-5 shadow-inner"></div><h3 id="alertTitle" class="text-2xl font-black text-gray-800 mb-2">แจ้งเตือน</h3><p id="alertMessage" class="text-gray-600 mb-8 text-sm font-medium leading-relaxed whitespace-pre-line"></p><button onclick="closeAlert()" class="w-full py-4 rounded-xl font-bold text-lg text-white transition shadow-lg" id="alertBtn">ตกลง</button></div></div>
 
 	<!-- ========================================================================= -->
 <!-- Modal: นำเข้าข้อมูลจำนวนมาก (Bulk Import) -->
@@ -2336,7 +2336,7 @@ gap: 1px !important;
 <!-- ========================================================================= -->
 		 
    <!-- Toast -->
-   <div id="toastContainer" class="fixed bottom-4 right-4 z-[160] space-y-2 pointer-events-none flex flex-col items-end"></div>
+   <div id="toastContainer" class="fixed bottom-4 right-4 z-[10006] space-y-2 pointer-events-none flex flex-col items-end"></div>
   </div>
 
   <script>
@@ -7075,110 +7075,111 @@ function downloadVehicleBarcodeImage() {
 // ==========================================
 // ระบบสกัดใบหน้าจากข้อมูลเก่า (Bulk Face Sync)
 // ==========================================
+// ฟังก์ชันเรียกจากปุ่มสีม่วงหน้าจัดการบัตร (กวาดหาคนที่ตกค้างทั้งระบบ)
 async function syncMissingFaces() {
     showLoader('กำลังตรวจสอบข้อมูลใบหน้าในระบบ...');
-    
     try {
-        // 1. ดึงประวัติใบหน้าทั้งหมดจากตาราง cardFaces
         const allFaces = await apiCall('getCardFaces', {}, false);
-        
-        // 2. กรองหาพนักงานที่ "มีรูป" แต่ "ยังไม่เคยถูกบันทึกลง cardFaces"
         const cardsToProcess = allCards.filter(c => {
             if (!c.imageUrl || c.imageUrl.trim() === '') return false;
-            
-            // หาว่าคนนี้เคยประมวลผลไปหรือยัง (รวมถึงพวก SKIP_AI และ NO_FACE ด้วย)
             const existingFace = allFaces.find(f => String(f.cardId) === String(c.cardId) && f.faceType === 'main');
-            
-            // ถ้ามีประวัติแล้ว ให้ข้ามคนนี้ไปเลย (ไม่สแกนซ้ำ)
             if (existingFace) return false; 
-            
             return true;
         });
-        
         hideLoader();
 
-        if (cardsToProcess.length === 0) {
-            return showToast('ไม่พบข้อมูลที่ต้องอัปเดต (ทุกคนมีรหัสใบหน้าแล้ว หรือเป็นรูป VIP ที่ถูกข้าม)', 'info');
-        }
+        if (cardsToProcess.length === 0) return showToast('ไม่พบข้อมูลที่ต้องอัปเดต (ทุกคนมีรหัสใบหน้าหมดแล้ว)', 'info');
+        if (!confirm(`พบผู้ใช้งาน ${cardsToProcess.length} รายการ ที่ต้องสกัดใบหน้า\nต้องการให้ระบบประมวลผลตอนนี้เลยหรือไม่?`)) return;
 
-        if (!confirm(`พบผู้ใช้งาน ${cardsToProcess.length} รายการ ที่ต้องสกัดรหัสใบหน้า\nต้องการให้ระบบประมวลผลดึงรหัสใบหน้าตอนนี้เลยหรือไม่?\n\n* หมายเหตุ: ห้ามปิดหน้านี้จนกว่าระบบจะทำงานเสร็จ`)) {
-            return;
-        }
-
-        if (!isFaceApiLoaded) {
-            return showToast('ระบบ AI ยังไม่พร้อม โปรดรอสักครู่และลองใหม่', 'error');
-        }
-
-        let successCount = 0;
-        let failCount = 0;
-        const total = cardsToProcess.length;
-
-        showLoader();
-        updateLoaderProgress(0, total, 'กำลังเตรียมสกัดใบหน้าสำหรับระบบแสกน...');
-
-        for (let i = 0; i < total; i++) {
-            const card = cardsToProcess[i];
-            
-            updateLoaderProgress(i, total, `กำลังสกัดใบหน้า...<br><span class="text-sm font-normal text-green-300 mt-2 block tracking-widest">รหัสบัตร: ${card.cardId}</span>`);
-            
-            try {
-                const base64Img = await apiCall('getDriveImageBase64', { url: card.imageUrl }, false);
-                
-                if (base64Img) {
-                    const img = new Image();
-                    await new Promise((resolve, reject) => {
-                        img.onload = resolve;
-                        img.onerror = reject;
-                        img.src = base64Img;
-                    });
-
-                    // ให้ AI สกัดใบหน้า
-                    const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
-                    
-                    let descriptorStr = "NO_FACE";
-                    if (detection) {
-                        descriptorStr = JSON.stringify(Array.from(detection.descriptor));
-                        successCount++;
-                    } else {
-                        failCount++;
-                    }
-
-                    // บันทึกลงตาราง cardFaces แบบ Main (ใช้คำสั่งที่มีอยู่แล้ว)
-                    await apiCall('saveSupplementalFace', {
-                        cardId: card.cardId,
-                        imageBase64: base64Img,
-                        faceDescriptor: descriptorStr,
-                        faceType: 'main',
-                        confidence: 100
-                    }, false);
-                    
-                } else {
-                    failCount++;
-                }
-            } catch (err) {
-                console.error(`เกิดข้อผิดพลาดกับบัตร ${card.cardId}:`, err);
-                failCount++;
-            }
-        }
-
-        updateLoaderProgress(total, total, 'ประมวลผลเสร็จสิ้น กำลังบันทึกข้อมูล...');
-        
-        setTimeout(() => {
-            hideLoader();
-            let finalMsg = `ประมวลผลเสร็จสิ้น!\nสำเร็จ: ${successCount} รายการ`;
-            if (failCount > 0) finalMsg += `\nไม่พบใบหน้าในรูป: ${failCount} รายการ (ระบบจะจำไว้และข้ามการสแกนในครั้งต่อไป)`;
-            
-            showAlert('ผลการสกัดใบหน้า', finalMsg, successCount > 0 ? 'success' : 'warning');
-            
-            initFaceMatcherForWebcam(); // รีโหลด Model AI ให้จำหน้าคนใหม่ทันที
-        }, 800);
+        // โยนรายชื่อทั้งหมดเข้ากระบวนการสกัด
+        const targetIds = cardsToProcess.map(c => c.cardId);
+        processSpecificFaces(targetIds);
 
     } catch (e) {
         hideLoader();
-        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูลใบหน้า', 'error');
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
     }
 }
 
+
+// ==========================================
+// เครื่องยนต์หลัก: สกัดใบหน้าเฉพาะรายชื่อเป้าหมาย (แก้บั๊ก NO_FACE แล้ว)
+// ==========================================
+async function processSpecificFaces(targetCardIds) {
+    if (!isFaceApiLoaded) return showToast('ระบบ AI ยังไม่พร้อม โปรดรอสักครู่', 'error');
+
+    // คัดกรองเฉพาะ Object Card ที่อยู่ในรายชื่อเป้าหมาย
+    const cardsToProcess = allCards.filter(c => targetCardIds.includes(String(c.cardId)));
+    
+    if (cardsToProcess.length === 0) return;
+
+    let successCount = 0;
+    let failCount = 0;
+    const total = cardsToProcess.length;
+
+    showLoader();
+    updateLoaderProgress(0, total, 'กำลังเตรียมสกัดใบหน้าสำหรับระบบแสกน...');
+
+    for (let i = 0; i < total; i++) {
+        const card = cardsToProcess[i];
+        updateLoaderProgress(i, total, `กำลังสกัดใบหน้า...<br><span class="text-sm font-normal text-green-300 mt-2 block tracking-widest">รหัสบัตร: ${card.cardId}</span>`);
+        
+        try {
+            const base64Img = await apiCall('getDriveImageBase64', { url: card.imageUrl }, false);
+            
+            if (base64Img) {
+                const img = new Image();
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = base64Img;
+                });
+
+                const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+                
+                let descriptorStr = "NO_FACE";
+                let confScore = 0;
+                
+                if (detection) {
+                    descriptorStr = JSON.stringify(Array.from(detection.descriptor));
+                    confScore = 100;
+                    successCount++;
+                } else {
+                    failCount++;
+                }
+
+                // *** จุดที่แก้บั๊ก: บันทึกข้อมูลลงตาราง cardFaces เสมอ ไม่ว่าจะเจอหน้าหรือไม่ (ถ้าไม่เจอจะเก็บคำว่า NO_FACE) ***
+                await apiCall('saveSupplementalFace', {
+                    cardId: card.cardId,
+                    imageBase64: base64Img,
+                    faceDescriptor: descriptorStr,
+                    faceType: 'main',
+                    confidence: confScore
+                }, false);
+                
+            } else {
+                failCount++;
+            }
+        } catch (err) {
+            console.error(`เกิดข้อผิดพลาดกับบัตร ${card.cardId}:`, err);
+            failCount++;
+        }
+    }
+
+    updateLoaderProgress(total, total, 'ประมวลผลเสร็จสิ้น กำลังอัปเดตระบบ...');
+    
+    setTimeout(() => {
+        hideLoader();
+        pendingBulkFaceIds = []; // ล้างคิวเป้าหมาย
+        
+        let finalMsg = `ประมวลผลเสร็จสิ้น!\nสำเร็จ: ${successCount} รายการ`;
+        if (failCount > 0) finalMsg += `\nไม่พบใบหน้า: ${failCount} รายการ (บันทึกเป็น Logo/VIP ระบบจะจำไว้และข้ามการสแกนครั้งต่อไปให้)`;
+        
+        showAlert('ผลการสกัดใบหน้า', finalMsg, successCount > 0 ? 'success' : 'warning');
+        
+        initFaceMatcherForWebcam(); // รีโหลด Model AI 
+    }, 800);
+}
 
     // --- ฟังก์ชันควบคุม Tab ---
    function switchReportTab(tabId) {
@@ -9346,7 +9347,8 @@ saveGateToLocal = function() {
 // ==========================================
 // ระบบนำเข้าข้อมูลจำนวนมาก (Bulk Import)
 // ==========================================
-let bulkImportData = []; 
+let bulkImportData = [];
+let pendingBulkFaceIds = []; // เก็บรายชื่อที่เพิ่งเพิ่มใหม่เพื่อทำ AI
 let bulkMasterImageBase64 = null;
 
 function openBulkImportModal() {
@@ -9830,13 +9832,11 @@ async function startBulkSaveProcess() {
         hideLoader();
         
         if (result) {
-            // อัปเดตตัวเลขในหน้าสรุปผล
             document.getElementById('bulkSummarySuccessCount').textContent = result.successCount || 0;
             document.getElementById('bulkSummaryFaceCount').textContent = result.facesReadyToExtract || 0;
+            pendingBulkFaceIds = result.facesToProcess || []; // <--- รับค่ามาจากเซิร์ฟเวอร์
             
             document.getElementById('bulkSummaryModal').classList.remove('hidden');
-            
-            // รีเฟรชตารางหน้าจอหลัก
             refreshCardsData(); 
         }
 
@@ -9852,9 +9852,14 @@ function closeBulkSummaryModal() {
 }
 
 // 8. เชื่อมต่อไปยังฟังก์ชัน AI เดิมของคุณ
+// ฟังก์ชันเรียกจากหน้าต่างสรุปผล Bulk Import (ดึงเฉพาะคนที่เพิ่งเพิ่มใหม่)
 function startAiExtractionFromBulk() {
     closeBulkSummaryModal();
-    syncMissingFaces(); // ฟังก์ชันนี้มีอยู่แล้วในโค้ดเดิมของคุณ มันจะจัดการสกัดหน้าให้เลยครับ
+    if (pendingBulkFaceIds.length > 0) {
+        processSpecificFaces(pendingBulkFaceIds); // ส่งรายชื่อเป้าหมายไปทำ AI
+    } else {
+        showToast('ไม่มีรูปภาพที่ต้องสกัดใบหน้า', 'info');
+    }
 }
 
 
