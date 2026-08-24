@@ -5733,6 +5733,10 @@ function renderCardsTable() {
  * ฟังก์ชันบันทึกข้อมูลบัตร (Add/Update)
  * ปรับปรุงใหม่: แยกการบันทึกใบหน้าไปที่ตาราง cardFaces
  */
+/**
+ * ฟังก์ชันบันทึกข้อมูลบัตร (Add/Update) 1 รายการ
+ * อัปเกรด: ป้องกันกดซ้ำ, โชว์ Alert สวยงาม, และแก้ปัญหาจอค้าง
+ */
 async function saveCard() {
     const id = document.getElementById('editCardDbId').value;
     const cardId = document.getElementById('cardIdInp').value.trim().toUpperCase();
@@ -5742,7 +5746,14 @@ async function saveCard() {
     // ตรวจสอบข้อมูลเบื้องต้น
     if(!cardId || !fName || !typeId) return showToast('กรุณากรอกข้อมูลให้ครบ', 'error');
 
-    // 1. เตรียมชุดข้อมูลสำหรับตาราง allCards (ตัด faceDescriptor ออก)
+    // --- 1. ป้องกันกดซ้ำ (Disable Button) ---
+    const btnSave = document.querySelector('#cardModal button[onclick="saveCard()"]');
+    if (btnSave) {
+        btnSave.disabled = true;
+        btnSave.classList.add('opacity-50', 'cursor-not-allowed');
+        btnSave.innerHTML = '<i class="spinner inline-block w-4 h-4 border-2 border-white/30 border-t-white mr-2"></i> กำลังบันทึก...';
+    }
+
     const d = {
         cardId: cardId, 
         typeId: typeId, 
@@ -5756,69 +5767,72 @@ async function saveCard() {
         issueDate: document.getElementById('cardIssueDate').value, 
         expiryDate: document.getElementById('cardExpiryDate').value,
         status: document.querySelector('input[name="cardStatusInp"]:checked').value,
-        imageBase64: tempCardImageBase64, // ส่งรูปไปเพื่ออัปโหลดเข้า Drive
-        removeImage: isRemovingCardImage    // กรณีผู้ใช้กดลบรูป
+        imageBase64: tempCardImageBase64, 
+        removeImage: isRemovingCardImage    
     };
 
     showLoader('กำลังบันทึกข้อมูล...');
+    let isSuccess = false;
+    let actionText = id ? "แก้ไขข้อมูลบัตร" : "เพิ่มบัตรใหม่";
     
     try {
         let result;
-        
         if(id) { 
-            // --- กรณีแก้ไขบัตร (UPDATE) ---
             d.id = parseInt(id); 
             result = await apiCall('updateCard', d); 
             const idx = allCards.findIndex(x => Number(x.id) == Number(result.id)); 
-            if(idx !== -1) {
-                // อัปเดตข้อมูลใน Local Array (ยกเว้นค่าสถานะการแสกน)
-                allCards[idx] = { ...allCards[idx], ...result }; 
-            }
+            if(idx !== -1) allCards[idx] = { ...allCards[idx], ...result }; 
 
-            // ถ้ามีการเปลี่ยนรูปใหม่ และ AI ตรวจเจอใบหน้า ให้บันทึกลง cardFaces เป็นรูปหลัก (Main)
             if (tempCardImageBase64 && tempFaceDescriptor) {
                 await apiCall('saveSupplementalFace', {
-                    cardId: cardId,
-                    imageBase64: tempCardImageBase64,
-                    faceDescriptor: tempFaceDescriptor,
-                    faceType: 'main',
-                    confidence: 100
-                }, false); // ใส่ false เพื่อไม่ให้หน้าจอดำซ้อนกัน
+                    cardId: cardId, imageBase64: tempCardImageBase64,
+                    faceDescriptor: tempFaceDescriptor, faceType: 'main', confidence: 100
+                }, false); 
             }
-            
-            showToast('แก้ไขข้อมูลสำเร็จ', 'success'); 
         } else { 
-            // --- กรณีเพิ่มบัตรใหม่ (ADD) ---
             result = await apiCall('addCard', d); 
             allCards.unshift(result); 
             cardStats.total++; 
 
-            // ถ้ามีรูปภาพและตรวจเจอใบหน้า ให้บันทึกลงตารางใบหน้าทันที
             if (tempCardImageBase64 && tempFaceDescriptor) {
                 await apiCall('saveSupplementalFace', {
-                    cardId: cardId,
-                    imageBase64: tempCardImageBase64,
-                    faceDescriptor: tempFaceDescriptor,
-                    faceType: 'main',
-                    confidence: 100
+                    cardId: cardId, imageBase64: tempCardImageBase64,
+                    faceDescriptor: tempFaceDescriptor, faceType: 'main', confidence: 100
                 }, false);
             }
-            
-            showToast('เพิ่มบัตรใหม่สำเร็จ', 'success'); 
         }
-
-        // ปิด Modal และรีเฟรชตาราง
-        closeCardModal(); 
-        filterCardsTable(); 
         
-        // สำคัญ: รีโหลด Model AI ใหม่เพื่อให้จำใบหน้าที่เพิ่งเพิ่มหรือแก้ไขได้ทันที
-        initFaceMatcherForWebcam();
+        isSuccess = true; // ทำเครื่องหมายว่าสำเร็จ
 
     } catch (err) {
         console.error("Save Card Error:", err);
         showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
     } finally {
         hideLoader();
+        
+        // --- 2. คืนค่าปุ่มให้กลับมากดได้ปกติ ---
+        if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.classList.remove('opacity-50', 'cursor-not-allowed');
+            btnSave.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> บันทึกข้อมูล';
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // --- 3. การจัดการหน้าจอเมื่อสำเร็จ (แก้ปัญหาจอค้าง) ---
+        if (isSuccess) {
+            // ปิด Modal แบบทันที
+            closeCardModal(); 
+            
+            // แสดง Pop-up สวยๆ เด้งขึ้นมากลางจอ
+            showAlert('บันทึกสำเร็จ!', `${actionText} ของคุณ ${fName} ลงในระบบเรียบร้อยแล้ว`, 'success');
+            
+            // ใช้เทคนิค setTimeout เพื่อให้บราวเซอร์วาดหน้าจอ (ปิดฟอร์ม/เปิด Alert) ให้เสร็จก่อน
+            // แล้วค่อยไปแอบโหลดตารางและ AI เบื้องหลัง (ป้องกันอาการค้างกระตุก)
+            setTimeout(() => {
+                filterCardsTable(); 
+                initFaceMatcherForWebcam();
+            }, 100);
+        }
     }
 }
 
