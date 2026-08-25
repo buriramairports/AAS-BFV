@@ -3795,39 +3795,43 @@ if ('speechSynthesis' in window) {
     const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw6CzipVCEniPpegkUjmv6_Xk97dqxOZSXauc6jxCGF4dOxkMIXgpNpFYQV3giRFZFe/exec'; 
 
     function apiCall(action, data={}, showLoadingUI = true) {
-    if(showLoadingUI) showLoader();
-    
-    return fetch(GAS_WEB_APP_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: action, data: data }),
-        mode: 'cors' 
-    })
-    .then(response => response.json())
-    .then(res => {
-        if(showLoadingUI) hideLoader(); 
-        if(!res.success) { 
-            if(res.data && res.data.requireCompanionAlert) { 
+        if(showLoadingUI) showLoader();
+        
+        return fetch(GAS_WEB_APP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: action, data: data }),
+            mode: 'cors' 
+        })
+        .then(response => response.json())
+        .then(res => {
+            if(showLoadingUI) hideLoader(); 
+            if(!res.success) { 
+                if(res.data && res.data.requireCompanionAlert) { 
+                    return res.data; 
+                } else { 
+                    // แสดง Alert เฉพาะตอนที่เราตั้งใจกดปุ่มทำงานเท่านั้น (โหมดเบื้องหลังให้เงียบไว้)
+                    if(showLoadingUI) showAlert('เกิดข้อผิดพลาด', res.error, 'error'); 
+                    const systemError = new Error(res.error);
+                    systemError.isSystemError = true;
+                    throw systemError; 
+                }
+            } else {
                 return res.data; 
-            } else { 
-                showAlert('เกิดข้อผิดพลาด', res.error, 'error'); 
-                const systemError = new Error(res.error);
-                systemError.isSystemError = true;
-                throw systemError; 
             }
-        } else {
-            return res.data; 
-        }
-    })
-    .catch(err => {
-        if(showLoadingUI) hideLoader(); 
-        if (!err.isSystemError) {
-            showToast('การเชื่อมต่อล้มเหลว โปรดตรวจสอบอินเทอร์เน็ต', 'error'); 
-        }
-        console.error(err);
-        throw err;
-    });
-}
+        })
+        .catch(err => {
+            if(showLoadingUI) hideLoader(); 
+            
+            // --- จุดแก้ไขสำคัญ ---
+            // ถ้าเป็นการซิงค์เบื้องหลัง (showLoadingUI = false) จะไม่แสดง Toast แจ้งเน็ตหลุดกวนใจ
+            if (!err.isSystemError && showLoadingUI) {
+                showToast('การเชื่อมต่อล้มเหลว โปรดตรวจสอบอินเทอร์เน็ต', 'error'); 
+            }
+            console.error("API Call Error:", err);
+            throw err;
+        });
+    }
 /////////////////////////ฟังก์ชันเปิด/ปิดกล้องแบบ Hybrid
 let isCameraActive = false;
 
@@ -8843,34 +8847,39 @@ processMainScan = function() {
     }
 
 async function previewIdCard(id) {
-    showLoader('กำลังเตรียมข้อมูลรูปภาพบัตร...');
+    showLoader('กำลังจัดเตรียมบัตร...');
     try {
-        // 1. ค้นหาข้อมูลบัตร (ใช้ Number() เพื่อความแม่นยำ)
         const c = allCards.find(x => Number(x.id) == Number(id));
         if (!c) throw new Error('ไม่พบข้อมูลบัตรในฐานข้อมูล');
         const t = typeCards.find(x => parseInt(x.id) === parseInt(c.typeId)) || {};
 
-        // 2. โหลดเทมเพลตบัตร
         document.getElementById('tplFrontImg').src = systemSettings.cardTplFront || '';
         document.getElementById('tplBackImg').src = systemSettings.cardTplBack || '';
 
-        // 3. จัดการรูปโปรไฟล์
+        // --- 1. จัดการรูปโปรไฟล์ (อัปเกรดความเร็วขั้นสุด ไม่ต้องพึ่ง Backend) ---
         const imgEl = document.getElementById('renderPhoto');
         const iconEl = document.getElementById('renderPhotoIcon');
+        
         if (c.imageUrl && c.imageUrl.trim() !== '') { 
-            try {
-                const b64 = await apiCall('getDriveImageBase64', { url: c.imageUrl }, false);
-                imgEl.src = b64 || c.imageUrl; 
-                imgEl.classList.remove('hidden'); iconEl.classList.add('hidden'); 
-            } catch(e) {
-                imgEl.src = c.imageUrl; 
-                imgEl.classList.remove('hidden'); iconEl.classList.add('hidden'); 
+            let fastImageUrl = c.imageUrl;
+            
+            // ใช้เทคนิคดึงรหัสไฟล์ และแปลงเป็นลิงก์ Content ความเร็วสูงของ Google
+            const idMatch = fastImageUrl.match(/id=([^&]+)/);
+            if (idMatch && idMatch[1]) {
+                fastImageUrl = `https://lh3.googleusercontent.com/d/${idMatch[1]}=s800`;
             }
+            
+            imgEl.crossOrigin = "anonymous"; // สำคัญมาก เพื่อให้ปริ้น PDF ได้ไม่ติดดำ
+            imgEl.src = fastImageUrl; 
+            imgEl.classList.remove('hidden'); 
+            iconEl.classList.add('hidden'); 
         } else { 
-            imgEl.src = ''; imgEl.classList.add('hidden'); iconEl.classList.remove('hidden'); 
+            imgEl.src = ''; 
+            imgEl.classList.add('hidden'); 
+            iconEl.classList.remove('hidden'); 
         }
 
-        // 4. ข้อมูลหน้าบัตร
+        // 2. ข้อมูลหน้าบัตร
         document.getElementById('renderLblPos').textContent = systemSettings.lblPos || 'ตำแหน่ง';
         document.getElementById('renderLblOrg').textContent = systemSettings.lblOrg || 'สังกัด';
         document.getElementById('renderLblExp').textContent = systemSettings.lblExp || 'หมดอายุ';
@@ -8880,7 +8889,7 @@ async function previewIdCard(id) {
         document.getElementById('renderExp').textContent = formatDateOnly(c.expiryDate);
         document.getElementById('renderCardId').textContent = c.cardId || '-';
 
-        // 5. ปรับปรุงการควบคุมป้ายสถานะ (ล็อคตำแหน่งไม่ให้กรอบพื้นที่เลื่อน)
+        // 3. ปรับปรุงการควบคุมป้ายสถานะ
         const tempEl = document.getElementById('renderTemp');
         const escortEl = document.getElementById('renderEscort');
         const driveEl = document.getElementById('renderDrive');
@@ -8889,7 +8898,6 @@ async function previewIdCard(id) {
         const noComp = !isTrue(t.requireCompanion);
         const canDrive = isTrue(c.canDrive);
 
-        // ล็อคความสูงของป้ายสถานะไว้ที่ 28px เสมอ เพื่อจองพื้นที่ไว้ไม่ให้ข้างล่างเลื่อนขึ้น
         tempEl.style.setProperty('display', 'block', 'important'); 
         tempEl.style.setProperty('min-height', '28px', 'important'); 
         tempEl.style.setProperty('line-height', '28px', 'important'); 
@@ -8899,28 +8907,24 @@ async function previewIdCard(id) {
             tempEl.style.setProperty('visibility', 'visible', 'important');
             tempEl.style.setProperty('opacity', '1', 'important');
         } else {
-            // กรณีไม่ใช่บัตรชั่วคราว: ใส่ข้อความไว้แต่ใช้ visibility: hidden เพื่อให้จองพื้นที่ความสูงไว้ ( Layout ไม่เสีย)
             tempEl.textContent = "บัตรถาวร"; 
             tempEl.style.setProperty('visibility', 'hidden', 'important');
             tempEl.style.setProperty('opacity', '0', 'important');
         }
 
-        // ส่วนป้าย UNESCORT และ DRIVE (แสดงต่อท้ายพื้นที่แสกน ไม่กระทบตำแหน่งหลัก)
         escortEl.style.setProperty('display', (isTemp && noComp) ? "block" : "none", 'important');
         driveEl.style.setProperty('display', canDrive ? "block" : "none", 'important');
 
-        // 6. พื้นที่ Area Boxes (1-4 พื้นที่) - คืนค่าระบบ Grid 2x2 และป้องกัน Error
+        // 4. พื้นที่ Area Boxes
         const areaContainer = document.getElementById('renderAreaBoxes');
         if (areaContainer) {
-            areaContainer.innerHTML = ''; // ล้างค่าเก่า
-            
-            // รีเซ็ตสไตล์กลับเป็นค่าเริ่มต้น (แนวตั้ง) ก่อนเผื่อกรณีพรีวิวใบก่อนหน้าเป็นแบบ Grid
+            areaContainer.innerHTML = ''; 
             areaContainer.style.display = 'flex';
             areaContainer.style.flexDirection = 'column';
             areaContainer.style.gridTemplateColumns = 'none';
             areaContainer.style.gap = '1px';
 
-            if (c.areaAccessIds !== undefined && c.areaAccessIds !== null && String(c.areaAccessIds).trim() !== "") {
+            if (c.areaAccessIds) {
                 const arr = String(c.areaAccessIds).split(',').map(x => x.trim()).filter(x => x !== "");
                 let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
                 aData.sort((a, b) => Number(a.areaNumber) - Number(b.areaNumber));
@@ -8934,28 +8938,18 @@ async function previewIdCard(id) {
                     } else if (count === 2) { 
                         boxW = "62px"; boxH = "62px"; fSize = "55px"; comp = "0.24em"; 
                     } else { 
-                        // --- กรณีมี 3 หรือ 4 พื้นที่: บังคับเปลี่ยนเป็น Grid 2x2 ---
                         areaContainer.style.display = 'grid';
-                        areaContainer.style.gridTemplateColumns = 'repeat(2, 58px)'; // แบ่ง 2 คอลัมน์ คอลัมน์ละ 58px
+                        areaContainer.style.gridTemplateColumns = 'repeat(2, 58px)';
                         areaContainer.style.justifyContent = 'center';
                         areaContainer.style.gap = '2px';
-                        
                         boxW = "58px"; boxH = "58px"; fSize = "50px"; comp = "0.23em"; 
                     }
                     
                     areaContainer.innerHTML = aData.slice(0, 4).map(a => `
                         <div class="area-square-fixed" 
-                             style="background-color: ${a.colorCode}; 
-                                    color: ${getContrastYIQ(a.colorCode)}; 
-                                    width: ${boxW} !important; 
-                                    height: ${boxH} !important; 
-                                    font-size: ${fSize} !important; 
-                                    padding-bottom: ${comp} !important; 
-                                    border: 1px solid #1e1b4b !important;
-                                    display: flex !important;
-                                    align-items: center !important;
-                                    justify-content: center !important;
-                                    box-sizing: border-box !important;">
+                             style="background-color: ${a.colorCode}; color: ${getContrastYIQ(a.colorCode)}; 
+                                    width: ${boxW} !important; height: ${boxH} !important; 
+                                    font-size: ${fSize} !important; padding-bottom: ${comp} !important;">
                             ${a.areaNumber}
                         </div>
                     `).join('');
@@ -8963,7 +8957,7 @@ async function previewIdCard(id) {
             }
         }
 
-        // 7. ข้อมูลหลังบัตร (ดึงข้อมูลกฎระเบียบและส่วนท้าย)
+        // 5. ข้อมูลหลังบัตร
         document.getElementById('renderRulesTitle1').textContent = systemSettings.cardRulesTitle1 || 'ข้อควรปฏิบัติ';
         document.getElementById('renderRulesTitle2').textContent = systemSettings.cardRulesTitle2 || '';
         document.getElementById('renderRulesTitle3').textContent = systemSettings.cardRulesTitle3 || '';
@@ -8973,7 +8967,7 @@ async function previewIdCard(id) {
         document.getElementById('renderFooter2').textContent = systemSettings.cardFooterLine2 || '';
         document.getElementById('renderFooter3').textContent = systemSettings.cardFooterLine3 || '';
 
-        // 8. บาร์โค้ด
+        // 6. บาร์โค้ด
         document.getElementById('renderBarcode').textContent = `*${c.cardId}*`;
         document.getElementById('renderBarcodeText').textContent = c.cardId;
 
@@ -9155,11 +9149,27 @@ function testFullNotification() {
 async function previewVehicleCard(id) {
     showLoader('กำลังเตรียมข้อมูลบัตรรถ...');
     try {
-        // 1. ค้นหาข้อมูลรถและประเภทบัตรรถ
         const v = allVehicles.find(x => Number(x.id) === Number(id));
         const t = typeVehicles.find(x => Number(x.id) === Number(v.typeId)) || {};
-
         if (!v) throw new Error("ไม่พบข้อมูลยานพาหนะ");
+
+        // --- เพิ่มการแปลงลิงก์ความเร็วสูงให้ Template พื้นหลัง ---
+        const frontTpl = document.getElementById('tplFrontImgV');
+        const backTpl = document.getElementById('tplBackImgV');
+        frontTpl.crossOrigin = "anonymous";
+        backTpl.crossOrigin = "anonymous";
+        
+        let fUrl = systemSettings.cardTplFrontV || '';
+        let bUrl = systemSettings.cardTplBackV || '';
+        
+        // แปลงลิงก์ให้โหลดไว
+        const fMatch = fUrl.match(/id=([^&]+)/);
+        if(fMatch) fUrl = `https://lh3.googleusercontent.com/d/${fMatch[1]}=s800`;
+        const bMatch = bUrl.match(/id=([^&]+)/);
+        if(bMatch) bUrl = `https://lh3.googleusercontent.com/d/${bMatch[1]}=s800`;
+
+        frontTpl.src = fUrl;
+        backTpl.src = bUrl;
 
         // 2. โหลดรูปพื้นหลังเทมเพลต
         document.getElementById('tplFrontImgV').src = systemSettings.cardTplFrontV || '';
