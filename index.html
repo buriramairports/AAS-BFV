@@ -4015,47 +4015,77 @@ function toggleHybridCamera() {
     }
 
     // 1. เปลี่ยนให้ใช้ apiCall() แทน google.script.run
-    function fetchInitialData() {
-    apiCall('getInitialData', {}, false)
-        .then(data => {
-            try {
-                if(data) {
-                    if(data.settings) { systemSettings = {...systemSettings, ...data.settings}; applySettingsToUI(); }
-                    allGates = data.gates || [];
-                    typeCards = data.typeCards || [];
-                    recentLogs = data.recentLogs || [];
-                    allCards = data.allCards || [];
-                    cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
-                    monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
-                    allAreas = data.areas || [];
-                    
-                    // >>> เพิ่ม 2 บรรทัดนี้เพื่อให้ข้อมูลรถพร้อมใช้งาน <<<
-                    allVehicles = data.allVehicles || [];
-                    typeVehicles = data.typeVehicles || [];
-                    // -------------------------------------------
-					//checkGatePermissions();
-                    updateGateSelects(); 
-					document.getElementById('scanGateSelect').value = ""; 
-					checkGatePermissions();
-                    if(currentPage === 'home') {
-                        renderHomeDashboard(); 
-                        renderRecentLogsTable(); 
-                        initBanner();
-                    }
-                }
-            } catch(e) {
-                console.error("Error rendering UI:", e);
-            } finally {
-                // บังคับปิดหน้าโหลดเสมอ
-                hideInitialSplash();
+    // ==========================================
+    // ชุดระบบโหลดข้อมูลแบบมี Progress Bar
+    // ==========================================
+    async function fetchInitialData() {
+        const splashText = document.getElementById('splashStatusText');
+        const splashBar = document.getElementById('splashProgressBar');
+        const splashPct = document.getElementById('splashPercentText');
+
+        // ฟังก์ชันช่วยอัปเดตหน้าจอ
+        const updateSplash = (pct, text) => {
+            splashBar.style.width = pct + '%';
+            splashPct.textContent = pct + '%';
+            splashText.textContent = text;
+        };
+
+        try {
+            updateSplash(10, 'กำลังเชื่อมต่อฐานข้อมูล...');
+
+            // Step 1: โหลดการตั้งค่าและโครงสร้าง
+            const meta = await apiCall('getInitMeta', {}, false);
+            updateSplash(30, 'กำลังโหลดการตั้งค่าระบบและพื้นที่...');
+            if(meta.settings) { systemSettings = {...systemSettings, ...meta.settings}; applySettingsToUI(); }
+            allGates = meta.gates || [];
+            typeCards = meta.typeCards || [];
+            allAreas = meta.areas || [];
+            typeVehicles = meta.typeVehicles || [];
+
+            // Step 2: โหลดข้อมูลพนักงาน
+            updateSplash(50, 'กำลังดาวน์โหลดฐานข้อมูลบัตรบุคคล...');
+            const cData = await apiCall('getInitCards', {}, false);
+            allCards = cData.allCards || [];
+            cardStats = cData.cardStats || { total:0, active:0, inactive:0, byType:{} };
+
+            // Step 3: โหลดข้อมูลยานพาหนะ
+            updateSplash(80, 'กำลังดาวน์โหลดฐานข้อมูลยานพาหนะ...');
+            const vData = await apiCall('getInitVehicles', {}, false);
+            allVehicles = vData.allVehicles || [];
+
+            // Step 4: โหลดสถิติและประวัติการแสกน
+            updateSplash(95, 'กำลังประมวลผลประวัติการเข้า-ออก...');
+            const dData = await apiCall('getInitDashboard', {}, false);
+            recentLogs = dData.recentLogs || [];
+            monthlyStats = dData.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
+
+            updateSplash(100, 'เตรียมระบบเสร็จสมบูรณ์!');
+
+            // --- วาดหน้าจอ ---
+            updateGateSelects(); 
+            document.getElementById('scanGateSelect').value = ""; 
+            checkGatePermissions();
+            
+            if(currentPage === 'home') {
+                renderHomeDashboard(); 
+                renderRecentLogsTable(); 
+                initBanner();
             }
-        })
-        .catch(e => {
+
+            // หน่วงเวลา 0.5 วินาทีให้เห็นว่าเต็ม 100% แล้วค่อยซ่อนหน้าจอ
+            setTimeout(() => hideInitialSplash(), 500);
+
+        } catch (e) {
             console.error("Load failed:", e);
-            hideInitialSplash(); 
+            splashText.textContent = 'เกิดข้อผิดพลาดในการเชื่อมต่อ!';
+            splashBar.classList.replace('from-green-400', 'from-red-500');
+            splashBar.classList.replace('to-emerald-300', 'to-red-600');
             showToast("ไม่สามารถโหลดข้อมูลจากเซิร์ฟเวอร์ได้", "error");
-        });
-}
+            
+            // ถึงจะโหลดพัง แต่ก็ให้เข้าไปหน้า Login ได้ (เผื่อใช้งานโหมดออฟไลน์)
+            setTimeout(() => hideInitialSplash(), 2000);
+        }
+    }
 
     // 2. เปลี่ยนปุ่มรีเฟรชข้อมูลหน้า Home
     function refreshHomeData() {
