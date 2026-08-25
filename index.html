@@ -4330,7 +4330,13 @@ function navigateTo(p){
     else if(p === 'manageAreas') renderAreasTable();
     else if(p === 'manageGates') renderGatesGrid();
     else if(p === 'userManagement') loadUsers();
-    else if(p === 'reports') setupReportFilters();
+    else if(p === 'reports') {
+        // เช็คว่าถ้า Dropdown เดือน/ปี เคยถูกสร้างไปแล้ว (มีตัวเลือกมากกว่า 1) 
+        // แปลว่าเคยโหลดแล้ว ให้ "ข้ามการโหลดใหม่" ไปเลยครับ (โชว์ข้อมูลเดิมทันที 0 วินาที)
+        if (document.getElementById('reportMonth').options.length <= 1) {
+            setupReportFilters();
+        }
+    }
     else if(p === 'settings') loadSettings();
     else if(p === 'profile') loadProfile();
     else if(p === 'manageVehicles') {
@@ -6352,19 +6358,50 @@ async function confirmDeleteUser(id, username) {
         const yText = y ? (parseInt(y) + 543) : '';
         const gText = g === 'SYSTEM_FORCE' ? 'ระบบบังคับออกทั้งหมด' : (g ? g : 'ทุกจุดเข้าออก');
 
-        // โชว์หน้าจอโหลด พร้อมบอกรายละเอียดให้ชัดเจน
-        showLoader(`กำลังค้นหาข้อมูลฐานข้อมูล...<br><span class="text-sm text-green-200 mt-2 block tracking-wider font-normal">เดือน ${mText} ${yText}</span>`);
+        // 1. เปิดจอโหลด
+        showLoader(`กำลังเตรียมค้นหาข้อมูล...`);
+        
+        // --- ฟังก์ชันย่อยสำหรับวาดหลอดเปอร์เซ็นต์ ---
+        const updateReportProgress = (pct, msg) => {
+            document.getElementById('loaderText').innerHTML = msg;
+            document.getElementById('loaderProgressContainer').classList.remove('hidden');
+            document.getElementById('loaderProgressText').classList.remove('hidden');
+            document.getElementById('loaderProgressBar').style.width = pct + '%';
+            document.getElementById('loaderProgressText').innerHTML = `ความคืบหน้า <span class="text-white font-bold">${pct}%</span>`;
+        };
+
+        // 2. จำลองหลอดวิ่ง (Fake Progress) ให้ผู้ใช้เห็นว่าระบบกำลังกวาดข้อมูล
+        let fakePct = 10;
+        updateReportProgress(fakePct, `กำลังเชื่อมต่อฐานข้อมูล...<br><span class="text-sm text-green-200 mt-2 block tracking-wider font-normal">เดือน ${mText} ${yText}</span>`);
+        
+        const fakeProgress = setInterval(() => {
+            if (fakePct < 85) {
+                // ให้หลอดค่อยๆ วิ่งเพิ่มทีละนิด
+                fakePct += Math.floor(Math.random() * 15) + 5;
+                if (fakePct > 85) fakePct = 85; 
+                updateReportProgress(fakePct, `กำลังดึงประวัติและคัดกรองข้อมูล...<br><span class="text-sm text-green-200 mt-2 block tracking-wider font-normal">เดือน ${mText} ${yText}</span>`);
+            }
+        }, 500);
 
         try {
-            // ส่งไปให้เซิร์ฟเวอร์คัดกรองข้อมูลส่งกลับมาเป็นก้อนเล็กๆ
-            reportLogs = await apiCall('getFilteredLogs', { month: m, year: y, gate: g });
+            // 3. ยิงคำสั่งไปหาเซิร์ฟเวอร์ (ใส่ false เพื่อไม่ให้ไปกวนหลอดโหลดที่เราสร้างเอง)
+            reportLogs = await apiCall('getFilteredLogs', { month: m, year: y, gate: g }, false);
             
-            // หลังจากเซิร์ฟเวอร์กรองให้แล้ว เราก็เอามาแสดงผล
-            filterAndRenderReport(mText, yText, gText);
+            // 4. เมื่อเซิร์ฟเวอร์ตอบกลับมา ให้หลอดวิ่งเต็ม 100% ทันที
+            clearInterval(fakeProgress);
+            updateReportProgress(100, 'ดึงข้อมูลสำเร็จ กำลังเตรียมแสดงผล...');
+            
+            // หน่วงเวลา 0.4 วินาทีให้คนเห็นว่า 100% แล้วค่อยเปิดตาราง
+            setTimeout(() => {
+                filterAndRenderReport(mText, yText, gText);
+                hideLoader();
+            }, 400);
+
         } catch (e) {
+            clearInterval(fakeProgress);
+            hideLoader();
             showToast('ดึงข้อมูลรายงานล้มเหลว', 'error');
         }
-        hideLoader();
     }
 
 	 // ปรับปรุงฟังก์ชันแสดงผล เพราะไม่ต้องมานั่งกรองด้วย JS แล้ว
