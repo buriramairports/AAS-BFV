@@ -129,9 +129,24 @@ gap: 1px !important;
 </head>
 <body class="h-full bg-gray-50">
   
+  <!-- หน้าจอ Loading ตอนเข้าเว็บครั้งแรก -->
   <div id="initialSplash" class="fixed inset-0 bg-green-900 z-[10000] flex flex-col items-center justify-center transition-opacity duration-700">
-    <div class="spinner mb-4 border-white/30 border-t-white"></div>
-    <p class="text-white font-medium text-lg tracking-wide animate-pulse">กำลังเตรียมระบบ...</p>
+      <!-- ไอคอนโลโก้ -->
+      <div class="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center mb-6 border-4 border-white/20 shadow-xl relative overflow-hidden">
+          <i data-lucide="shield-check" class="w-12 h-12 text-white animate-pulse relative z-10"></i>
+          <div class="absolute inset-0 bg-green-500/20 animate-ping"></div>
+      </div>
+      
+      <!-- ข้อความสถานะ -->
+      <p id="splashStatusText" class="text-white font-medium text-lg tracking-wide mb-3 animate-pulse">กำลังเชื่อมต่อเซิร์ฟเวอร์...</p>
+      
+      <!-- หลอด Progress Bar -->
+      <div class="w-64 sm:w-80 bg-black/30 rounded-full h-2.5 overflow-hidden shadow-inner border border-white/10">
+          <div id="splashProgressBar" class="bg-gradient-to-r from-green-400 to-emerald-300 h-full rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+      </div>
+      
+      <!-- ตัวเลข % -->
+      <p id="splashPercentText" class="text-green-200 text-xs mt-2 font-black tracking-widest">0%</p>
   </div>
 
   <div id="globalLoader" class="fixed inset-0 bg-green-900/80 hidden flex-col items-center justify-center z-[9999] backdrop-blur-md transition-all">
