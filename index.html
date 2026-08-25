@@ -3042,27 +3042,39 @@ async function fetchVehiclesData() {
 /**
  * 1. ฟังก์ชันรีเฟรชข้อมูลรถทั้งหมด
  */
+/**
+ * รีเฟรชข้อมูลเฉพาะยานพาหนะ (โหลดไว ไม่รบกวนตารางคน)
+ */
 async function refreshVehiclesData() {
-    // ถ้าหน้าปัจจุบันไม่ใช่หน้าจัดการรถ และไม่ใช่การเรียกจากปุ่ม Refresh ไม่ต้องโชว์ Loader ใหญ่
     showLoader('กำลังอัพเดตข้อมูลยานพาหนะ...');
-    
     try {
-        const data = await apiCall('getInitialData', {}, false);
-        if (data) {
-            allVehicles = data.allVehicles || [];
-            typeVehicles = data.typeVehicles || [];
-            currentFilteredVehicles = [...allVehicles]; // สำคัญ: ต้องก๊อปปี้ข้อมูลลงตัวแปร Filter
+        // ดึงเฉพาะข้อมูลที่จำเป็นสำหรับรถเท่านั้น!
+        const vData = await apiCall('getVehicles', {}, false);
+        const vTypes = await apiCall('getTypeVehicles', {}, false);
+        
+        if (vData) {
+            allVehicles = vData;
+            typeVehicles = vTypes;
+            currentFilteredVehicles = [...allVehicles]; 
             
-            // วาด Dashboard
-            renderVehicleDashboard(data.vehicleStats);
-            // วาดตาราง
+            // คำนวณสถิติรถ (ฝั่งหน้าเว็บ)
+            let vStats = { total: allVehicles.length, active: 0, byType: {} };
+            allVehicles.forEach(v => {
+                if (v.status === 'active') vStats.active++;
+                const t = typeVehicles.find(type => parseInt(type.id) === parseInt(v.typeId));
+                if (t) {
+                    if (!vStats.byType[t.typeName]) vStats.byType[t.typeName] = 0;
+                    vStats.byType[t.typeName]++;
+                }
+            });
+
+            renderVehicleDashboard(vStats);
             filterVehiclesTable();
+            showToast('อัพเดตข้อมูลรถล่าสุดเรียบร้อย', 'success');
         }
     } catch (err) {
-        console.error("Refresh Vehicles Error:", err);
         showToast('ไม่สามารถดึงข้อมูลได้', 'error');
     } finally {
-        // ไม่ว่าจะสำเร็จหรือพัง ต้องปิดหน้าจอโหลดเสมอ
         hideLoader(); 
     }
 }
@@ -4228,47 +4240,53 @@ function toggleHybridCamera() {
     lucide.createIcons();
 }
 
-    function navigateTo(p){
+    // ==========================================
+// สลับหน้าเมนูแบบ Instant Load (โหลดทันที 0 วินาที)
+// ==========================================
+function navigateTo(p){
     forceShutdownCamera(); 
     
     currentPage = p; 
     document.querySelectorAll('.page').forEach(x => x.classList.add('hidden')); 
     document.getElementById(p + 'Page').classList.remove('hidden');
-        document.querySelectorAll('.sidebar-item').forEach(i => { i.classList.remove('active'); 
-		if(i.dataset.page===p) i.classList.add('active'); });
-        toggleSidebar(false);
-        
-        if(p==='home') { initBanner(); renderHomeDashboard(); renderRecentLogsTable(); setTimeout(()=>document.getElementById('scanInput').focus(), 300); }
-        else if(p==='manageCards') fetchAllCardsAndRender();
-        // --- แทรกลงตรงนี้ครับ ---
-        else if(p === 'activeInside') { 
-    		fetchAllCardsAndRender().then(() => renderActiveInsideTable()); 
     
-   		 // --- เพิ่ม 3 บรรทัดนี้เข้าไป ---
-   		 if (currentUser.role === 'user') {
-        	document.getElementById('btnForceOutAll').style.display = 'none'; // ซ่อนปุ่มถ้าเป็น User
-    	} else {
-        	document.getElementById('btnForceOutAll').style.display = 'flex'; // โชว์ปุ่มถ้าเป็น Admin
-    	}
-}
-        // ---------------------
-        else if(p==='manageTypeCards') renderTypeCardsTable();
-		else if(p==='manageAreas') renderAreasTable();
-        else if(p==='manageGates') renderGatesGrid();
-        else if(p==='userManagement') loadUsers();
-        else if(p==='reports') { setupReportFilters(); }
-        else if(p==='settings') loadSettings();
-        else if(p==='profile') loadProfile();
-		 else if(p === 'manageVehicles') {
-        // วาด Filter ประเภทรถก่อน
+    document.querySelectorAll('.sidebar-item').forEach(i => { 
+        i.classList.remove('active'); 
+        if(i.dataset.page === p) i.classList.add('active'); 
+    });
+    
+    toggleSidebar(false);
+    
+    // --- จุดที่อัปเกรด: ใช้ข้อมูลในความจำมาวาดหน้าจอทันที ไม่ต้องรอโหลดเซิร์ฟเวอร์! ---
+    if(p === 'home') { 
+        initBanner(); renderHomeDashboard(); renderRecentLogsTable(); 
+        setTimeout(() => document.getElementById('scanInput').focus(), 300); 
+    }
+    else if(p === 'manageCards') { 
+        // วาดตารางทันทีด้วยข้อมูลที่มีอยู่
+        document.getElementById('cardTypeFilter').innerHTML = '<option value="">ทุกประเภทบัตร</option>' + typeCards.map(t => `<option value="${t.id}">${t.typeName}</option>`).join('');
+        filterCardsTable(); 
+    }
+    else if(p === 'activeInside') { 
+        renderActiveInsideTable(); 
+        if (currentUser.role === 'user') document.getElementById('btnForceOutAll').style.display = 'none'; 
+        else document.getElementById('btnForceOutAll').style.display = 'flex'; 
+    }
+    else if(p === 'manageTypeCards') renderTypeCardsTable();
+    else if(p === 'manageAreas') renderAreasTable();
+    else if(p === 'manageGates') renderGatesGrid();
+    else if(p === 'userManagement') loadUsers();
+    else if(p === 'reports') setupReportFilters();
+    else if(p === 'settings') loadSettings();
+    else if(p === 'profile') loadProfile();
+    else if(p === 'manageVehicles') {
         document.getElementById('vehicleTypeFilter').innerHTML = '<option value="">ทุกประเภทบัตรรถ</option>' + typeVehicles.map(t => `<option value="${t.id}">${t.typeName}</option>`).join('');
-        // สั่งโหลดข้อมูลและวาดตาราง
-        refreshVehiclesData(); 
+        filterVehiclesTable(); // วาดตารางรถทันที
     }
     else if(p === 'manageTypeVehicles') {
         renderTypeVehiclesTable();
     }
-    }
+}
     function toggleSidebar(show=true){ document.getElementById('sidebar').classList.toggle('-translate-x-full',!show); document.getElementById('sidebarOverlay').classList.toggle('hidden',!show); }
 
     // ==========================================
