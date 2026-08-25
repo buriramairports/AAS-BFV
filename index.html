@@ -4018,44 +4018,60 @@ function toggleHybridCamera() {
     // ==========================================
     // ชุดระบบโหลดข้อมูลแบบมี Progress Bar
     // ==========================================
+    // ==========================================
+    // ชุดระบบโหลดข้อมูลแบบมี Progress Bar + ระบบ Auto-Retry (ลองใหม่เมื่อล้มเหลว)
+    // ==========================================
     async function fetchInitialData() {
         const splashText = document.getElementById('splashStatusText');
         const splashBar = document.getElementById('splashProgressBar');
         const splashPct = document.getElementById('splashPercentText');
 
-        // ฟังก์ชันช่วยอัปเดตหน้าจอ
         const updateSplash = (pct, text) => {
             splashBar.style.width = pct + '%';
             splashPct.textContent = pct + '%';
-            splashText.textContent = text;
+            splashText.innerHTML = text; // ใช้ innerHTML เพื่อให้รองรับการขึ้นบรรทัดใหม่
+        };
+
+        // --- ฟังก์ชันอัจฉริยะ: พยายามดึงข้อมูลจนกว่าจะสำเร็จ (ทนทานต่อเน็ตหลุด) ---
+        const fetchWithRetry = async (stepName, action, pctTarget) => {
+            let success = false;
+            let data = null;
+            let attempt = 1;
+            
+            while (!success) {
+                try {
+                    updateSplash(pctTarget, `กำลัง${stepName}...`);
+                    data = await apiCall(action, {}, false);
+                    success = true;
+                } catch (e) {
+                    // ถ้าดึงไม่สำเร็จ จะแจ้งเตือนตัวแดง และนับถอยหลัง 3 วิเพื่อลองใหม่
+                    updateSplash(pctTarget, `<span class="text-red-400 font-bold">ผิดพลาด: ${stepName}</span><br><span class="text-sm text-red-200">กำลังลองใหม่ครั้งที่ ${attempt}...</span>`);
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    attempt++;
+                }
+            }
+            return data;
         };
 
         try {
             updateSplash(10, 'กำลังเชื่อมต่อฐานข้อมูล...');
 
-            // Step 1: โหลดการตั้งค่าและโครงสร้าง
-            const meta = await apiCall('getInitMeta', {}, false);
-            updateSplash(30, 'กำลังโหลดการตั้งค่าระบบและพื้นที่...');
+            // นำฟังก์ชันอัจฉริยะมาใช้กับทั้ง 4 ขั้นตอน
+            const meta = await fetchWithRetry('โหลดการตั้งค่าระบบและพื้นที่', 'getInitMeta', 30);
             if(meta.settings) { systemSettings = {...systemSettings, ...meta.settings}; applySettingsToUI(); }
             allGates = meta.gates || [];
             typeCards = meta.typeCards || [];
             allAreas = meta.areas || [];
             typeVehicles = meta.typeVehicles || [];
 
-            // Step 2: โหลดข้อมูลพนักงาน
-            updateSplash(50, 'กำลังดาวน์โหลดฐานข้อมูลบัตรบุคคล...');
-            const cData = await apiCall('getInitCards', {}, false);
+            const cData = await fetchWithRetry('ดาวน์โหลดฐานข้อมูลบัตรบุคคล', 'getInitCards', 50);
             allCards = cData.allCards || [];
             cardStats = cData.cardStats || { total:0, active:0, inactive:0, byType:{} };
 
-            // Step 3: โหลดข้อมูลยานพาหนะ
-            updateSplash(80, 'กำลังดาวน์โหลดฐานข้อมูลยานพาหนะ...');
-            const vData = await apiCall('getInitVehicles', {}, false);
+            const vData = await fetchWithRetry('ดาวน์โหลดฐานข้อมูลยานพาหนะ', 'getInitVehicles', 80);
             allVehicles = vData.allVehicles || [];
 
-            // Step 4: โหลดสถิติและประวัติการแสกน
-            updateSplash(95, 'กำลังประมวลผลประวัติการเข้า-ออก...');
-            const dData = await apiCall('getInitDashboard', {}, false);
+            const dData = await fetchWithRetry('ประมวลผลประวัติการเข้า-ออก', 'getInitDashboard', 95);
             recentLogs = dData.recentLogs || [];
             monthlyStats = dData.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
 
@@ -4072,17 +4088,10 @@ function toggleHybridCamera() {
                 initBanner();
             }
 
-            // หน่วงเวลา 0.5 วินาทีให้เห็นว่าเต็ม 100% แล้วค่อยซ่อนหน้าจอ
             setTimeout(() => hideInitialSplash(), 500);
 
         } catch (e) {
-            console.error("Load failed:", e);
-            splashText.textContent = 'เกิดข้อผิดพลาดในการเชื่อมต่อ!';
-            splashBar.classList.replace('from-green-400', 'from-red-500');
-            splashBar.classList.replace('to-emerald-300', 'to-red-600');
-            showToast("ไม่สามารถโหลดข้อมูลจากเซิร์ฟเวอร์ได้", "error");
-            
-            // ถึงจะโหลดพัง แต่ก็ให้เข้าไปหน้า Login ได้ (เผื่อใช้งานโหมดออฟไลน์)
+            console.error("Critical Load Error:", e);
             setTimeout(() => hideInitialSplash(), 2000);
         }
     }
@@ -6315,63 +6324,58 @@ async function confirmDeleteUser(id, username) {
     async function saveUser(){ let d={}; ['Username','FirstName','LastName','Organization','Role','Phone'].forEach(k=>d[k.charAt(0).toLowerCase()+k.slice(1)]=document.getElementById('user'+k).value); const id=document.getElementById('editUserId').value; if(!d.username || !d.firstName) return showToast('กรอกข้อมูล * ให้ครบ', 'error'); if(id){ d.id=parseInt(id); if(document.getElementById('userPasswordChange').value) d.password=document.getElementById('userPasswordChange').value; await apiCall('updateUser',d); showToast('แก้ไขสำเร็จ','success'); }else{ d.password=document.getElementById('userPassword').value; if(!d.password) return showToast('ตั้งรหัสผ่านด้วย','error'); await apiCall('addUser',d); showToast('เพิ่มสำเร็จ','success'); } closeUserModal(); loadUsers(); }
 
     // ==========================================
-    // 6. การรายงาน (Reports) - เข้าเมนูทันที ไม่ค้าง
+    // 6. การรายงาน (Reports) - ระบบค้นหาแบบเจาะจง
     // ==========================================
     function setupReportFilters() {
         let mH = '<option value="">ทุกเดือน</option>'; thaiMonths.forEach((m,i) => mH+=`<option value="${String(i+1).padStart(2,'0')}">${m}</option>`);
         let yH = ''; const cy = new Date().getFullYear(); for(let i=cy-2; i<=cy; i++) yH+=`<option value="${i}">${i+543}</option>`;
         
-        document.getElementById('reportMonth').innerHTML = mH; document.getElementById('reportMonth').value = String(new Date().getMonth()+1).padStart(2,'0'); 
-        document.getElementById('reportYear').innerHTML = yH; document.getElementById('reportYear').value = cy;
+        document.getElementById('reportMonth').innerHTML = mH; 
+        document.getElementById('reportMonth').value = String(new Date().getMonth()+1).padStart(2,'0'); 
+        document.getElementById('reportYear').innerHTML = yH; 
+        document.getElementById('reportYear').value = cy;
         
         let gateOptions = '<option value="">ทุกจุดเข้าออก</option>' + allGates.map(g => `<option value="${g.name}">${g.name}</option>`).join('');
         gateOptions += '<option value="SYSTEM_FORCE" class="text-red-600 font-bold">ระบบบังคับออก (ทั้งหมด)</option>';
         document.getElementById('reportGate').innerHTML = gateOptions;
         
-        // ถ้าเคยโหลดรายงานมาแล้ว ให้โชว์ของเก่าไปเลย (หน้าจอจะได้ไม่ค้าง)
-        if (reportLogs.length > 0) {
-            filterAndRenderReport();
-        } else {
-            // ถ้าเข้าครั้งแรก ให้แสดงตารางว่างๆ แล้วแอบดึงข้อมูล
-            generateReport();
-        }
+        // ตอนเข้าหน้ารายงานครั้งแรก ให้เริ่มดึงข้อมูลของ "เดือนปัจจุบัน" มาแสดงเลย
+        generateReport();
     }
 
     async function generateReport() {
-        showLoader('กำลังดึงฐานข้อมูลรายงาน...');
+        const m = document.getElementById('reportMonth').value;
+        const y = document.getElementById('reportYear').value;
+        const g = document.getElementById('reportGate').value;
+
+        const mText = m ? thaiMonths[parseInt(m)-1] : 'ทุกเดือน';
+        const yText = y ? (parseInt(y) + 543) : '';
+        const gText = g === 'SYSTEM_FORCE' ? 'ระบบบังคับออกทั้งหมด' : (g ? g : 'ทุกจุดเข้าออก');
+
+        // โชว์หน้าจอโหลด พร้อมบอกรายละเอียดให้ชัดเจน
+        showLoader(`กำลังค้นหาข้อมูลฐานข้อมูล...<br><span class="text-sm text-green-200 mt-2 block tracking-wider font-normal">เดือน ${mText} ${yText}</span>`);
+
         try {
-            reportLogs = await apiCall('getLogsForReport');
-            filterAndRenderReport();
+            // ส่งไปให้เซิร์ฟเวอร์คัดกรองข้อมูลส่งกลับมาเป็นก้อนเล็กๆ
+            reportLogs = await apiCall('getFilteredLogs', { month: m, year: y, gate: g });
+            
+            // หลังจากเซิร์ฟเวอร์กรองให้แล้ว เราก็เอามาแสดงผล
+            filterAndRenderReport(mText, yText, gText);
         } catch (e) {
             showToast('ดึงข้อมูลรายงานล้มเหลว', 'error');
         }
         hideLoader();
     }
 
-    function filterAndRenderReport() {
-        const m = document.getElementById('reportMonth').value, y = document.getElementById('reportYear').value, g = document.getElementById('reportGate').value;
-        
-        // --- ส่วนที่แก้ไข: ดักจับชื่อตอนโชว์ Header หากเลือกกรองแบบบังคับออก ---
-        const mText = m ? thaiMonths[parseInt(m)-1] : 'ทุกเดือน';
-        const yText = y ? (parseInt(y) + 543) : '';
-        const gText = g === 'SYSTEM_FORCE' ? 'ระบบบังคับออกทั้งหมด' : (g ? g : 'ทุกจุดเข้าออก');
+	 // ปรับปรุงฟังก์ชันแสดงผล เพราะไม่ต้องมานั่งกรองด้วย JS แล้ว
+    function filterAndRenderReport(mText, yText, gText) {
         const dynamicTitle = `รายงานการเข้าออกพื้นที่ ${gText} ประจำเดือน ${mText} ${yText}`;
         document.getElementById('reportPrintTitle').innerHTML = `<i data-lucide="file-text" class="w-4 h-4 inline mr-2 text-indigo-500"></i> ${dynamicTitle}`;
-        // --------------------------------------------------------
 
-        // 1. Filter ข้อมูลสำหรับ Dashboard รายเดือน (ไม่สนจุดเข้าออก)
-        let dashLogs = reportLogs;
-        if(y) {
-            let filterStr = y; if(m) filterStr += `-${m}`;
-            dashLogs = dashLogs.filter(L => L.timestamp.startsWith(filterStr));
-        }
-        
-        // --- สร้าง Dashboard บนหน้ารายงาน ---
-        const inC = dashLogs.filter(L=>L.ioType==='IN').length;
-        const outC = dashLogs.filter(L=>L.ioType==='OUT').length;
-        
-        // คำนวณตัวเลขบังคับออกรวมของเดือนนั้น เพื่อเอาไปโชว์ในกล่องรวม
-        const forceC = dashLogs.filter(l => l.gateName === 'System (Admin Force)' || l.gateName === 'System (Auto-Checkout)').length;
+        // --- Dashboard บนหน้ารายงาน ---
+        const inC = reportLogs.filter(L=>L.ioType==='IN').length;
+        const outC = reportLogs.filter(L=>L.ioType==='OUT').length;
+        const forceC = reportLogs.filter(L => L.gateName === 'System (Admin Force)' || L.gateName === 'System (Auto-Checkout)').length;
 
         document.getElementById('reportSummaryBox').innerHTML = `
             <div class="bg-gray-50 border p-3 rounded-xl flex justify-between items-center">
@@ -6379,28 +6383,18 @@ async function confirmDeleteUser(id, username) {
                     <p class="text-xs text-gray-500 font-bold mb-1">รายการรวมทั้งหมด</p>
                     ${forceC > 0 ? `<div class="text-[10px] text-red-500 font-medium whitespace-nowrap"><i data-lucide="info" class="w-3 h-3 inline"></i> บังคับออก ${forceC} รายการ</div>` : ''}
                 </div>
-                <p class="text-2xl font-black text-gray-800">${dashLogs.length}</p>
+                <p class="text-2xl font-black text-gray-800">${reportLogs.length}</p>
             </div>
             <div class="bg-green-50 border border-green-200 p-3 rounded-xl flex justify-between items-center"><div><p class="text-xs text-green-600 font-bold mb-1">เข้า (IN)</p></div><p class="text-2xl font-black text-green-700">${inC}</p></div>
             <div class="bg-orange-50 border border-orange-200 p-3 rounded-xl flex justify-between items-center"><div><p class="text-xs text-orange-600 font-bold mb-1">ออก (OUT)</p></div><p class="text-2xl font-black text-orange-700">${outC}</p></div>
         `;
-        renderGateStats(dashLogs, 'reportGatesBox');
+        
+        renderGateStats(reportLogs, 'reportGatesBox');
 
-        // 2. กรองข้อมูลสำหรับลง "ตาราง" (เอาจุดเข้าออกมาคิดด้วย)
-        let filtered = dashLogs; // ใช้ตัวที่กรองเวลาแล้วมาทำต่อ
-        if(g) {
-            // --- ส่วนที่แก้ไข: ดักจับการกรองข้อมูลตาราง ---
-            if (g === 'SYSTEM_FORCE') {
-                filtered = filtered.filter(L => L.gateName === 'System (Admin Force)' || L.gateName === 'System (Auto-Checkout)');
-            } else {
-                filtered = filtered.filter(L => L.gateName === g);
-            }
-        }
-        filtered.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-        window.currentReportFiltered = filtered;
+        window.currentReportFiltered = reportLogs; 
         reportPagination.page = 1;
 
-        document.getElementById('reportTotalCount').textContent = filtered.length;
+        document.getElementById('reportTotalCount').textContent = reportLogs.length;
         renderReportTable();
     }
 
