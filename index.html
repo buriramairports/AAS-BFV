@@ -6133,9 +6133,22 @@ async function saveCard() {
     async function deleteGate(id) { if(confirm('ลบจุดเข้าออกนี้?')) { await apiCall('deleteGate', {id}); allGates = allGates.filter(r=>r.id!==id); renderGatesGrid(); updateGateSelects(); showToast('ลบสำเร็จ', 'success'); } }
 
     // ==========================================
-    // 5. ผู้ใช้งาน (Users)
-    // ==========================================
-    async function loadUsers() { allSystemUsers = await apiCall('getUsers'); renderUsersTable(); }
+// 5. ผู้ใช้งาน (Users) - โหลดไวขึ้นด้วยระบบ Cache
+// ==========================================
+async function loadUsers() { 
+    // ถ้ายังไม่มีข้อมูลในเครื่อง ถึงจะไปโหลดจากเซิร์ฟเวอร์
+    if (allSystemUsers.length === 0) {
+        showLoader('กำลังโหลดข้อมูลผู้ใช้...');
+        try {
+            allSystemUsers = await apiCall('getUsers');
+        } catch (e) {
+            showToast('ดึงข้อมูลผู้ใช้ล้มเหลว', 'error');
+        }
+        hideLoader();
+    }
+    // วาดตารางทันที
+    renderUsersTable(); 
+}
     /**
  * แก้ไขฟังก์ชันแสดงตารางผู้ใช้: บังคับการส่งค่า ID
  */
@@ -6257,7 +6270,7 @@ async function confirmDeleteUser(id, username) {
     async function saveUser(){ let d={}; ['Username','FirstName','LastName','Organization','Role','Phone'].forEach(k=>d[k.charAt(0).toLowerCase()+k.slice(1)]=document.getElementById('user'+k).value); const id=document.getElementById('editUserId').value; if(!d.username || !d.firstName) return showToast('กรอกข้อมูล * ให้ครบ', 'error'); if(id){ d.id=parseInt(id); if(document.getElementById('userPasswordChange').value) d.password=document.getElementById('userPasswordChange').value; await apiCall('updateUser',d); showToast('แก้ไขสำเร็จ','success'); }else{ d.password=document.getElementById('userPassword').value; if(!d.password) return showToast('ตั้งรหัสผ่านด้วย','error'); await apiCall('addUser',d); showToast('เพิ่มสำเร็จ','success'); } closeUserModal(); loadUsers(); }
 
     // ==========================================
-    // 6. การรายงาน (Reports)
+    // 6. การรายงาน (Reports) - เข้าเมนูทันที ไม่ค้าง
     // ==========================================
     function setupReportFilters() {
         let mH = '<option value="">ทุกเดือน</option>'; thaiMonths.forEach((m,i) => mH+=`<option value="${String(i+1).padStart(2,'0')}">${m}</option>`);
@@ -6266,17 +6279,28 @@ async function confirmDeleteUser(id, username) {
         document.getElementById('reportMonth').innerHTML = mH; document.getElementById('reportMonth').value = String(new Date().getMonth()+1).padStart(2,'0'); 
         document.getElementById('reportYear').innerHTML = yH; document.getElementById('reportYear').value = cy;
         
-        // --- ส่วนที่แก้ไข: เพิ่มตัวเลือก ระบบบังคับออก เข้าไปใน Dropdown ประตู ---
         let gateOptions = '<option value="">ทุกจุดเข้าออก</option>' + allGates.map(g => `<option value="${g.name}">${g.name}</option>`).join('');
         gateOptions += '<option value="SYSTEM_FORCE" class="text-red-600 font-bold">ระบบบังคับออก (ทั้งหมด)</option>';
         document.getElementById('reportGate').innerHTML = gateOptions;
         
-        generateReport();
+        // ถ้าเคยโหลดรายงานมาแล้ว ให้โชว์ของเก่าไปเลย (หน้าจอจะได้ไม่ค้าง)
+        if (reportLogs.length > 0) {
+            filterAndRenderReport();
+        } else {
+            // ถ้าเข้าครั้งแรก ให้แสดงตารางว่างๆ แล้วแอบดึงข้อมูล
+            generateReport();
+        }
     }
 
     async function generateReport() {
-        reportLogs = await apiCall('getLogsForReport');
-        filterAndRenderReport();
+        showLoader('กำลังดึงฐานข้อมูลรายงาน...');
+        try {
+            reportLogs = await apiCall('getLogsForReport');
+            filterAndRenderReport();
+        } catch (e) {
+            showToast('ดึงข้อมูลรายงานล้มเหลว', 'error');
+        }
+        hideLoader();
     }
 
     function filterAndRenderReport() {
