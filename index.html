@@ -2444,9 +2444,13 @@ let currentScanMode = 'barcode'; // ค่าเริ่มต้น
     // Banner Timer
     let currentSlide = 0, slideInterval = null;
 	  // ฟังก์ชันช่วยเช็คค่า True/False แบบไม่สนตัวพิมพ์เล็กใหญ่
+// ฟังก์ชันช่วยเช็คค่า True/False แบบครอบจักรวาล
 function isTrue(val) {
-    if (typeof val === 'boolean') return val;
-    if (typeof val === 'string') return val.toUpperCase() === 'TRUE';
+    if (val === true || val === 1) return true;
+    if (typeof val === 'string') {
+        const cleanVal = val.trim().toUpperCase();
+        if (cleanVal === 'TRUE' || cleanVal === '1') return true;
+    }
     return false;
 }
 let currentInsideTab = 'person';
