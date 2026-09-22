@@ -10382,8 +10382,12 @@ function checkGroupTrigger(card, typeInfo, predictedStatus, gateId) {
 function initGroupSession(firstCard, typeInfo, gateId) {
     const area = document.getElementById('groupStagingArea');
     
-    // --- คืนชีพฟอร์มตะกร้าเปล่าๆ กลับมา ก่อนเริ่มงานใหม่ ---
-    if (originalGroupStagingHTML) {
+    // --- จุดที่แก้ไข: ถ่ายสำเนาฟอร์ม "ก่อน" ที่จะมีการเปลี่ยนแปลงใดๆ ---
+    if (!originalGroupStagingHTML) {
+        // ถ้าเพิ่งเปิดครั้งแรก ให้จำหน้าตาฟอร์มเปล่าๆ ที่สมบูรณ์ไว้
+        originalGroupStagingHTML = area.innerHTML;
+    } else {
+        // ถ้าเป็นกรุ๊ปที่ 2 ขึ้นไป ให้เอาฟอร์มสมบูรณ์ที่จำไว้มาแปะคืน
         area.innerHTML = originalGroupStagingHTML;
     }
 
@@ -10392,14 +10396,14 @@ function initGroupSession(firstCard, typeInfo, gateId) {
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.add('hidden');
     document.getElementById('vehicleStagingArea').classList.add('hidden');
-    document.getElementById('groupStagingArea').classList.remove('hidden');
+    area.classList.remove('hidden'); // แสดงหน้าตะกร้า
     
     document.getElementById('grpTypeName').textContent = typeInfo.typeName;
     const ratio = parseInt(typeInfo.escortRatio) || 0;
     document.getElementById('grpRatioText').textContent = ratio === 0 ? '1 : ไม่จำกัด' : `1 : ${ratio}`;
     
     const mainInput = document.getElementById('scanInput');
-    mainInput.value = ''; // <--- แก้ข้อ 1: ล้างช่องกรอกทันที
+    mainInput.value = ''; 
     mainInput.placeholder = "แสกนบัตรลูกทัวร์คนต่อไป...";
     mainInput.classList.replace('border-green-400', 'border-purple-500');
     
@@ -10742,9 +10746,9 @@ function showGroupSuccessSummary(session, totalCount) {
     `;
 
     // --- เก็บสำเนาฟอร์มตะกร้าเปล่าไว้ ก่อนที่จะโดนหน้าสรุปผลเขียนทับ ---
-    if (!originalGroupStagingHTML) {
-        originalGroupStagingHTML = area.innerHTML;
-    }
+   // if (!originalGroupStagingHTML) {
+   //     originalGroupStagingHTML = area.innerHTML;
+   // }
     
     area.innerHTML = summaryHtml;
     cachedGroupHTML = summaryHtml;
