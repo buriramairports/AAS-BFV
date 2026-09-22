@@ -6089,44 +6089,62 @@ async function saveCard() {
         }
     }
 
-    async function saveTypeCard() {
-        const id = document.getElementById('editTypeId').value;
-        const name = document.getElementById('tcName').value.trim();
-        const typeStr = document.getElementById('tcType').value;
-        let val = parseInt(document.getElementById('tcValue').value);
-        
-        // --- แก้ไข: ถ้าเป็นกำหนดเอง (custom) ให้บังคับค่าเป็น 0 และไม่ต้องสนใจช่องพิมพ์ตัวเลข ---
-        if(typeStr === 'custom') {
-            val = 0; 
-        }
+    // ==========================================
+// ฟังก์ชันบันทึกการตั้งค่าประเภทบัตร (ฉบับอัปเกรด ควบรวมฟิลด์ใหม่ทั้งหมด)
+// ==========================================
+async function saveTypeCard() {
+    const id = document.getElementById('editTypeId').value;
+    const name = document.getElementById('tcName').value.trim();
+    const typeStr = document.getElementById('tcType').value;
+    let val = parseInt(document.getElementById('tcValue').value);
+    
+    if(typeStr === 'custom') {
+        val = 0; 
+    }
 
-        // ดักจับ: ชื่อห้ามว่าง และ ถ้าไม่ใช่ custom ตัวเลขห้ามว่าง
-        if(!name || (typeStr !== 'custom' && !val)) {
-            return showToast('กรุณากรอกข้อมูลให้ครบและถูกต้อง', 'error');
-        }
+    if(!name || (typeStr !== 'custom' && !val)) {
+        return showToast('กรุณากรอกข้อมูลให้ครบและถูกต้อง', 'error');
+    }
 
-        const d = { 
-            typeName: name, 
-            durationValue: val, 
-            durationType: typeStr, 
-            requireCompanion: document.getElementById('tcRequireComp').checked, 
-            status: document.getElementById('tcStatus').value 
-        };
+    // จัดเตรียมแพคเกจข้อมูลให้ครบทุกช่อง
+    const d = { 
+        typeName: name, 
+        durationValue: val, 
+        durationType: typeStr, 
+        requireCompanion: document.getElementById('tcRequireComp').checked, 
+        isTemporary: document.getElementById('tcIsTemp').checked, // บัตรชั่วคราว
+        isGroup: document.getElementById('tcIsGroup').checked,   // โหมดกลุ่ม
+        escortRatio: parseInt(document.getElementById('tcEscortRatio').value) || 0, // สัดส่วนผู้ติดตาม
+        status: document.getElementById('tcStatus').value 
+    };
 
+    showLoader('กำลังบันทึกข้อมูล...');
+    
+    try {
         if(id) { 
+            // กรณีแก้ไข
             d.id = parseInt(id); 
-            await apiCall('updateTypeCard', d); 
-            const idx = typeCards.findIndex(x=>x.id===d.id); 
-            if(idx!==-1) typeCards[idx]={...typeCards[idx],...d}; 
+            // ให้ Server ตอบกลับมาเป็นข้อมูลชุดล่าสุด แล้วเอามาทับความจำเครื่องเลย (ชัวร์ 100%)
+            const updatedItem = await apiCall('updateTypeCard', d); 
+            const idx = typeCards.findIndex(x => Number(x.id) === Number(d.id)); 
+            if(idx !== -1) typeCards[idx] = updatedItem; 
             showToast('แก้ไขสำเร็จ', 'success'); 
         } else { 
+            // กรณีเพิ่มใหม่
             const res = await apiCall('addTypeCard', d); 
             typeCards.push(res); 
             showToast('เพิ่มสำเร็จ', 'success'); 
         }
+        
         closeTypeCardModal(); 
-        renderTypeCardsTable();
+        renderTypeCardsTable(); // สั่งวาดตารางใหม่ด้วยข้อมูลล่าสุด
+
+    } catch (e) {
+        showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
+    } finally {
+        hideLoader();
     }
+}
     async function deleteTypeCard(id) { if(confirm('ยืนยันลบประเภทบัตรนี้? (ถ้ามีบัตรที่ใช้ประเภทนี้อยู่ อาจทำให้ข้อมูลผิดพลาดได้)')) { await apiCall('deleteTypeCard', {id}); typeCards = typeCards.filter(x=>x.id!==id); renderTypeCardsTable(); showToast('ลบสำเร็จ','success'); } }
 
     // ==========================================
