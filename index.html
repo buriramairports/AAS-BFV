@@ -1658,9 +1658,40 @@ gap: 1px !important;
                     </select>
                 </div>
             </div>
-            <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-center justify-between cursor-pointer" onclick="document.getElementById('tcRequireComp').click()">
-                <div><p class="font-bold text-indigo-900 text-sm">ต้องมีผู้ติดตามร่วมด้วย</p><p class="text-xs text-indigo-600 mt-0.5">ระบบจะบังคับให้แสกนบัตรผู้ติดตามเสมอ</p></div>
-                <input type="checkbox" id="tcRequireComp" class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500" onclick="event.stopPropagation()">
+            <!-- ตั้งค่าการติดตามและกลุ่ม (Group & Escort Settings) -->
+            <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mt-2 space-y-3">
+                
+                <!-- 1. ต้องมีผู้ติดตาม (แบบเดิม) -->
+                <div class="flex items-center justify-between cursor-pointer" onclick="document.getElementById('tcRequireComp').click()">
+                    <div>
+                        <p class="font-bold text-indigo-900 text-sm">ต้องมีผู้ติดตามร่วมด้วย</p>
+                        <p class="text-[10px] text-indigo-600 mt-0.5">บังคับให้ต้องแสกนบัตรผู้ติดตามเสมอ</p>
+                    </div>
+                    <input type="checkbox" id="tcRequireComp" class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500" onclick="event.stopPropagation(); toggleGroupSettings();">
+                </div>
+
+                <!-- 2. เปิดโหมดกลุ่ม (จะโชว์ก็ต่อเมื่อติ๊กข้อ 1) -->
+                <div id="groupSettingsArea" class="hidden border-t border-indigo-200 pt-3 mt-3">
+                    <div class="flex items-center justify-between cursor-pointer mb-3" onclick="document.getElementById('tcIsGroup').click()">
+                        <div>
+                            <p class="font-bold text-purple-900 text-sm flex items-center gap-1"><i data-lucide="users" class="w-4 h-4"></i> โหมดเข้าพื้นที่แบบกลุ่ม (ทัศนศึกษา)</p>
+                            <p class="text-[10px] text-purple-600 mt-0.5">เปิดหน้าต่างรวบรวมคน เพื่อใช้ผู้ติดตามร่วมกัน</p>
+                        </div>
+                        <input type="checkbox" id="tcIsGroup" class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500" onclick="event.stopPropagation(); toggleRatioInput();">
+                    </div>
+
+                    <!-- 3. อัตราส่วนผู้ติดตาม -->
+                    <div id="ratioSettingsArea" class="hidden bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between shadow-inner">
+                        <div>
+                            <p class="text-xs font-bold text-gray-700">สัดส่วนผู้ติดตาม</p>
+                            <p class="text-[9px] text-gray-500">ผู้ติดตาม 1 คน ดูแลได้กี่คน? (ใส่ 0 = ไม่จำกัด)</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-gray-400">1 :</span>
+                            <input type="number" id="tcEscortRatio" min="0" class="w-16 border p-1.5 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 font-bold text-center text-purple-700 bg-purple-50" value="0">
+                        </div>
+                    </div>
+                </div>
             </div>
 			<div class="bg-red-50 p-4 rounded-xl border border-red-100 flex items-center justify-between cursor-pointer mt-2" onclick="document.getElementById('tcIsTemp').click()">
                 <div><p class="font-bold text-red-900 text-sm">กำหนดให้เป็น "บัตรชั่วคราว"</p><p class="text-xs text-red-600 mt-0.5">ระบบจะพิมพ์ข้อความ บัตรชั่วคราว ลงบนบัตร</p></div>
@@ -5988,7 +6019,14 @@ async function saveCard() {
             <tr class="hover:bg-gray-50 transition bg-white">
                 <td class="px-6 py-4 font-bold text-indigo-900">${t.typeName}</td>
                 <td class="px-6 py-4 font-medium text-gray-700">${durationDisplay}</td>
-                <td class="px-6 py-4 text-center">${t.requireCompanion?'<span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold">ต้องมี</span>':'<span class="text-gray-400">-</span>'}</td>
+                <td class="px-6 py-4">
+                    ${isTrue(t.requireCompanion) 
+                        ? `<div class="flex flex-col gap-1">
+                               <span class="bg-indigo-100 text-indigo-700 w-fit px-2 py-0.5 rounded text-[10px] font-bold">ต้องมีผู้ติดตาม</span>
+                               ${isTrue(t.isGroup) ? `<span class="bg-purple-100 text-purple-700 w-fit px-2 py-0.5 rounded text-[10px] font-bold"><i data-lucide="users" class="w-3 h-3 inline"></i> เข้าแบบกลุ่ม (1:${t.escortRatio == 0 ? 'ไม่จำกัด' : t.escortRatio})</span>` : ''}
+                           </div>` 
+                        : '<span class="text-gray-400 text-xs">-</span>'}
+                </td>
                 <td class="px-6 py-4 text-center">${t.status==='active'?'<span class="text-green-600 bg-green-50 px-2 py-1 rounded font-bold text-xs">ใช้งาน</span>':'<span class="text-red-500 bg-red-50 px-2 py-1 rounded text-xs">ปิด</span>'}</td>
                 <td class="px-6 py-4 text-center">
                     <button onclick="editTypeCard(${t.id})" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-xs font-bold transition mr-1">แก้ไข</button>
@@ -8685,23 +8723,65 @@ function startReturnCooldown() {
     // ==========================================
     // JS: อัปเดตการทำงานของ Type Cards (บัตรชั่วคราว)
     // ==========================================
-    const originalOpenTypeCardModal = openTypeCardModal;
-    openTypeCardModal = function() { originalOpenTypeCardModal(); document.getElementById('tcIsTemp').checked = false; }
-    
-    const originalEditTypeCard = editTypeCard;
-    editTypeCard = function(id) { originalEditTypeCard(id); const t = typeCards.find(x => x.id === id); document.getElementById('tcIsTemp').checked = t.isTemporary === true || t.isTemporary === 'TRUE'; }
-    
-    const originalSaveTypeCard = saveTypeCard;
-    saveTypeCard = async function() {
-        // แก้ไขดักจับค่าก่อนส่ง Save ปกติ
-        const oldApiCall = window.apiCall;
-        window.apiCall = async function(action, data, hide) {
-            data.isTemporary = document.getElementById('tcIsTemp').checked;
-            return oldApiCall(action, data, hide);
-        };
-        await originalSaveTypeCard();
-        window.apiCall = oldApiCall; // คืนค่า
+    // ฟังก์ชันจัดการการแสดงผลกล่องตั้งค่า Group
+function toggleGroupSettings() {
+    const reqComp = document.getElementById('tcRequireComp').checked;
+    const groupArea = document.getElementById('groupSettingsArea');
+    if (reqComp) {
+        groupArea.classList.remove('hidden');
+    } else {
+        groupArea.classList.add('hidden');
+        document.getElementById('tcIsGroup').checked = false; // ถ้าไม่เอาผู้ติดตาม ก็เป็นกลุ่มไม่ได้
+        toggleRatioInput();
     }
+}
+
+function toggleRatioInput() {
+    const isGroup = document.getElementById('tcIsGroup').checked;
+    const ratioArea = document.getElementById('ratioSettingsArea');
+    if (isGroup) {
+        ratioArea.classList.remove('hidden');
+        ratioArea.classList.add('flex');
+    } else {
+        ratioArea.classList.add('hidden');
+        ratioArea.classList.remove('flex');
+    }
+}
+
+// แก้ไข 3 ฟังก์ชันเดิม ให้รองรับค่าใหม่
+const origOpenTypeCardModal = openTypeCardModal;
+openTypeCardModal = function() { 
+    origOpenTypeCardModal(); 
+    document.getElementById('tcRequireComp').checked = false;
+    document.getElementById('tcIsGroup').checked = false;
+    document.getElementById('tcEscortRatio').value = '0';
+    toggleGroupSettings();
+};
+
+const origEditTypeCard = editTypeCard;
+editTypeCard = function(id) { 
+    origEditTypeCard(id); 
+    const t = typeCards.find(x => Number(x.id) === Number(id)); 
+    document.getElementById('tcRequireComp').checked = isTrue(t.requireCompanion);
+    document.getElementById('tcIsGroup').checked = isTrue(t.isGroup);
+    document.getElementById('tcEscortRatio').value = t.escortRatio || '0';
+    toggleGroupSettings();
+    toggleRatioInput();
+};
+
+const origSaveTypeCard = saveTypeCard;
+saveTypeCard = async function() {
+    const oldApiCall = window.apiCall;
+    window.apiCall = async function(action, data, hide) {
+        data.isTemporary = document.getElementById('tcIsTemp').checked;
+        // --- เพิ่มการบันทึก 2 ค่านี้ ---
+        data.isGroup = document.getElementById('tcIsGroup').checked;
+        data.escortRatio = parseInt(document.getElementById('tcEscortRatio').value) || 0;
+        return oldApiCall(action, data, hide);
+    };
+    await origSaveTypeCard();
+    window.apiCall = oldApiCall; 
+};
 
     // ==========================================
     // JS: อัปเดตการทำงานของ Cards (ตำแหน่ง, ขับรถ, พื้นที่)
