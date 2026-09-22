@@ -10516,12 +10516,12 @@ function cancelGroupSession() {
     input.focus();
 }
 
-// 7. บันทึกเข้า Server แบบ Batch
+// 7. บันทึกเข้า Server แบบเบื้องหลัง (Background Batch Process)
 async function saveGroupSession() {
     const btnSave = document.getElementById('btnSaveGroup');
     btnSave.disabled = true;
-    btnSave.innerHTML = '<i class="spinner inline-block w-4 h-4 border-2 border-white/30 border-t-white mr-2"></i> กำลังบันทึก...';
     
+    // 1. กระจายผู้ติดตามให้ลูกทัวร์แบบหารเท่าๆ กัน
     const membersToSave = [];
     const compCount = groupSession.companions.length;
     const memCount = groupSession.members.length;
@@ -10548,33 +10548,50 @@ async function saveGroupSession() {
         members: membersToSave,
         companions: companionsToSave
     };
+
+    const totalCount = payload.members.length + payload.companions.length;
+    const timestampStr = new Date().toISOString();
+
+    // ========================================================
+    // >>> OPTIMISTIC UI: ทำทุกอย่างให้เสร็จในหน้าจอก่อนเซิร์ฟเวอร์ตอบ <<<
+    // ========================================================
     
-    showLoader('กำลังบันทึกข้อมูลการเข้าพื้นที่แบบกลุ่ม...');
+    // อัปเดตสถานะ IN ในความจำของเครื่องทันที
+    payload.members.forEach(m => {
+        const idx = allCards.findIndex(c => c.cardId === m.cardId);
+        if (idx !== -1) { allCards[idx].currentStatus = 'IN'; allCards[idx].lastLogTime = timestampStr; }
+    });
+    payload.companions.forEach(c => {
+        const idx = allCards.findIndex(x => x.cardId === c.cardId);
+        if (idx !== -1) { allCards[idx].currentStatus = 'IN'; allCards[idx].lastLogTime = timestampStr; }
+    });
+
+    // ปิดตะกร้า และแสดงหน้าจอเขียว "บันทึกสำเร็จ" ทันที 0 วินาที!
+    // (ฟังก์ชันนี้จะรีเซ็ตตะกร้ากลุ่มทิ้ง ทำให้แสกนคนต่อไปได้เลย)
+    showGroupSuccessSummary(groupSession, totalCount); 
+
+    // สร้าง ID สำหรับ Widget ของงานนี้
+    const taskId = 'bgTask_' + Date.now();
+    
+    // โชว์ป้ายลอยมุมขวาล่าง (ไม่บังจอหลัก)
+    showBackgroundSaveWidget(taskId, `กำลังส่งข้อมูลกลุ่ม ${totalCount} รายการ ไปยังเซิร์ฟเวอร์...`);
+
+    // ========================================================
+    // >>> BACKGROUND SYNC: ส่งข้อมูลไปเซิร์ฟเวอร์เงียบๆ <<<
+    // ========================================================
     try {
-        const res = await apiCall('processBulkGroupScan', payload);
+        // ใส่ false เพื่อบอกให้ apiCall ไม่ต้องเอาหน้าจอดำ (Loader) ขึ้นมาบัง
+        const res = await apiCall('processBulkGroupScan', payload, false);
+        
         if (res.success) {
-            payload.members.forEach(m => {
-                const idx = allCards.findIndex(c => c.cardId === m.cardId);
-                if (idx !== -1) { allCards[idx].currentStatus = 'IN'; allCards[idx].lastLogTime = res.timestamp; }
-            });
-            payload.companions.forEach(c => {
-                const idx = allCards.findIndex(x => x.cardId === c.cardId);
-                if (idx !== -1) { allCards[idx].currentStatus = 'IN'; allCards[idx].lastLogTime = res.timestamp; }
-            });
-            
-            showToast(`บันทึกกลุ่มสำเร็จ ${res.count} รายการ`, 'success');
-            
-            // <--- แก้ข้อ 4: แสดงหน้าจอสรุปผล แทนที่จะปิดตะกร้าทิ้งเลย
-            showGroupSuccessSummary(groupSession, res.count); 
-            
+            // เมื่อเสร็จสิ้น เปลี่ยนป้ายมุมขวาล่างเป็นสีเขียว
+            updateBackgroundSaveWidget(taskId, `บันทึกกลุ่มสำเร็จ ${res.count} รายการ!`, 'success');
+            // รีเฟรชตารางประวัติด้านล่างแบบเงียบๆ
             refreshHomeData();
         }
     } catch(e) {
-        showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
-        btnSave.disabled = false;
-        btnSave.innerHTML = '<i data-lucide="save" class="w-5 h-5 inline mr-1"></i> บันทึกข้อมูลเข้าพื้นที่';
-    } finally {
-        hideLoader();
+        // ถ้าเน็ตหลุด แจ้งเตือนสีแดง (ระบบอาจจะต้องให้แสกนใหม่ หรือค้างในออฟไลน์)
+        updateBackgroundSaveWidget(taskId, `ล้มเหลว: ไม่สามารถบันทึกข้อมูลกลุ่มได้`, 'error');
     }
 }
 
@@ -10662,6 +10679,44 @@ function showGroupSuccessSummary(session, totalCount) {
     
     // เคลียร์ข้อมูล Session เก่าทิ้ง
     groupSession = { active: false, gateId: '', typeInfo: null, members: [], companions: [], requiredCompanions: 0, state: 'members' };
+}
+
+// ==========================================
+// ระบบแจ้งเตือนการทำงานเบื้องหลัง (Background Task Widget)
+// ==========================================
+function showBackgroundSaveWidget(id, message) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    
+    const widget = document.createElement('div');
+    widget.id = id;
+    // สร้างกล่องสีม่วงมีตัวหมุนๆ ลอยอยู่มุมขวาล่าง
+    widget.className = `toast animate-fadeIn bg-indigo-600 text-white px-5 py-3 rounded-xl flex items-center shadow-2xl text-sm font-bold pointer-events-auto border border-indigo-400 w-72 sm:w-80 mb-2`;
+    widget.innerHTML = `<i class="spinner inline-block w-4 h-4 border-2 border-white/30 border-t-white mr-3 shrink-0"></i> <span class="flex-1 truncate">${message}</span>`;
+    
+    container.appendChild(widget);
+}
+
+function updateBackgroundSaveWidget(id, message, status) {
+    const widget = document.getElementById(id);
+    if (!widget) return;
+    
+    if (status === 'success') {
+        widget.className = `toast bg-emerald-600 text-white px-5 py-3 rounded-xl flex items-center shadow-2xl text-sm font-bold pointer-events-auto border border-emerald-400 w-72 sm:w-80 mb-2 transition-colors duration-300`;
+        widget.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5 mr-3 shrink-0"></i> <span class="flex-1 truncate">${message}</span>`;
+    } else {
+        widget.className = `toast bg-red-600 text-white px-5 py-3 rounded-xl flex items-center shadow-2xl text-sm font-bold pointer-events-auto border border-red-400 w-72 sm:w-80 mb-2 transition-colors duration-300`;
+        widget.innerHTML = `<i data-lucide="x-circle" class="w-5 h-5 mr-3 shrink-0"></i> <span class="flex-1 truncate">${message}</span>`;
+    }
+    
+    if(window.lucide) lucide.createIcons();
+    
+    // ตั้งเวลาให้หายไปเองหลังผ่านไป 4 วินาที
+    setTimeout(() => {
+        widget.style.opacity = '0';
+        widget.style.transform = 'translateX(100px)';
+        setTimeout(() => widget.remove(), 500);
+    }, 4000);
 }
   </script>
 </body>
