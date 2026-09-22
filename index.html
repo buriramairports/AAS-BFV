@@ -2703,10 +2703,14 @@ async function handleVehicleScan(cardId) {
     vehicleSession.vehicle = v;
     vehicleSession.mode = (v.currentStatus === 'IN') ? 'OUT' : 'IN';
     
-    // แสดง UI ส่วนจัดการรถ
+    // --- จุดที่อัปเดต: แสดง UI ส่วนจัดการรถ และบังคับซ่อนอันอื่นให้หมด ---
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.add('hidden');
+    const groupArea = document.getElementById('groupStagingArea');
+    if (groupArea) groupArea.classList.add('hidden'); // ซ่อนหน้าจอกลุ่ม
+    
     document.getElementById('vehicleStagingArea').classList.remove('hidden');
+    // -----------------------------------------------------------
     
     document.getElementById('stgVehicleReg').textContent = v.vehicleReg;
     document.getElementById('stgVehicleId').textContent = v.cardId;
@@ -4708,12 +4712,21 @@ function showInstantUI(card, typeInfo, predictedStatus, compCard = null) {
     imgEl.classList.add('hidden');
     iconEl.classList.remove('hidden');
     
+    // --- จุดที่อัปเดต: บังคับซ่อนหน้าจอโหมดอื่นให้หมด 100% ---
     document.getElementById('scanResultEmpty').classList.add('hidden');
-    document.getElementById('scanResultData').classList.remove('hidden');
+    const vehicleArea = document.getElementById('vehicleStagingArea');
+    if (vehicleArea) vehicleArea.classList.add('hidden');
+    const groupArea = document.getElementById('groupStagingArea');
+    if (groupArea) groupArea.classList.add('hidden');
     
-const badge = document.getElementById('resIoBadge');
-badge.textContent = predictedStatus;
-badge.className = `w-full text-center py-3 sm:py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.15em] transition-colors duration-500 uppercase ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+    // โชว์เฉพาะหน้าจอแสกน 1 ต่อ 1 เท่านั้น
+    document.getElementById('scanResultData').classList.remove('hidden');
+    // ---------------------------------------------------
+    
+    const badge = document.getElementById('resIoBadge');
+    badge.textContent = predictedStatus;
+    const baseBadgeClass = 'w-full text-center py-3 sm:py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.15em] transition-colors duration-500 uppercase';
+    badge.className = `${baseBadgeClass} ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
 
 	
     document.getElementById('resCardId').textContent = card.cardId;
