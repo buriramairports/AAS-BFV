@@ -2569,6 +2569,9 @@ function openPersonDetailModal(cardId) {
     const typeInfo = typeCards.find(t => String(t.id) === String(card.typeId));
     const areaIds = String(card.areaAccessIds || '').split(',').filter(x=>x);
     
+    // เช็คว่าบัตรหมดอายุหรือยัง
+    const isExp = new Date(card.expiryDate).setHours(23,59,59) < new Date();
+    
     let areaHtml = areaIds.map(num => {
         const aSetting = allAreas.find(a => String(a.areaNumber) === String(num));
         const color = aSetting ? aSetting.colorCode : '#4f46e5';
@@ -2593,6 +2596,11 @@ function openPersonDetailModal(cardId) {
             <div class="flex justify-between items-center border-b border-gray-200 pb-2">
                 <span class="text-xs font-bold text-gray-400">ประเภท</span>
                 <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded">${typeInfo ? typeInfo.typeName : '-'}</span>
+            </div>
+            <!-- ส่วนที่เพิ่มใหม่: วันหมดอายุ -->
+            <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                <span class="text-xs font-bold text-gray-400">วันหมดอายุ</span>
+                <span class="text-sm font-bold ${isExp ? 'text-red-600' : 'text-gray-800'}">${formatDateOnly(card.expiryDate)} ${isExp ? '<span class="text-[10px]">(หมดอายุ)</span>' : ''}</span>
             </div>
             <div class="flex justify-between items-center">
                 <span class="text-xs font-bold text-gray-400">ZONE</span>
