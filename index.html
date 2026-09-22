@@ -10323,26 +10323,39 @@ processMainScan = function() {
     const cardId = String(mainInput.value).trim().toUpperCase();
 
     // ถ้าระบบ Group ทำงานอยู่ ให้ดักจับการแสกนทั้งหมดมาลงตะกร้า
-    if (groupSession.active && currentScanTarget === 'person' && cardId !== "") {
-        // เช็คดีเลย์ 5 วินาที
-        const nowTime = Date.now();
-        if (globalScanTracker[cardId] && (nowTime - globalScanTracker[cardId]) < 5000) {
+        if (groupSession.active && currentScanTarget === 'person' && cardId !== "") {
+            
+            const nowTime = Date.now();
+            if (globalScanTracker[cardId] && (nowTime - globalScanTracker[cardId]) < 5000) {
+                mainInput.value = ''; mainInput.focus();
+                try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
+                return showToast(`รหัส ${cardId} เพิ่งทำรายการไป (รอ 5 วิ)`, 'warning');
+            }
+            globalScanTracker[cardId] = nowTime;
+
+            const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
+            if (!card) {
+                mainInput.value = ''; mainInput.focus(); // <--- ล้างช่องกรอก
+                return showAlert('ไม่พบบัตร', `ไม่พบบัตร ${cardId}`, 'error');
+            }
+            if (card.status !== 'active') {
+                mainInput.value = ''; mainInput.focus(); // <--- ล้างช่องกรอก
+                return showAlert('ถูกระงับ', `บัตรถูกระงับ`, 'error');
+            }
+            if (new Date() > new Date(card.expiryDate).setHours(23, 59, 59)) {
+                mainInput.value = ''; mainInput.focus(); // <--- ล้างช่องกรอก
+                return showAlert('บัตรหมดอายุ', 'บัตรหมดอายุแล้ว', 'error');
+            }
+            if (card.currentStatus === 'IN') {
+                mainInput.value = ''; mainInput.focus(); // <--- จุดสำคัญที่แก้บั๊ก! ต้องล้างช่องกรอกตรงนี้ด้วย
+                try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
+                return showToast('บุคคลนี้อยู่ในพื้นที่แล้ว', 'warning');
+            }
+
+            handleGroupSessionScan(card);
             mainInput.value = ''; mainInput.focus();
-            try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
-            return showToast(`รหัส ${cardId} เพิ่งทำรายการไป (รอ 5 วิ)`, 'warning');
+            return;
         }
-        globalScanTracker[cardId] = nowTime;
-
-        const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
-        if (!card) return showAlert('ไม่พบบัตร', `ไม่พบบัตร ${cardId}`, 'error');
-        if (card.status !== 'active') return showAlert('ถูกระงับ', `บัตรถูกระงับ`, 'error');
-        if (new Date() > new Date(card.expiryDate).setHours(23, 59, 59)) return showAlert('บัตรหมดอายุ', 'บัตรหมดอายุแล้ว', 'error');
-        if (card.currentStatus === 'IN') return showToast('บุคคลนี้อยู่ในพื้นที่แล้ว', 'warning');
-
-        handleGroupSessionScan(card);
-        mainInput.value = ''; mainInput.focus();
-        return;
-    }
 
     // ถ้าไม่ ก็รันการแสกนปกติต่อไป
     origProcessMainScanV3();
@@ -10530,11 +10543,59 @@ function cancelGroupSession() {
 }
 
 // 7. บันทึกเข้า Server แบบเบื้องหลัง (Background Batch Process)
+// ==========================================
+// Widget แจ้งเตือนการทำงานเบื้องหลัง (ไม่บังหน้าจอ)
+// ==========================================
+function showBackgroundSaveWidget(id, totalCount) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    
+    const widget = document.createElement('div');
+    widget.id = id;
+    widget.className = `toast animate-fadeIn bg-indigo-800 text-white p-4 rounded-xl shadow-2xl pointer-events-auto border border-indigo-500 w-72 sm:w-80 mb-2`;
+    widget.innerHTML = `
+        <div class="flex items-center gap-3 mb-2">
+            <i class="spinner inline-block w-4 h-4 border-2 border-white/30 border-t-white shrink-0"></i> 
+            <span class="text-sm font-bold truncate">กำลังบันทึกข้อมูลกลุ่ม...</span>
+        </div>
+        <div class="w-full bg-indigo-950 rounded-full h-1.5 overflow-hidden">
+            <div id="${id}_progress" class="bg-green-400 h-1.5 rounded-full transition-all duration-300" style="width: 10%"></div>
+        </div>
+        <p id="${id}_text" class="text-[10px] text-indigo-200 mt-1 text-right">กำลังเริ่มดำเนินการ...</p>
+    `;
+    container.appendChild(widget);
+}
+
+function updateBackgroundSaveWidget(id, isSuccess) {
+    const widget = document.getElementById(id);
+    if (!widget) return;
+    
+    const prog = document.getElementById(`${id}_progress`);
+    const txt = document.getElementById(`${id}_text`);
+    
+    if (isSuccess) {
+        if(prog) prog.style.width = '100%';
+        if(txt) txt.innerHTML = 'เสร็จสมบูรณ์';
+        widget.className = `toast bg-emerald-600 text-white p-4 rounded-xl shadow-2xl pointer-events-auto border border-emerald-400 w-72 sm:w-80 mb-2 transition-colors duration-500`;
+        widget.innerHTML = `<div class="flex items-center gap-3"><i data-lucide="check-circle" class="w-5 h-5 shrink-0"></i><span class="text-sm font-bold">บันทึกข้อมูลเข้าพื้นที่สำเร็จแล้ว!</span></div>`;
+    } else {
+        widget.className = `toast bg-red-600 text-white p-4 rounded-xl shadow-2xl pointer-events-auto border border-red-400 w-72 sm:w-80 mb-2 transition-colors duration-500`;
+        widget.innerHTML = `<div class="flex items-center gap-3"><i data-lucide="x-circle" class="w-5 h-5 shrink-0"></i><span class="text-sm font-bold">เกิดข้อผิดพลาดในการบันทึก</span></div>`;
+    }
+    
+    if(window.lucide) lucide.createIcons();
+    setTimeout(() => {
+        widget.style.opacity = '0';
+        widget.style.transform = 'translateX(100px)';
+        setTimeout(() => widget.remove(), 500);
+    }, 4000);
+}
+
+// 7. บันทึกเข้า Server แบบเบื้องหลัง (Background Batch Process)
 async function saveGroupSession() {
     const btnSave = document.getElementById('btnSaveGroup');
     btnSave.disabled = true;
     
-    // 1. กระจายผู้ติดตามให้ลูกทัวร์แบบหารเท่าๆ กัน
     const membersToSave = [];
     const compCount = groupSession.companions.length;
     const memCount = groupSession.members.length;
@@ -10565,11 +10626,7 @@ async function saveGroupSession() {
     const totalCount = payload.members.length + payload.companions.length;
     const timestampStr = new Date().toISOString();
 
-    // ========================================================
-    // >>> OPTIMISTIC UI: ทำทุกอย่างให้เสร็จในหน้าจอก่อนเซิร์ฟเวอร์ตอบ <<<
-    // ========================================================
-    
-    // อัปเดตสถานะ IN ในความจำของเครื่องทันที
+    // 1. ອัปเดตข้อมูลในความจำเครื่องให้เป็น IN ทันที (Optimistic UI)
     payload.members.forEach(m => {
         const idx = allCards.findIndex(c => c.cardId === m.cardId);
         if (idx !== -1) { allCards[idx].currentStatus = 'IN'; allCards[idx].lastLogTime = timestampStr; }
@@ -10579,37 +10636,51 @@ async function saveGroupSession() {
         if (idx !== -1) { allCards[idx].currentStatus = 'IN'; allCards[idx].lastLogTime = timestampStr; }
     });
 
-    // ปิดตะกร้า และแสดงหน้าจอเขียว "บันทึกสำเร็จ" ทันที 0 วินาที!
-    // (ฟังก์ชันนี้จะรีเซ็ตตะกร้ากลุ่มทิ้ง ทำให้แสกนคนต่อไปได้เลย)
+    // 2. แสดงหน้าจอเขียว "บันทึกสำเร็จ" ทันที 0 วินาที! (เคลียร์ตะกร้าทิ้งเลย)
     showGroupSuccessSummary(groupSession, totalCount); 
 
-    // สร้าง ID สำหรับ Widget ของงานนี้
+    // 3. สร้าง Widget จำลองหลอดโหลดมุมขวาล่าง
     const taskId = 'bgTask_' + Date.now();
+    showBackgroundSaveWidget(taskId, totalCount);
     
-    // โชว์ป้ายลอยมุมขวาล่าง (ไม่บังจอหลัก)
-    showBackgroundSaveWidget(taskId, `กำลังส่งข้อมูลกลุ่ม ${totalCount} รายการ ไปยังเซิร์ฟเวอร์...`);
+    let fakePct = 10;
+    const fakeProgress = setInterval(() => {
+        if (fakePct < 90) {
+            fakePct += Math.floor(Math.random() * 15) + 5;
+            if (fakePct > 90) fakePct = 90;
+            const prog = document.getElementById(`${taskId}_progress`);
+            const txt = document.getElementById(`${taskId}_text`);
+            if (prog) prog.style.width = fakePct + '%';
+            if (txt) txt.textContent = `กำลังอัปเดตฐานข้อมูล ${fakePct}%...`;
+        }
+    }, 500);
 
-    // ========================================================
-    // >>> BACKGROUND SYNC: ส่งข้อมูลไปเซิร์ฟเวอร์เงียบๆ <<<
-    // ========================================================
+    // 4. ส่งข้อมูลไปเซิร์ฟเวอร์เงียบๆ เบื้องหลัง (ใส่ false เพื่อปิดจอโหลดสีดำ)
     try {
-        // ใส่ false เพื่อบอกให้ apiCall ไม่ต้องเอาหน้าจอดำ (Loader) ขึ้นมาบัง
         const res = await apiCall('processBulkGroupScan', payload, false);
+        clearInterval(fakeProgress);
         
         if (res.success) {
-            // เมื่อเสร็จสิ้น เปลี่ยนป้ายมุมขวาล่างเป็นสีเขียว
-            updateBackgroundSaveWidget(taskId, `บันทึกกลุ่มสำเร็จ ${res.count} รายการ!`, 'success');
-            // รีเฟรชตารางประวัติด้านล่างแบบเงียบๆ
-            refreshHomeData();
+            updateBackgroundSaveWidget(taskId, true);
+            refreshHomeData(); // รีเฟรชตารางประวัติด้านล่างแบบเงียบๆ
         }
     } catch(e) {
-        // ถ้าเน็ตหลุด แจ้งเตือนสีแดง (ระบบอาจจะต้องให้แสกนใหม่ หรือค้างในออฟไลน์)
-        updateBackgroundSaveWidget(taskId, `ล้มเหลว: ไม่สามารถบันทึกข้อมูลกลุ่มได้`, 'error');
+        clearInterval(fakeProgress);
+        updateBackgroundSaveWidget(taskId, false);
     }
 }
 
 // 8. ฟังก์ชันแสดงสรุปผลแบบย่อ (มีปุ่มกดกางออกได้)
 function showGroupSuccessSummary(session, totalCount) {
+    // 1. เคลียร์ข้อมูล Session เก่าทิ้งทันที! ป้องกันบั๊กค้าง
+    const mainOrg = session.members[0].organization || 'ไม่ระบุหน่วยงาน';
+    const tempMembers = [...session.members];
+    const tempCompanions = [...session.companions];
+    const tempTypeName = session.typeInfo.typeName;
+    
+    groupSession = { active: false, gateId: '', typeInfo: null, members: [], companions: [], requiredCompanions: 0, state: 'members' };
+
+    // 2. วาด UI (โค้ดเดิม)
     const area = document.getElementById('groupStagingArea');
     const input = document.getElementById('scanInput');
     
@@ -10619,11 +10690,7 @@ function showGroupSuccessSummary(session, totalCount) {
     input.classList.add('border-green-400');
     input.focus();
 
-    // ดึงหน่วยงานหลักมาแสดง (อิงจากคนแรก)
-    const mainOrg = session.members[0].organization || 'ไม่ระบุหน่วยงาน';
-    
-    // สร้างรายชื่อผู้ติดตามแบบย่อ
-    const compsHtml = session.companions.map(c => `
+    const compsHtml = tempCompanions.map(c => `
         <span class="inline-block bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md text-[10px] font-bold mr-1 mb-1">
             <i data-lucide="user-check" class="w-3 h-3 inline"></i> ${c.firstName} (${c.position || c.organization || '-'})
         </span>
@@ -10631,17 +10698,14 @@ function showGroupSuccessSummary(session, totalCount) {
 
     let summaryHtml = `
     <div class="bg-white rounded-[2.5rem] border border-purple-50 shadow-2xl overflow-hidden flex flex-col animate-fadeIn">
-        <!-- แถบป้าย IN ใหญ่ -->
         <div class="w-full text-center py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.1em] bg-green-600 uppercase">IN</div>
         
         <div class="p-6">
             <div class="flex items-center gap-4 mb-4 bg-green-50 p-4 rounded-2xl border border-green-100">
-                <div class="w-14 h-14 bg-green-500 text-white rounded-full flex items-center justify-center shrink-0 shadow-md">
-                    <i data-lucide="check-circle" class="w-8 h-8"></i>
-                </div>
+                <div class="w-14 h-14 bg-green-500 text-white rounded-full flex items-center justify-center shrink-0 shadow-md"><i data-lucide="check-circle" class="w-8 h-8"></i></div>
                 <div class="flex-1">
                     <h3 class="font-black text-green-700 text-xl">บันทึกเข้าพื้นที่สำเร็จ</h3>
-                    <p class="text-sm font-bold text-gray-600">กลุ่ม: ${session.typeInfo.typeName}</p>
+                    <p class="text-sm font-bold text-gray-600">กลุ่ม: ${tempTypeName}</p>
                 </div>
                 <div class="text-right">
                     <p class="text-3xl font-black text-green-600">${totalCount}</p>
@@ -10649,33 +10713,14 @@ function showGroupSuccessSummary(session, totalCount) {
                 </div>
             </div>
 
-            <!-- กล่องสรุปย่อ -->
-            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <p class="text-[10px] font-black text-slate-400 uppercase mb-1">หน่วยงานหลัก</p>
-                        <p class="text-sm font-bold text-slate-800">${mainOrg}</p>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-black text-slate-400 uppercase mb-1">ผู้เข้าพื้นที่ (ลูกทัวร์)</p>
-                        <p class="text-sm font-bold text-slate-800">${session.members.length} คน</p>
-                    </div>
-                    <div class="col-span-2 border-t border-slate-200 pt-3 mt-1">
-                        <p class="text-[10px] font-black text-slate-400 uppercase mb-1">ผู้ติดตาม (Escort)</p>
-                        <div>${compsHtml}</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ปุ่มกางรายละเอียด -->
             <details class="group bg-white border border-gray-200 rounded-xl overflow-hidden cursor-pointer shadow-sm">
                 <summary class="p-3 bg-gray-50 text-xs font-bold text-gray-600 flex justify-between items-center list-none outline-none">
                     <span>ดูรายชื่อทั้งหมด (${totalCount} คน)</span>
                     <i data-lucide="chevron-down" class="w-4 h-4 transition-transform group-open:rotate-180"></i>
                 </summary>
                 <div class="p-3 max-h-[250px] overflow-y-auto bg-white custom-scrollbar border-t border-gray-100 text-xs text-gray-700 space-y-1">
-                    ${session.companions.map(c => `<div class="font-bold text-indigo-600 p-1 bg-indigo-50 rounded">ผู้ติดตาม: ${c.firstName} ${c.lastName}</div>`).join('')}
-                    ${session.members.map((m, i) => `<div class="p-1 border-b border-gray-50">${i+1}. ${m.firstName} ${m.lastName} <span class="text-[10px] text-gray-400 ml-2">(${m.cardId})</span></div>`).join('')}
+                    ${tempCompanions.map(c => `<div class="font-bold text-indigo-600 p-1 bg-indigo-50 rounded">ผู้ติดตาม: ${c.firstName} ${c.lastName}</div>`).join('')}
+                    ${tempMembers.map((m, i) => `<div class="p-1 border-b border-gray-50">${i+1}. ${m.firstName} ${m.lastName} <span class="text-[10px] text-gray-400 ml-2">(${m.cardId})</span></div>`).join('')}
                 </div>
             </details>
 
@@ -10687,50 +10732,13 @@ function showGroupSuccessSummary(session, totalCount) {
     `;
 
     area.innerHTML = summaryHtml;
-    cachedGroupHTML = summaryHtml; // จำหน้าจอไว้
-    lucide.createIcons();
-    
-    // เคลียร์ข้อมูล Session เก่าทิ้ง
-    groupSession = { active: false, gateId: '', typeInfo: null, members: [], companions: [], requiredCompanions: 0, state: 'members' };
-}
-
-// ==========================================
-// ระบบแจ้งเตือนการทำงานเบื้องหลัง (Background Task Widget)
-// ==========================================
-function showBackgroundSaveWidget(id, message) {
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-    
-    const widget = document.createElement('div');
-    widget.id = id;
-    // สร้างกล่องสีม่วงมีตัวหมุนๆ ลอยอยู่มุมขวาล่าง
-    widget.className = `toast animate-fadeIn bg-indigo-600 text-white px-5 py-3 rounded-xl flex items-center shadow-2xl text-sm font-bold pointer-events-auto border border-indigo-400 w-72 sm:w-80 mb-2`;
-    widget.innerHTML = `<i class="spinner inline-block w-4 h-4 border-2 border-white/30 border-t-white mr-3 shrink-0"></i> <span class="flex-1 truncate">${message}</span>`;
-    
-    container.appendChild(widget);
-}
-
-function updateBackgroundSaveWidget(id, message, status) {
-    const widget = document.getElementById(id);
-    if (!widget) return;
-    
-    if (status === 'success') {
-        widget.className = `toast bg-emerald-600 text-white px-5 py-3 rounded-xl flex items-center shadow-2xl text-sm font-bold pointer-events-auto border border-emerald-400 w-72 sm:w-80 mb-2 transition-colors duration-300`;
-        widget.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5 mr-3 shrink-0"></i> <span class="flex-1 truncate">${message}</span>`;
-    } else {
-        widget.className = `toast bg-red-600 text-white px-5 py-3 rounded-xl flex items-center shadow-2xl text-sm font-bold pointer-events-auto border border-red-400 w-72 sm:w-80 mb-2 transition-colors duration-300`;
-        widget.innerHTML = `<i data-lucide="x-circle" class="w-5 h-5 mr-3 shrink-0"></i> <span class="flex-1 truncate">${message}</span>`;
-    }
-    
+    cachedGroupHTML = summaryHtml;
     if(window.lucide) lucide.createIcons();
-    
-    // ตั้งเวลาให้หายไปเองหลังผ่านไป 4 วินาที
-    setTimeout(() => {
-        widget.style.opacity = '0';
-        widget.style.transform = 'translateX(100px)';
-        setTimeout(() => widget.remove(), 500);
-    }, 4000);
 }
+
+
+
+
   </script>
 </body>
 </html>
