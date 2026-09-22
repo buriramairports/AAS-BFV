@@ -2487,6 +2487,7 @@ let previousDisplayState = null; // <--- เพิ่มตัวแปรนี
 let cachedPersonHTML = null;
 let cachedVehicleHTML = null;
 let cachedGroupHTML = null;
+let originalGroupStagingHTML = null; // <--- เพิ่มบรรทัดนี้ สำหรับเก็บสำเนาฟอร์มตะกร้า
 	  
     let allVehicles = [], typeVehicles = [], currentFilteredVehicles = [];
     // Data Caches
@@ -4211,36 +4212,38 @@ function toggleHybridCamera() {
     }
 
     // 2. เปลี่ยนปุ่มรีเฟรชข้อมูลหน้า Home
-    function refreshHomeData() {
-        showLoader('กำลังอัปเดตข้อมูลล่าสุด...');
-        apiCall('getInitialData', {}, false)
-            .then(data => {
-                hideLoader();
-                try {
-                    if(data) {
-                        allGates = data.gates || [];
-                        recentLogs = data.recentLogs || [];
-                        allCards = data.allCards || [];
-                        cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
-                        monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
-						allAreas = data.areas || [];
-                        
-                        updateGateSelects(); 
-                        if(currentPage === 'home') {
-                            renderHomeDashboard(); 
-                            renderRecentLogsTable();
-                        }
-                        showToast('อัปเดตข้อมูลล่าสุดเรียบร้อย', 'success');
+    // เพิ่มพารามิเตอร์ isSilent เพื่อบอกว่าไม่ต้องโชว์หน้าจอดำ
+function refreshHomeData(isSilent = false) {
+    if (!isSilent) showLoader('กำลังอัปเดตข้อมูลล่าสุด...');
+    
+    apiCall('getInitialData', {}, false)
+        .then(data => {
+            if (!isSilent) hideLoader();
+            try {
+                if(data) {
+                    allGates = data.gates || [];
+                    recentLogs = data.recentLogs || [];
+                    allCards = data.allCards || [];
+                    cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
+                    monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
+                    allAreas = data.areas || [];
+                    
+                    updateGateSelects(); 
+                    if(currentPage === 'home') {
+                        renderHomeDashboard(); 
+                        renderRecentLogsTable();
                     }
-                } catch(e) {
-                    console.error("ข้อผิดพลาดตอนรีเฟรช:", e);
+                    if (!isSilent) showToast('อัปเดตข้อมูลล่าสุดเรียบร้อย', 'success');
                 }
-            })
-            .catch(e => {
-                hideLoader();
-                showToast('เชื่อมต่อล้มเหลว โปรดลองอีกครั้ง', 'error');
-            });
-    }
+            } catch(e) {
+                console.error("ข้อผิดพลาดตอนรีเฟรช:", e);
+            }
+        })
+        .catch(e => {
+            if (!isSilent) hideLoader();
+            if (!isSilent) showToast('เชื่อมต่อล้มเหลว โปรดลองอีกครั้ง', 'error');
+        });
+}
 
     
 
@@ -10377,6 +10380,13 @@ function checkGroupTrigger(card, typeInfo, predictedStatus, gateId) {
 
 // 3. เริ่มต้นเปิดตะกร้า
 function initGroupSession(firstCard, typeInfo, gateId) {
+    const area = document.getElementById('groupStagingArea');
+    
+    // --- คืนชีพฟอร์มตะกร้าเปล่าๆ กลับมา ก่อนเริ่มงานใหม่ ---
+    if (originalGroupStagingHTML) {
+        area.innerHTML = originalGroupStagingHTML;
+    }
+
     groupSession = { active: true, gateId: gateId, typeInfo: typeInfo, members: [firstCard], companions: [], requiredCompanions: 0, state: 'members' };
     
     document.getElementById('scanResultEmpty').classList.add('hidden');
@@ -10662,7 +10672,7 @@ async function saveGroupSession() {
         
         if (res.success) {
             updateBackgroundSaveWidget(taskId, true);
-            refreshHomeData(); // รีเฟรชตารางประวัติด้านล่างแบบเงียบๆ
+            refreshHomeData(true); // รีเฟรชตารางประวัติด้านล่างแบบเงียบๆ
         }
     } catch(e) {
         clearInterval(fakeProgress);
@@ -10731,9 +10741,17 @@ function showGroupSuccessSummary(session, totalCount) {
     </div>
     `;
 
+    // --- เก็บสำเนาฟอร์มตะกร้าเปล่าไว้ ก่อนที่จะโดนหน้าสรุปผลเขียนทับ ---
+    if (!originalGroupStagingHTML) {
+        originalGroupStagingHTML = area.innerHTML;
+    }
+    
     area.innerHTML = summaryHtml;
     cachedGroupHTML = summaryHtml;
     if(window.lucide) lucide.createIcons();
+    
+    // เคลียร์ข้อมูล Session เก่าทิ้ง
+    groupSession = { active: false, gateId: '', typeInfo: null, members: [], companions: [], requiredCompanions: 0, state: 'members' };
 }
 
 
