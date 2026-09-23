@@ -10960,134 +10960,139 @@ function printBulkCardsA4() {
 
     showLoader('กำลังจัดเตรียมหน้ากระดาษ PDF (A4)...');
 
-    // 1. ดึงข้อมูลพนักงานที่ถูกเลือก
-    const cardsToPrint = allCards.filter(c => selectedCardsArray.includes(parseInt(c.id)));
-    
-    // 2. เตรียมข้อมูลเทมเพลต และตัวแปร
-    const bgFront = systemSettings.cardTplFront || '';
-    const bgBack = systemSettings.cardTplBack || '';
-    const lblPos = systemSettings.lblPos || 'ตำแหน่ง';
-    const lblOrg = systemSettings.lblOrg || 'สังกัด';
-    const lblExp = systemSettings.lblExp || 'หมดอายุ';
-    const rules1 = systemSettings.cardRulesTitle1 || 'ข้อควรปฏิบัติ';
-    const rules2 = systemSettings.cardRulesTitle2 || '';
-    const rules3 = systemSettings.cardRulesTitle3 || '';
-    const rulesText = (systemSettings.cardTplRules || '').replace(/\n/g, '<br>');
-    const f1 = systemSettings.cardFooterLine1 || '';
-    const f2 = systemSettings.cardFooterLine2 || '';
-    const f3 = systemSettings.cardFooterLine3 || '';
-
-    // ฟังก์ชันสร้างหน้าบัตร 1 ใบ (Front หรือ Back)
-    // ฟังก์ชันสร้างหน้าบัตร 1 ใบ (ลบ .card-scaler ออก เพราะเราย่อทั้งกระดานแล้ว)
-    const generateSingleCardHtml = (card, isFront) => {
-        if (!card) return `<div class="card-wrapper bg-white"></div>`;
-
-        if (isFront) {
-            const t = typeCards.find(x => parseInt(x.id) === parseInt(card.typeId)) || {};
-            const isTemp = isTrue(t.isTemporary);
-            const noComp = !isTrue(t.requireCompanion);
-            const canDrive = isTrue(card.canDrive);
-            
-            let imgUrl = getFastImageUrl(card.imageUrl);
-            let imgHtml = imgUrl !== 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' 
-                ? `<img src="${imgUrl}" crossorigin="anonymous" class="w-full h-full object-cover">` 
-                : `<div class="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300"><svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>`;
-
-            let areaHtml = '';
-            let gridStyle = 'display:flex; flex-direction:column; gap:1px;';
-            if (card.areaAccessIds) {
-                const arr = String(card.areaAccessIds).split(',').map(x => x.trim()).filter(x => x !== "");
-                let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
-                aData.sort((a, b) => Number(a.areaNumber) - Number(b.areaNumber));
-                
-                if (aData.length === 1) areaHtml = `<div style="background:${aData[0].colorCode}; color:${getContrastYIQ(aData[0].colorCode)}; width:130px; height:130px; font-size:110px; display:flex; align-items:center; justify-content:center; border:1px solid #1e1b4b; padding-bottom:0.14em;">${aData[0].areaNumber}</div>`;
-                else if (aData.length === 2) areaHtml = aData.map(a => `<div style="background:${a.colorCode}; color:${getContrastYIQ(a.colorCode)}; width:62px; height:62px; font-size:55px; display:flex; align-items:center; justify-content:center; border:1px solid #1e1b4b; padding-bottom:0.14em;">${a.areaNumber}</div>`).join('');
-                else if (aData.length >= 3) {
-                    gridStyle = 'display:grid; grid-template-columns:repeat(2, 58px); justify-content:center; gap:2px;';
-                    areaHtml = aData.slice(0,4).map(a => `<div style="background:${a.colorCode}; color:${getContrastYIQ(a.colorCode)}; width:58px; height:58px; font-size:50px; display:flex; align-items:center; justify-content:center; border:1px solid #1e1b4b; padding-bottom:0.14em;">${a.areaNumber}</div>`).join('');
-                }
-            }
-
-            // คืนขนาดกรอบให้เป็น card-wrapper ของแท้
-            return `
-            <div class="card-wrapper">
-                <img src="${bgFront}" crossorigin="anonymous" class="absolute inset-0 w-full h-full object-fill z-0">
-                <div class="absolute inset-0 z-10 flex flex-col">
-                   <div class="absolute top-[80px] left-[8px] right-[12px] flex justify-between items-start h-[230px]">
-                       <div class="w-[175px] h-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-300 shrink-0">
-                           ${imgHtml}
-                       </div>
-                       <div class="w-[130px] h-full flex flex-col justify-start gap-1 shrink-0">
-                           <div style="min-height:28px; line-height:28px; visibility:${isTemp?'visible':'hidden'}" class="text-red-600 font-black text-[18px] text-center bg-white/90 rounded shrink-0">บัตรชั่วคราว</div>
-                           <div class="w-full text-center bg-white shadow-sm rounded-sm" style="${gridStyle}">${areaHtml}</div>
-                           <div class="${canDrive ? 'block' : 'hidden'} w-full bg-indigo-900 text-white text-center font-black py-1.5 text-[13px] shrink-0 rounded-sm mt-0.5">DRIVE</div>
-                           <div class="${(isTemp && noComp) ? 'block' : 'hidden'} w-full bg-indigo-900 text-white text-center font-black py-1.5 text-[13px] shrink-0 rounded-sm mt-0.5">UNESCORT</div>
-                       </div>
-                   </div>
-                   <div class="absolute top-[315px] left-[16px] right-[12px] flex flex-col text-indigo-900 font-bold text-[14px]">
-                       <div class="text-[21px] font-black text-indigo-900 mb-1 leading-[1.4] py-1 truncate">${card.firstName} ${card.lastName}</div>
-                       <div class="grid grid-cols-[70px_1fr] gap-x-2 gap-y-1.5 mb-2">
-                           <div class="text-indigo-700">${lblPos}</div><div class="text-gray-800 truncate">${card.position || '-'}</div>
-                           <div class="text-indigo-700">${lblOrg}</div><div class="text-gray-800 truncate">${card.organization || '-'}</div>
-                       </div>
-                       <div class="flex flex-col mt-0.5">
-                           <span class="text-[13px] text-red-500 mb-1">${lblExp}</span> 
-                           <span class="text-[19px] font-black text-red-600 leading-[1.4] ml-1">${formatDateOnly(card.expiryDate)}</span>
-                       </div>
-                   </div>
-                   <div class="absolute bottom-[20px] left-[20px] right-[20px]">
-                       <div class="text-[18px] font-black text-indigo-900 leading-none tracking-wide">NO. ${card.cardId}</div>
-                   </div>
-                </div>
-            </div>`;
-        } else {
-            return `
-            <div class="card-wrapper">
-                <img src="${bgBack}" crossorigin="anonymous" class="absolute inset-0 w-full h-full object-fill z-0">
-                <div class="absolute inset-0 z-10 flex flex-col px-4 py-6">
-                    <div class="flex flex-col items-center mb-3 bg-white/90 rounded-lg py-2 shadow-sm border border-red-50 w-full shrink-0">
-                       <h3 class="text-red-600 font-black text-center text-[20px] leading-tight w-full truncate">${rules1}</h3>
-                       <p class="text-red-600 font-bold text-center text-[12px] mt-1 w-full truncate">${rules2}</p>
-                       <p class="text-red-600 font-bold text-center text-[12px] w-full truncate">${rules3}</p>
-                    </div>
-                    <div class="text-gray-800 text-[12px] leading-relaxed whitespace-pre-line flex-1 font-medium bg-white/80 p-3 rounded-xl backdrop-blur-sm border border-gray-100">${rulesText}</div>
-                    <div class="mt-3 flex flex-col items-center pb-4 pt-4 px-2 bg-white/90 rounded-xl shadow-sm border border-gray-100 w-full shrink-0">
-                       <div class="font-barcode text-6xl text-black leading-none transform scale-x-[0.8] origin-center">*${card.cardId}*</div>
-                       <div class="font-bold text-[14px] text-gray-800 mt-1">${card.cardId}</div>
-                       <div class="w-[40%] h-[2px] bg-gray-300 my-3 rounded-full"></div>
-                       <div class="flex flex-col items-center text-center text-[11px] font-bold text-gray-600 leading-tight gap-0.5 w-full">
-                           <span class="truncate w-full">${f1}</span><span class="truncate w-full">${f2}</span><span class="text-indigo-800 truncate w-full">${f3}</span>
-                       </div>
-                    </div>
-                </div>
-            </div>`;
-        }
-    };
-
-    // 3. ประกอบร่างด้วย .print-scale-wrapper
-    let pagesHtml = '';
-    for (let i = 0; i < cardsToPrint.length; i += 9) {
-        let chunk = cardsToPrint.slice(i, i + 9);
+    // บังคับรอให้ฟอนต์บาร์โค้ดโหลดให้เสร็จก่อนวาดหน้าจอ (แก้ปัญหาบาร์โค้ดไม่ขึ้นครั้งแรก)
+    document.fonts.ready.then(function() {
         
-        let frontGrid = '';
-        for (let j = 0; j < 9; j++) frontGrid += generateSingleCardHtml(chunk[j], true);
-        pagesHtml += `<div class="a4-sheet"><div class="print-scale-wrapper"><div class="grid-3x3">${frontGrid}</div></div></div>`;
+        // 1. ดึงข้อมูลพนักงานที่ถูกเลือก
+        const cardsToPrint = allCards.filter(c => selectedCardsArray.includes(parseInt(c.id)));
+        
+        // 2. เตรียมข้อมูลเทมเพลต และตัวแปร
+        const bgFront = systemSettings.cardTplFront || '';
+        const bgBack = systemSettings.cardTplBack || '';
+        const lblPos = systemSettings.lblPos || 'ตำแหน่ง';
+        const lblOrg = systemSettings.lblOrg || 'สังกัด';
+        const lblExp = systemSettings.lblExp || 'หมดอายุ';
+        const rules1 = systemSettings.cardRulesTitle1 || 'ข้อควรปฏิบัติ';
+        const rules2 = systemSettings.cardRulesTitle2 || '';
+        const rules3 = systemSettings.cardRulesTitle3 || '';
+        const rulesText = (systemSettings.cardTplRules || '').replace(/\n/g, '<br>');
+        const f1 = systemSettings.cardFooterLine1 || '';
+        const f2 = systemSettings.cardFooterLine2 || '';
+        const f3 = systemSettings.cardFooterLine3 || '';
 
-        let backGrid = '';
-        const reverseOrder = [2, 1, 0, 5, 4, 3, 8, 7, 6];
-        for (let idx of reverseOrder) backGrid += generateSingleCardHtml(chunk[idx], false);
-        pagesHtml += `<div class="a4-sheet"><div class="print-scale-wrapper"><div class="grid-3x3">${backGrid}</div></div></div>`;
-    }
+        // ฟังก์ชันสร้างหน้าบัตร 1 ใบ (Front หรือ Back)
+        const generateSingleCardHtml = (card, isFront) => {
+            if (!card) return `<div class="card-wrapper bg-white"></div>`; 
 
-    const printContainer = document.getElementById('printA4Area');
-    printContainer.innerHTML = pagesHtml;
+            if (isFront) {
+                const t = typeCards.find(x => parseInt(x.id) === parseInt(card.typeId)) || {};
+                const isTemp = isTrue(t.isTemporary);
+                const noComp = !isTrue(t.requireCompanion);
+                const canDrive = isTrue(card.canDrive);
+                
+                let imgUrl = getFastImageUrl(card.imageUrl);
+                let imgHtml = imgUrl !== 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' 
+                    ? `<img src="${imgUrl}" crossorigin="anonymous" class="w-full h-full object-cover">` 
+                    : `<div class="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300"><svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>`;
 
-    // 4. เพิ่มเวลาให้รูปภาพโหลดครบถ้วนก่อนสั่งปริ้น
-    setTimeout(() => {
-        hideLoader();
-        window.print();
-        setTimeout(() => { printContainer.innerHTML = ''; }, 1000);
-    }, 2500); // เผื่อเวลาให้โหลดภาพพื้นหลัง 2.5 วิ
+                // จัดการพื้นที่ (Area Boxes) 
+                // *** ปรับ padding-bottom ลดลงเหลือ 0.1em เพื่อให้ตัวเลขอยู่กึ่งกลางมากขึ้น ***
+                let areaHtml = '';
+                let gridStyle = 'display:flex; flex-direction:column; gap:1px;';
+                if (card.areaAccessIds) {
+                    const arr = String(card.areaAccessIds).split(',').map(x => x.trim()).filter(x => x !== "");
+                    let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
+                    aData.sort((a, b) => Number(a.areaNumber) - Number(b.areaNumber));
+                    
+                    if (aData.length === 1) areaHtml = `<div style="background:${aData[0].colorCode}; color:${getContrastYIQ(aData[0].colorCode)}; width:130px; height:130px; font-size:110px; display:flex; align-items:center; justify-content:center; border:1px solid #1e1b4b; padding-bottom:0.01em;">${aData[0].areaNumber}</div>`;
+                    else if (aData.length === 2) areaHtml = aData.map(a => `<div style="background:${a.colorCode}; color:${getContrastYIQ(a.colorCode)}; width:62px; height:62px; font-size:55px; display:flex; align-items:center; justify-content:center; border:1px solid #1e1b4b; padding-bottom:0.01em;">${a.areaNumber}</div>`).join('');
+                    else if (aData.length >= 3) {
+                        gridStyle = 'display:grid; grid-template-columns:repeat(2, 58px); justify-content:center; gap:2px;';
+                        areaHtml = aData.slice(0,4).map(a => `<div style="background:${a.colorCode}; color:${getContrastYIQ(a.colorCode)}; width:58px; height:58px; font-size:50px; display:flex; align-items:center; justify-content:center; border:1px solid #1e1b4b; padding-bottom:0.01em;">${a.areaNumber}</div>`).join('');
+                    }
+                }
+
+                return `
+                <div class="card-wrapper bg-white relative box-border">
+                    <img src="${bgFront}" crossorigin="anonymous" class="absolute inset-0 w-full h-full object-fill z-0">
+                    <div class="absolute inset-0 z-10 flex flex-col">
+                       <div class="absolute top-[80px] left-[8px] right-[12px] flex justify-between items-start h-[230px]">
+                           <div class="w-[175px] h-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-300 shrink-0">
+                               ${imgHtml}
+                           </div>
+                           <div class="w-[130px] h-full flex flex-col justify-start gap-1 shrink-0">
+                               <div style="min-height:28px; line-height:28px; visibility:${isTemp?'visible':'hidden'}" class="text-red-600 font-black text-[18px] text-center bg-white/90 rounded shrink-0">บัตรชั่วคราว</div>
+                               <div class="w-full text-center bg-white shadow-sm rounded-sm" style="${gridStyle}">${areaHtml}</div>
+                               <div class="${canDrive ? 'block' : 'hidden'} w-full bg-indigo-900 text-white text-center font-black py-1.5 text-[13px] shrink-0 rounded-sm mt-0.5">DRIVE</div>
+                               <div class="${(isTemp && noComp) ? 'block' : 'hidden'} w-full bg-indigo-900 text-white text-center font-black py-1.5 text-[13px] shrink-0 rounded-sm mt-0.5">UNESCORT</div>
+                           </div>
+                       </div>
+                       <div class="absolute top-[315px] left-[16px] right-[12px] flex flex-col text-indigo-900 font-bold text-[14px]">
+                           <div class="text-[21px] font-black text-indigo-900 mb-1 leading-[1.4] py-1 truncate">${card.firstName} ${card.lastName}</div>
+                           <div class="grid grid-cols-[70px_1fr] gap-x-2 gap-y-1.5 mb-2">
+                               <div class="text-indigo-700">${lblPos}</div><div class="text-gray-800 truncate">${card.position || '-'}</div>
+                               <div class="text-indigo-700">${lblOrg}</div><div class="text-gray-800 truncate">${card.organization || '-'}</div>
+                           </div>
+                           <div class="flex flex-col mt-0.5">
+                               <span class="text-[13px] text-red-500 mb-1">${lblExp}</span> 
+                               <span class="text-[19px] font-black text-red-600 leading-[1.4] ml-1">${formatDateOnly(card.expiryDate)}</span>
+                           </div>
+                       </div>
+                       <div class="absolute bottom-[20px] left-[20px] right-[20px]">
+                           <div class="text-[18px] font-black text-indigo-900 leading-none tracking-wide">NO. ${card.cardId}</div>
+                       </div>
+                    </div>
+                </div>`;
+            } else {
+                return `
+                <div class="card-wrapper bg-white relative box-border">
+                    <img src="${bgBack}" crossorigin="anonymous" class="absolute inset-0 w-full h-full object-fill z-0">
+                    <div class="absolute inset-0 z-10 flex flex-col px-4 py-6">
+                        <div class="flex flex-col items-center mb-3 bg-white/90 rounded-lg py-2 shadow-sm border border-red-50 w-full shrink-0">
+                           <h3 class="text-red-600 font-black text-center text-[20px] leading-tight w-full truncate">${rules1}</h3>
+                           <p class="text-red-600 font-bold text-center text-[12px] mt-1 w-full truncate">${rules2}</p>
+                           <p class="text-red-600 font-bold text-center text-[12px] w-full truncate">${rules3}</p>
+                        </div>
+                        <div class="text-gray-800 text-[12px] leading-relaxed whitespace-pre-line flex-1 font-medium bg-white/80 p-3 rounded-xl backdrop-blur-sm border border-gray-100">${rulesText}</div>
+                        <div class="mt-3 flex flex-col items-center pb-4 pt-4 px-2 bg-white/90 rounded-xl shadow-sm border border-gray-100 w-full shrink-0">
+                           <div class="font-barcode text-6xl text-black leading-none transform scale-x-[0.8] origin-center">*${card.cardId}*</div>
+                           <div class="font-bold text-[14px] text-gray-800 mt-1">${card.cardId}</div>
+                           <div class="w-[40%] h-[2px] bg-gray-300 my-3 rounded-full"></div>
+                           <div class="flex flex-col items-center text-center text-[11px] font-bold text-gray-600 leading-tight gap-0.5 w-full">
+                               <span class="truncate w-full">${f1}</span><span class="truncate w-full">${f2}</span><span class="text-indigo-800 truncate w-full">${f3}</span>
+                           </div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+        };
+
+        // 3. แบ่งข้อมูลทีละ 9 ใบ
+        let pagesHtml = '';
+        for (let i = 0; i < cardsToPrint.length; i += 9) {
+            let chunk = cardsToPrint.slice(i, i + 9);
+            
+            let frontGrid = '';
+            for (let j = 0; j < 9; j++) frontGrid += generateSingleCardHtml(chunk[j], true);
+            pagesHtml += `<div class="a4-sheet"><div class="print-scale-wrapper"><div class="grid-3x3">${frontGrid}</div></div></div>`;
+
+            let backGrid = '';
+            const reverseOrder = [2, 1, 0, 5, 4, 3, 8, 7, 6];
+            for (let idx of reverseOrder) backGrid += generateSingleCardHtml(chunk[idx], false);
+            pagesHtml += `<div class="a4-sheet"><div class="print-scale-wrapper"><div class="grid-3x3">${backGrid}</div></div></div>`;
+        }
+
+        const printContainer = document.getElementById('printA4Area');
+        printContainer.innerHTML = pagesHtml;
+
+        // 4. รอรูปภาพโหลด
+        setTimeout(() => {
+            hideLoader();
+            window.print();
+            setTimeout(() => { printContainer.innerHTML = ''; }, 1000);
+        }, 2500);
+
+    }); // จบ document.fonts.ready.then
 }
 
   </script>
