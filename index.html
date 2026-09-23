@@ -10955,18 +10955,39 @@ function showGroupSuccessSummary(session, totalCount) {
 // ==========================================
 // ระบบพิมพ์บัตร 3x3 ลง A4 (Duplex Alignment)
 // ==========================================
-function printBulkCardsA4() {
+async function printBulkCardsA4() {
     if (selectedCardsArray.length === 0) return showToast('กรุณาเลือกบัตรที่ต้องการพิมพ์อย่างน้อย 1 ใบ', 'warning');
 
     showLoader('กำลังจัดเตรียมหน้ากระดาษ PDF (A4)...');
 
-    // บังคับรอให้ฟอนต์บาร์โค้ดโหลดให้เสร็จก่อนวาดหน้าจอ (แก้ปัญหาบาร์โค้ดไม่ขึ้นครั้งแรก)
+    // --- 1. เคล็ดลับบังคับโหลดฟอนต์ (Font Preloading Trick) ---
+    // สร้างตัวอักษรบาร์โค้ดแบบล่องหน แอบไว้ในหน้าเว็บ เพื่อให้เบราว์เซอร์โหลดฟอนต์ทันที
+    let fontPreloader = document.getElementById('barcode-font-preloader');
+    if (!fontPreloader) {
+        fontPreloader = document.createElement('span');
+        fontPreloader.id = 'barcode-font-preloader';
+        fontPreloader.className = 'font-barcode'; // เรียกใช้ฟอนต์บาร์โค้ด
+        fontPreloader.style.position = 'fixed';
+        fontPreloader.style.top = '-9999px'; // ซ่อนไว้นอกจอ
+        fontPreloader.style.opacity = '0';
+        fontPreloader.textContent = '*PRELOAD*';
+        document.body.appendChild(fontPreloader);
+    }
+
+    // บังคับให้เบราว์เซอร์ดาวน์โหลดฟอนต์ให้เสร็จสมบูรณ์ 100% ก่อนทำงานต่อ
+    try {
+        await document.fonts.load('60px "Libre Barcode 39"');
+    } catch (e) {
+        console.warn("Font preloading issue:", e);
+    }
+
+    // --- 2. รอฟอนต์พร้อม แล้วค่อยวาดหน้าบัตร ---
     document.fonts.ready.then(function() {
         
-        // 1. ดึงข้อมูลพนักงานที่ถูกเลือก
+        // ดึงข้อมูลพนักงานที่ถูกเลือก
         const cardsToPrint = allCards.filter(c => selectedCardsArray.includes(parseInt(c.id)));
         
-        // 2. เตรียมข้อมูลเทมเพลต และตัวแปร
+        // เตรียมข้อมูลเทมเพลต และตัวแปร
         const bgFront = systemSettings.cardTplFront || '';
         const bgBack = systemSettings.cardTplBack || '';
         const lblPos = systemSettings.lblPos || 'ตำแหน่ง';
@@ -10980,9 +11001,9 @@ function printBulkCardsA4() {
         const f2 = systemSettings.cardFooterLine2 || '';
         const f3 = systemSettings.cardFooterLine3 || '';
 
-        // ฟังก์ชันสร้างหน้าบัตร 1 ใบ (Front หรือ Back)
+        // ฟังก์ชันสร้างหน้าบัตร 1 ใบ
         const generateSingleCardHtml = (card, isFront) => {
-            if (!card) return `<div class="card-wrapper bg-white"></div>`; 
+            if (!card) return `<div class="card-wrapper bg-white"></div>`;
 
             if (isFront) {
                 const t = typeCards.find(x => parseInt(x.id) === parseInt(card.typeId)) || {};
@@ -10995,8 +11016,6 @@ function printBulkCardsA4() {
                     ? `<img src="${imgUrl}" crossorigin="anonymous" class="w-full h-full object-cover">` 
                     : `<div class="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300"><svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>`;
 
-                // จัดการพื้นที่ (Area Boxes) 
-                // *** ปรับ padding-bottom ลดลงเหลือ 0.1em เพื่อให้ตัวเลขอยู่กึ่งกลางมากขึ้น ***
                 let areaHtml = '';
                 let gridStyle = 'display:flex; flex-direction:column; gap:1px;';
                 if (card.areaAccessIds) {
@@ -11085,14 +11104,14 @@ function printBulkCardsA4() {
         const printContainer = document.getElementById('printA4Area');
         printContainer.innerHTML = pagesHtml;
 
-        // 4. รอรูปภาพโหลด
+        // 4. รอรูปภาพพื้นหลังและองค์ประกอบอื่นๆ โหลดให้เสร็จ
         setTimeout(() => {
             hideLoader();
             window.print();
             setTimeout(() => { printContainer.innerHTML = ''; }, 1000);
         }, 2500);
 
-    }); // จบ document.fonts.ready.then
+    });
 }
 
   </script>
