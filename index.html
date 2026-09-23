@@ -11000,11 +11000,11 @@ function printBulkCardsA4() {
                 let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
                 aData.sort((a, b) => Number(a.areaNumber) - Number(b.areaNumber));
                 
-                if (aData.length === 1) areaHtml = `<div style="background:${aData[0].colorCode}; color:${getContrastYIQ(aData[0].colorCode)}; width:130px; height:130px; font-size:110px; display:flex; align-items:center; justify-content:center; border:1px solid #1e1b4b; padding-bottom:0.34em;">${aData[0].areaNumber}</div>`;
-                else if (aData.length === 2) areaHtml = aData.map(a => `<div style="background:${a.colorCode}; color:${getContrastYIQ(a.colorCode)}; width:62px; height:62px; font-size:55px; display:flex; align-items:center; justify-content:center; border:1px solid #1e1b4b; padding-bottom:0.34em;">${a.areaNumber}</div>`).join('');
+                if (aData.length === 1) areaHtml = `<div style="background:${aData[0].colorCode}; color:${getContrastYIQ(aData[0].colorCode)}; width:130px; height:130px; font-size:110px; display:flex; align-items:center; justify-content:center; border:1px solid #1e1b4b; padding-bottom:0.14em;">${aData[0].areaNumber}</div>`;
+                else if (aData.length === 2) areaHtml = aData.map(a => `<div style="background:${a.colorCode}; color:${getContrastYIQ(a.colorCode)}; width:62px; height:62px; font-size:55px; display:flex; align-items:center; justify-content:center; border:1px solid #1e1b4b; padding-bottom:0.14em;">${a.areaNumber}</div>`).join('');
                 else if (aData.length >= 3) {
                     gridStyle = 'display:grid; grid-template-columns:repeat(2, 58px); justify-content:center; gap:2px;';
-                    areaHtml = aData.slice(0,4).map(a => `<div style="background:${a.colorCode}; color:${getContrastYIQ(a.colorCode)}; width:58px; height:58px; font-size:50px; display:flex; align-items:center; justify-content:center; border:1px solid #1e1b4b; padding-bottom:0.34em;">${a.areaNumber}</div>`).join('');
+                    areaHtml = aData.slice(0,4).map(a => `<div style="background:${a.colorCode}; color:${getContrastYIQ(a.colorCode)}; width:58px; height:58px; font-size:50px; display:flex; align-items:center; justify-content:center; border:1px solid #1e1b4b; padding-bottom:0.14em;">${a.areaNumber}</div>`).join('');
                 }
             }
 
