@@ -10644,7 +10644,7 @@ function getActiveTemplate(forceTplId = null) {
     return tpl;
 }
 
-// 2. ฟังก์ชันวาดบัตรพนักงาน 1 ใบ (รองรับ QR, Theme สี, Layout)
+// 2. ฟังก์ชันวาดบัตรพนักงาน 1 ใบ (รองรับ QR, Theme สี, Layout และแก้บั๊กพื้นหลัง)
 function generateEmployeeCardHtml(card, tpl, isFront) {
     if (!card) return `<div class="card-wrapper" style="width: 340px; height: 540px; background: white;"></div>`;
 
@@ -10652,6 +10652,13 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
     const txtMain = isLight ? 'text-white drop-shadow-md' : 'text-indigo-900';
     const txtSub = isLight ? 'text-gray-100 drop-shadow-md' : 'text-gray-800';
     const txtLabel = isLight ? 'text-indigo-200 drop-shadow-md' : 'text-indigo-700';
+
+    // --- ฟังก์ชันช่วยแปลงลิงก์ภาพพื้นหลังให้โหลดได้ในโหมด Print/PDF ---
+    const getBg = (url) => {
+        if (!url || url.trim() === '') return '';
+        const match = url.match(/id=([^&]+)/);
+        return match ? `https://lh3.googleusercontent.com/d/${match[1]}=s800` : url;
+    };
 
     if (isFront) {
         const typeInfo = typeCards.find(x => parseInt(x.id) === parseInt(card.typeId)) || {};
@@ -10680,7 +10687,6 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
             }
         }
 
-        // จัดการสัญลักษณ์หน้าบัตร (QR / Barcode / None)
         let frontCodeHtml = '';
         if (tpl.personFrontCode === 'qr_bottom_left') {
             const qr = new QRious({value: card.cardId, size: 150}).toDataURL();
@@ -10702,9 +10708,11 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
             </div>`;
         }
 
+        const bgFrontUrl = getBg(tpl.personFrontBg);
+
         return `
         <div class="card-wrapper relative box-border overflow-hidden shrink-0 border border-gray-200" style="width: 340px; height: 540px; background: white;">
-            ${tpl.personFrontBg ? `<img src="${tpl.personFrontBg}" crossorigin="anonymous" class="absolute inset-0 w-full h-full object-fill z-0">` : ''}
+            ${bgFrontUrl ? `<img src="${bgFrontUrl}" crossorigin="anonymous" class="absolute inset-0 w-full h-full object-fill z-0">` : ''}
             <div class="absolute inset-0 z-10 flex flex-col">
                <div class="absolute top-[80px] left-[8px] right-[12px] flex justify-between items-start h-[230px]">
                    <div class="w-[175px] h-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-300 shrink-0">
@@ -10732,7 +10740,6 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
             </div>
         </div>`;
     } else {
-        // ด้านหลังบัตรบุคคล
         let backCodeHtml = '';
         if (tpl.personBackCode === 'qr_center') {
             const qr = new QRious({value: card.cardId, size: 250}).toDataURL();
@@ -10746,9 +10753,11 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
         }
 
         const rulesHtml = (tpl.cardTplRules || '').replace(/\n/g, '<br>');
+        const bgBackUrl = getBg(tpl.personBackBg);
+
         return `
         <div class="card-wrapper relative box-border overflow-hidden shrink-0 border border-gray-200" style="width: 340px; height: 540px; background: white;">
-            ${tpl.personBackBg ? `<img src="${tpl.personBackBg}" crossorigin="anonymous" class="absolute inset-0 w-full h-full object-fill z-0">` : ''}
+            ${bgBackUrl ? `<img src="${bgBackUrl}" crossorigin="anonymous" class="absolute inset-0 w-full h-full object-fill z-0">` : ''}
             <div class="absolute inset-0 z-10 flex flex-col px-4 py-6">
                 <div class="flex flex-col items-center mb-3 bg-white/90 rounded-lg py-2 shadow-sm border border-red-50 w-full shrink-0">
                    <h3 class="text-red-600 font-black text-center text-[20px] leading-tight w-full truncate">${tpl.cardRulesTitle1}</h3>
@@ -10768,13 +10777,19 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
     }
 }
 
-// 3. ฟังก์ชันวาดบัตรรถ 1 ใบ
+// 3. ฟังก์ชันวาดบัตรรถ 1 ใบ (แก้บั๊กพื้นหลัง)
 function generateVehicleCardHtml(v, tpl, isFront) {
     if (!v) return `<div class="card-wrapper" style="width: 360px; height: 435px; background: white;"></div>`;
     
     const isLight = tpl.vehicleTheme === 'light';
     const txtMain = isLight ? 'text-white drop-shadow-md' : 'text-black';
     const txtLabel = isLight ? 'text-gray-200 drop-shadow-md' : 'text-gray-800';
+
+    const getBg = (url) => {
+        if (!url || url.trim() === '') return '';
+        const match = url.match(/id=([^&]+)/);
+        return match ? `https://lh3.googleusercontent.com/d/${match[1]}=s800` : url;
+    };
 
     if (isFront) {
         const typeInfo = typeVehicles.find(x => parseInt(x.id) === parseInt(v.typeId)) || {};
@@ -10803,10 +10818,12 @@ function generateVehicleCardHtml(v, tpl, isFront) {
 
         const gateIds = String(v.allowedGateIds || '').split(',').filter(id => id);
         const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
+        
+        const bgFrontUrl = getBg(tpl.vehicleFrontBg);
 
         return `
         <div class="card-wrapper relative box-border overflow-hidden shrink-0 border border-gray-200" style="width: 360px; height: 435px; background: white;">
-            ${tpl.vehicleFrontBg ? `<img src="${tpl.vehicleFrontBg}" crossorigin="anonymous" class="absolute inset-0 w-full h-full object-fill z-0">` : ''}
+            ${bgFrontUrl ? `<img src="${bgFrontUrl}" crossorigin="anonymous" class="absolute inset-0 w-full h-full object-fill z-0">` : ''}
             <div class="absolute inset-0 z-10">
                 <div class="absolute top-[300px] right-[-65px] transform rotate-90 flex flex-col items-center w-[220px] z-20">
                     <div class="font-barcode text-[42px] text-black leading-none transform scale-x-[0.7] bg-white/70 px-2 rounded-full">*${v.cardId}*</div>
@@ -10843,9 +10860,11 @@ function generateVehicleCardHtml(v, tpl, isFront) {
         }
 
         const rulesHtml = (tpl.cardTplRulesV || '').replace(/\n/g, '<br>');
+        const bgBackUrl = getBg(tpl.vehicleBackBg);
+
         return `
         <div class="card-wrapper relative box-border overflow-hidden shrink-0 border border-gray-200" style="width: 360px; height: 435px; background: white;">
-            ${tpl.vehicleBackBg ? `<img src="${tpl.vehicleBackBg}" crossorigin="anonymous" class="absolute inset-0 w-full h-full object-fill z-0">` : ''}
+            ${bgBackUrl ? `<img src="${bgBackUrl}" crossorigin="anonymous" class="absolute inset-0 w-full h-full object-fill z-0">` : ''}
             <div class="absolute inset-0 z-10 flex flex-col px-8 py-10">
                 <div class="text-center mb-4 bg-white/90 p-2 rounded-xl shadow-sm border border-red-50">
                     <div class="text-red-600 font-black text-[20px] leading-tight truncate">${tpl.rulesTitleV1}</div>
@@ -10901,7 +10920,7 @@ function previewCurrentTemplate() {
     if (!tpl) return;
 
     // ข้อมูลสมมติสำหรับโชว์ตัวอย่าง
-    const dummyCard = { cardId: 'TEST-001', firstName: 'สมชาย', lastName: 'ตัวอย่าง', position: 'พนักงานทดสอบ', organization: 'บริษัท เอบีซี', typeId: 0, areaAccessIds: '1,2,3', canDrive: true, expiryDate: new Date().toISOString(), imageUrl: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' };
+    const dummyCard = { cardId: 'TEST-001', firstName: 'สมชาย', lastName: 'ตัวอย่าง', position: 'พนักงานทดสอบ', organization: 'บริษัท เอบีซี', typeId: 0, areaAccessIds: '1,2,3', canDrive: true, expiryDate: new Date().toISOString(), imageUrl: '' };
     const dummyVeh = { cardId: 'V-TEST-99', vehicleReg: 'กท-1234', organization: 'บริษัท เอบีซี', typeId: 0, areaAccessIds: '1,2', expiryDate: new Date().toISOString() };
 
     if (currentTplTab === 'person') {
@@ -10917,6 +10936,7 @@ function previewCurrentTemplate() {
         document.getElementById('printVehicleCardContainer').dataset.cardId = 'V-TEST-99';
         document.getElementById('idVehicleCardModal').classList.remove('hidden');
     }
+    if (window.lucide) lucide.createIcons();
 }
 
 // 7. พิมพ์บัตร A4 (3x3)
