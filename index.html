@@ -1295,6 +1295,9 @@ gap: 1px !important;
         <div class="flex items-center gap-3">
             <span id="tplStatusBadge" class="px-3 py-1 rounded-lg text-xs font-black uppercase tracking-widest">-</span>
             <span id="tplNameDisplay" class="font-bold text-sm text-slate-700">-</span>
+			<button onclick="editTemplateName()" class="text-slate-400 hover:text-indigo-600 transition p-1 bg-slate-50 hover:bg-indigo-50 rounded-md border border-transparent hover:border-indigo-200" title="แก้ไขชื่อรูปแบบ">
+                <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+            </button>
         </div>
         <div class="flex gap-2 mt-2 sm:mt-0">
             <button id="btnSetTplActive" onclick="setActiveTemplate()" class="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg transition shadow-sm flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> ตั้งเป็นค่าเริ่มต้น</button>
@@ -11161,7 +11164,7 @@ function renderTemplateEditor(tpl) {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- โซนรูปภาพ -->
                 <div>
-                    <label class="block text-sm font-bold text-pink-700 mb-2">ภาพพื้นหลังบัตรด้านหน้า</label>
+                    <label class="block text-sm font-bold text-pink-700 mb-2">ภาพพื้นหลังบัตรด้านหน้า ขนาดแนะนำ: 5.4 x 8.6 ซม. (แนวตั้ง)</label>
                     ${makeImgBox('personFrontBg', 'อัปโหลดภาพพื้นหลังด้านหน้า', tpl.personFrontBg, 'ขนาดแนะนำ: 5.4 x 8.6 ซม. (แนวตั้ง)')}
                 </div>
                 <div>
@@ -11221,7 +11224,7 @@ function renderTemplateEditor(tpl) {
         area.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label class="block text-sm font-bold text-blue-700 mb-2">ภาพพื้นหลังบัตรรถด้านหน้า</label>
+                    <label class="block text-sm font-bold text-blue-700 mb-2">ภาพพื้นหลังบัตรรถด้านหน้า ขนาดแนะนำ: 8.5 x 10.3 ซม. (แนวตั้ง)</label>
                     ${makeImgBox('vehicleFrontBg', 'อัปโหลดภาพบัตรรถด้านหน้า', tpl.vehicleFrontBg, 'ขนาดแนะนำ: 8.5 x 10.3 ซม. (แนวตั้ง)')}
                 </div>
                 <div>
@@ -11326,6 +11329,29 @@ function createNewTemplate() {
     renderTemplateGallery();
     switchTemplate(newId);
     showToast('สร้างรูปแบบใหม่สำเร็จ', 'success');
+}
+
+// ฟังก์ชันแก้ไขชื่อ Template ปัจจุบัน
+function editTemplateName() {
+    if (!currentEditingTemplateId) return;
+    
+    // หา Template ปัจจุบันที่กำลังแก้ไขอยู่
+    const tpl = systemSettings.cardTemplates.find(t => t.id === currentEditingTemplateId);
+    if (!tpl) return;
+    
+    // เด้งหน้าต่างให้กรอกชื่อใหม่ (ดึงชื่อเก่ามาเป็นค่าเริ่มต้น)
+    const newName = prompt("แก้ไขชื่อเซ็ตรูปแบบบัตร:", tpl.name);
+    
+    // ตรวจสอบว่าผู้ใช้กรอกชื่อมา และไม่ได้กดยกเลิก
+    if (newName !== null && newName.trim() !== '') {
+        tpl.name = newName.trim(); // อัปเดตชื่อในตัวแปร
+        
+        // สั่งวาด Dropdown และชื่อที่แสดงผลใหม่
+        renderTemplateGallery();
+        switchTemplate(currentEditingTemplateId);
+        
+        showToast('เปลี่ยนชื่อรูปแบบสำเร็จ (อย่าลืมกดบันทึกการตั้งค่า)', 'success');
+    }
 }
 
 function deleteTemplate() {
