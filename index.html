@@ -10744,7 +10744,7 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
         let bottomSectionHtml = '';
 
         if (tpl.personBackCode === 'qr_center') {
-            const qr = new QRious({value: card.cardId, size: 200}).toDataURL();
+            const qr = new QRious({value: card.cardId, size: 230}).toDataURL();
             // เลย์เอาต์ QR: แบ่งซ้าย-ขวา
             bottomSectionHtml = `
             <div class="mt-3 flex items-center justify-between p-2 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0 h-[95px] gap-2">
@@ -10831,10 +10831,10 @@ function generateVehicleCardHtml(v, tpl, isFront) {
         let frontCodeHtml = '';
 
         if (tpl.vehicleFrontCode === 'qr_right') {
-            // ย้าย QR Code ไปอยู่ "ขวามือ" (right-[20px]) และดันลงมาให้อยู่ระดับเดียวกับข้อมูล (top-[240px])
-            const qr = new QRious({value: v.cardId, size: 120}).toDataURL();
+            // ย้าย QR Code ไปอยู่ "ขวามือ" (right-[20px]) และดันลงมาให้อยู่ระดับเดียวกับข้อมูล (top-[185px])
+            const qr = new QRious({value: v.cardId, size: 125}).toDataURL();
             frontCodeHtml = `
-            <div class="absolute top-[185px] right-[20px] flex flex-col items-center z-20">
+            <div class="absolute top-[175px] right-[15px] flex flex-col items-center z-20">
                 <img src="${qr}" class="w-16 h-16 rounded border border-gray-200 shadow-sm bg-white p-0.5 mb-1">
                 <div class="text-[9px] font-black ${txtMain} leading-none tracking-wide bg-white/50 px-1 rounded backdrop-blur-sm">NO. ${v.cardId}</div>
             </div>`;
@@ -10870,7 +10870,7 @@ function generateVehicleCardHtml(v, tpl, isFront) {
                 </div>
                 
                 <!-- ช่องทางเข้าออก (ตรึงซ้ายเหมือนเดิม) -->
-                <div class="absolute bottom-5 left-[35px] text-left z-20 w-[280px]">
+                <div class="absolute bottom-10 left-[35px] text-left z-20 w-[280px]">
                     <div class="text-[11px] font-bold ${isLight ? 'text-orange-300 drop-shadow' : 'text-orange-600'}">ช่องทางเข้า - ออก</div>
                     <div class="text-[14px] font-black ${txtMain} leading-tight drop-shadow-sm truncate">${gateNames || 'ทุกจุดเข้า-ออก'}</div>
                 </div>
@@ -10881,7 +10881,7 @@ function generateVehicleCardHtml(v, tpl, isFront) {
         let bottomSectionHtml = '';
 
         if (tpl.vehicleBackCode === 'qr_center') {
-            const qr = new QRious({value: v.cardId, size: 200}).toDataURL();
+            const qr = new QRious({value: v.cardId, size: 220}).toDataURL();
             bottomSectionHtml = `
             <div class="mt-2 flex items-center justify-between p-2 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0 h-[90px] gap-2">
                <div class="w-[35%] shrink-0 flex flex-col items-center justify-center border-r border-gray-200 pr-2">
