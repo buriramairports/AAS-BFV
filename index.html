@@ -1447,16 +1447,17 @@ gap: 1px !important;
        <!--div class="sticky bottom-4 z-40 bg-white/90 backdrop-blur p-4 rounded-2xl shadow-2xl border border-gray-200 flex justify-end"-->
 
 		<!-- แถบลอยด้านล่างสุด (Sticky Footer) พร้อมสารบัญลัด -->
-<div class="sticky bottom-4 z-40 bg-white/95 backdrop-blur-md p-3 sm:p-4 rounded-2xl shadow-2xl border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+<div class="sticky bottom-4 z-40 bg-white/95 backdrop-blur-md p-3 sm:p-4 rounded-2xl shadow-2xl border border-slate-200 flex flex-col xl:flex-row justify-between items-center gap-4">
+    
     <!-- สารบัญลัด (Quick Navigation) -->
-    <div class="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs font-bold w-full sm:w-auto">
+    <div class="flex flex-wrap items-center justify-center xl:justify-start gap-2 text-xs font-bold w-full xl:w-auto">
         <span class="text-slate-400 mr-1"><i data-lucide="list" class="w-4 h-4 inline"></i> กระโดดไปที่:</span>
-        <button onclick="document.getElementById('settingsPage').scrollIntoView({behavior: 'smooth'})" class="px-2.5 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg transition">ข้อมูลทั่วไป</button>
-        <button onclick="document.getElementById('autoCheckoutEnabled').scrollIntoView({behavior: 'smooth', block: 'center'})" class="px-2.5 py-1.5 bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-lg transition">Auto-Checkout</button>
-        <button onclick="document.getElementById('aiThreshold').scrollIntoView({behavior: 'smooth', block: 'center'})" class="px-2.5 py-1.5 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-lg transition">ระบบ AI</button>
-        <button onclick="document.getElementById('tplSelect').scrollIntoView({behavior: 'smooth', block: 'center'})" class="px-2.5 py-1.5 bg-pink-100 text-pink-700 hover:bg-pink-200 rounded-lg transition">รูปแบบบัตร</button>
-        <button onclick="document.getElementById('bannerEnabled').scrollIntoView({behavior: 'smooth', block: 'center'})" class="px-2.5 py-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg transition">Banner</button>
-        <button onclick="document.getElementById('announcementMode').scrollIntoView({behavior: 'smooth', block: 'center'})" class="px-2.5 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg transition">เสียงแจ้งเตือน</button>
+        <button onclick="scrollToSection('settingsPage')" class="px-3 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg transition">ข้อมูลทั่วไป</button>
+        <button onclick="scrollToSection('autoCheckoutEnabled')" class="px-3 py-2 bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-lg transition">Auto-Checkout</button>
+        <button onclick="scrollToSection('aiThreshold')" class="px-3 py-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-lg transition">ระบบ AI</button>
+        <button onclick="scrollToSection('tplSelect')" class="px-3 py-2 bg-pink-100 text-pink-700 hover:bg-pink-200 rounded-lg transition shadow-sm border border-pink-200">รูปแบบบัตร</button>
+        <button onclick="scrollToSection('bannerEnabled')" class="px-3 py-2 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg transition">Banner</button>
+        <button onclick="scrollToSection('announcementMode')" class="px-3 py-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg transition">เสียงแจ้งเตือน</button>
     </div>
            <button onclick="saveAllSettings()" class="btn-primary text-white px-8 py-3.5 rounded-xl shadow-lg font-bold text-lg flex items-center gap-2 hover:-translate-y-1"><i data-lucide="save" class="w-6 h-6"></i> บันทึกการตั้งค่าทั้งหมด</button>
        </div>
@@ -9196,71 +9197,7 @@ processMainScan = function() {
     
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
-  async function downloadPdfCard() {
-    const container = document.getElementById('printCardContainer');
-    const cardId = container.dataset.cardId || 'NewCard';
-    
-    // ดึง Element ด้านหน้าและด้านหลังจากการวาดด้วย Unified Engine
-    const front = container.children[0];
-    const back = container.children[1];
-
-    if (!front || !back) return showToast('ไม่พบข้อมูลบัตร', 'error');
-
-    showToast('กำลังสร้าง PDF 2 หน้า...', 'info');
-
-    // 1. สร้าง Container ชั่วคราว (Temporary Wrapper)
-    const pdfWrapper = document.createElement('div');
-    pdfWrapper.style.width = '340px';
-    pdfWrapper.style.background = 'white';
-    pdfWrapper.style.display = 'block'; // บังคับให้เรียงแนวตั้ง
-
-    // 2. Clone หน้าบัตรมาใส่ และลบค่าที่ทำให้เลย์เอาท์เพี้ยน
-    const fClone = front.cloneNode(true);
-    fClone.style.margin = '0';
-    fClone.style.boxShadow = 'none';
-    fClone.style.display = 'block';
-
-    const bClone = back.cloneNode(true);
-    bClone.style.margin = '0';
-    bClone.style.boxShadow = 'none';
-    bClone.style.display = 'block';
-    
-    // บังคับคำสั่งขึ้นหน้าใหม่ (Page Break) ที่ตัวบัตรหลัง
-   // bClone.style.pageBreakBefore = 'always'; 
-
-    pdfWrapper.appendChild(fClone);
-    pdfWrapper.appendChild(bClone);
-
-    // 3. ตั้งค่า html2pdf
-    const opt = {
-        margin: 0,
-        filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.90 },
-        html2canvas: { 
-            scale: 3, 
-            useCORS: true, 
-            logging: false,
-            scrollX: 0,
-            scrollY: 0
-        },
-        jsPDF: { 
-            unit: 'px', 
-            format: [340, 540], 
-            orientation: 'portrait' 
-        },
-        // ใช้โหมด CSS และ Legacy ร่วมกันเพื่อความชัวร์ในการแบ่งหน้า
-        pagebreak: { mode: ['css', 'legacy'] }
-    };
-
-    try {
-        // ส่ง pdfWrapper ที่เราสร้างขึ้น (เรียงแนวตั้งแล้ว) ไปประมวลผล
-        await html2pdf().set(opt).from(pdfWrapper).save();
-        showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
-    } catch (err) {
-        console.error("PDF Error:", err);
-        showToast('เกิดข้อผิดพลาด', 'error');
-    }
-}
+  //// ลบ โหลดบัตรคน
     ///////////
 	// ดักจับการคลิก Checkbox พื้นที่ในหน้าจัดการบัตร
 document.addEventListener('change', function(e) {
@@ -9368,20 +9305,64 @@ function closeIdVehicleCardModal() {
     document.getElementById('idVehicleCardModal').classList.add('hidden'); 
 }
 
+// ==========================================
+// ฟังก์ชันดาวน์โหลด PDF (อัปเกรดแก้บั๊กไม่ดาวน์โหลด)
+// ==========================================
+async function downloadPdfCard() {
+    const container = document.getElementById('printCardContainer');
+    const cardId = container.dataset.cardId || 'EmployeeCard';
+    
+    // ค้นหาเฉพาะกล่องบัตรเท่านั้น (ป้องกันโครงสร้างเพี้ยน)
+    const cards = container.querySelectorAll('.card-wrapper');
+    if (cards.length < 2) return showToast('ไม่พบข้อมูลบัตร', 'error');
+
+    showLoader('กำลังสร้างไฟล์ PDF...');
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.width = '340px';
+    pdfWrapper.style.background = 'white';
+
+    const fClone = cards[0].cloneNode(true);
+    const bClone = cards[1].cloneNode(true);
+    fClone.style.boxShadow = 'none';
+    bClone.style.boxShadow = 'none';
+
+    pdfWrapper.appendChild(fClone);
+    pdfWrapper.appendChild(bClone);
+
+    const opt = {
+        margin: 0,
+        filename: `ID_Card_${cardId.replace(/\//g, '-')}.pdf`,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 3, useCORS: true },
+        jsPDF: { unit: 'px', format: [340, 540], orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
+    };
+
+    try {
+        await html2pdf().set(opt).from(pdfWrapper).save();
+        showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
+    } catch (e) {
+        showToast('เกิดข้อผิดพลาดในการสร้าง PDF', 'error');
+    } finally {
+        hideLoader();
+    }
+}
+
 async function downloadVehiclePdfCard() {
     const container = document.getElementById('printVehicleCardContainer');
-    const cardId = container.dataset.cardId || 'NewVehicle';
+    const cardId = container.dataset.cardId || 'VehicleCard';
     
-    const front = container.children[0];
-    const back = container.children[1];
+    const cards = container.querySelectorAll('.card-wrapper');
+    if (cards.length < 2) return showToast('ไม่พบข้อมูลบัตร', 'error');
 
+    showLoader('กำลังสร้างไฟล์ PDF...');
     const pdfWrapper = document.createElement('div');
     pdfWrapper.style.width = '360px';
     pdfWrapper.style.background = 'white';
 
-    const fClone = front.cloneNode(true);
+    const fClone = cards[0].cloneNode(true);
+    const bClone = cards[1].cloneNode(true);
     fClone.style.boxShadow = 'none';
-    const bClone = back.cloneNode(true);
     bClone.style.boxShadow = 'none';
 
     pdfWrapper.appendChild(fClone);
@@ -9390,13 +9371,20 @@ async function downloadVehiclePdfCard() {
     const opt = {
         margin: 0,
         filename: `Vehicle_Card_${cardId.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { scale: 3, useCORS: true },
         jsPDF: { unit: 'px', format: [360, 435], orientation: 'portrait' },
         pagebreak: { mode: ['css', 'legacy'] }
     };
 
-    html2pdf().set(opt).from(pdfWrapper).save();
+    try {
+        await html2pdf().set(opt).from(pdfWrapper).save();
+        showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
+    } catch (e) {
+        showToast('เกิดข้อผิดพลาดในการสร้าง PDF', 'error');
+    } finally {
+        hideLoader();
+    }
 }
 
 	/**
@@ -10658,7 +10646,7 @@ function getActiveTemplate(forceTplId = null) {
 }
 
 // 2. ฟังก์ชันวาดบัตรพนักงาน 1 ใบ (รองรับ QR, Theme สี, Layout และแก้บั๊กพื้นหลัง)
-// 2. ฟังก์ชันวาดบัตรพนักงาน 1 ใบ (จัดเลย์เอาต์ใหม่)
+// 2. ฟังก์ชันวาดบัตรพนักงาน 1 ใบ (จัดเลย์เอาต์ใหม่ด้านหลังแบบ 2 คอลัมน์)
 function generateEmployeeCardHtml(card, tpl, isFront) {
     if (!card) return `<div class="card-wrapper bg-white"></div>`;
 
@@ -10701,18 +10689,17 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
 
         let frontCodeHtml = '';
         if (tpl.personFrontCode === 'qr_bottom_left') {
-            // ขยาย QR เป็น 130px และจัดเลย์เอาต์มุมซ้ายล่าง
-            const qr = new QRious({value: card.cardId, size: 130}).toDataURL();
+            // อัปเกรด 1: ขยายขนาด QR โค้ดให้ใหญ่ขึ้น (size 180) และปรับกล่องแสดงผลให้กว้างขึ้น
+            const qr = new QRious({value: card.cardId, size: 180}).toDataURL();
             frontCodeHtml = `
-            <div class="absolute bottom-[10px] left-[15px] flex flex-col items-center">
-                <img src="${qr}" class="w-[50px] h-[50px] rounded border border-gray-200 shadow-sm bg-white p-0.5 mb-0.5">
-                <div class="text-[9px] font-black ${txtMain} leading-none tracking-wide bg-white/50 px-1 rounded backdrop-blur-sm">NO. ${card.cardId}</div>
+            <div class="absolute bottom-[10px] left-[15px] flex flex-col items-center z-20">
+                <img src="${qr}" class="w-[56px] h-[56px] rounded border border-gray-200 shadow-sm bg-white p-0.5 mb-1">
+                <div class="text-[10px] font-black ${txtMain} leading-none tracking-wide bg-white/50 px-1 rounded backdrop-blur-sm">NO. ${card.cardId}</div>
             </div>`;
         } else {
-            // กรณีซ่อน QR จะแสดงแค่หมายเลข
             frontCodeHtml = `
-            <div class="absolute bottom-[15px] left-[15px]">
-                <div class="text-[14px] font-black ${txtMain} leading-none tracking-wide">NO. ${card.cardId}</div>
+            <div class="absolute bottom-[15px] left-[15px] z-20">
+                <div class="text-[14px] font-black ${txtMain} leading-none tracking-wide bg-white/50 px-1.5 py-0.5 rounded backdrop-blur-sm">NO. ${card.cardId}</div>
             </div>`;
         }
 
@@ -10734,37 +10721,40 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
                    </div>
                </div>
                
-               <!-- ย้าย "วันหมดอายุ" ขึ้นไปอยู่บรรทัดเดียวกับชื่อหน่วยงาน -->
-               <div class="absolute top-[315px] left-[16px] right-[12px] flex flex-col ${txtMain} font-bold text-[14px]">
+               <div class="absolute top-[315px] left-[16px] right-[12px] flex flex-col ${txtMain} font-bold text-[14px] z-10">
                    <div class="text-[20px] font-black mb-1.5 leading-[1.2] py-1 truncate">${card.firstName} ${card.lastName}</div>
                    
                    <div class="grid grid-cols-[60px_1fr] gap-x-2 gap-y-1.5 mb-1.5">
                        <div class="${txtLabel}">${tpl.lblPos}</div><div class="${txtSub} truncate text-[13px]">${card.position || '-'}</div>
                    </div>
                    
-                   <!-- บรรทัดหน่วยงาน และ วันหมดอายุ จัดคู่กัน -->
                    <div class="grid grid-cols-[60px_1fr] gap-x-2 gap-y-1.5 items-center">
                        <div class="${txtLabel}">${tpl.lblOrg}</div>
                        <div class="${txtSub} truncate text-[13px] leading-none mb-1">${card.organization || '-'}</div>
                        
                        <div class="text-[12px] text-red-500 font-bold leading-none mt-1">${tpl.lblExp}</div>
-                       <div class="text-[16px] font-black text-red-600 leading-none mt-1">${formatDateOnly(card.expiryDate)}</div>
+                       <div class="text-[16px] font-black text-red-600 leading-none mt-1 bg-white/50 px-1 rounded w-fit">${formatDateOnly(card.expiryDate)}</div>
                    </div>
                </div>
                ${frontCodeHtml}
             </div>
         </div>`;
     } else {
+        // อัปเกรด 2: ปรับดีไซน์ด้านหลังบัตร เป็นแบบแบ่ง 2 ฝั่ง (ซ้าย-ขวา) 
         let backCodeHtml = '';
         if (tpl.personBackCode === 'qr_center') {
-            const qr = new QRious({value: card.cardId, size: 250}).toDataURL();
+            const qr = new QRious({value: card.cardId, size: 200}).toDataURL();
             backCodeHtml = `
-            <img src="${qr}" class="w-24 h-24 rounded border border-gray-200 shadow-sm bg-white p-1 mb-1">
-            <div class="font-bold text-[14px] text-gray-800">${card.cardId}</div>`;
+            <div class="flex flex-col items-center w-full">
+                <img src="${qr}" class="w-16 h-16 rounded mb-1 bg-white p-0.5 border border-gray-200">
+                <div class="font-bold text-[11px] text-gray-800">${card.cardId}</div>
+            </div>`;
         } else if (tpl.personBackCode === 'barcode_center') {
             backCodeHtml = `
-            <div class="font-barcode text-6xl text-black leading-none transform scale-x-[0.8] origin-center tracking-normal whitespace-nowrap overflow-visible">*${card.cardId}*</div>
-            <div class="font-bold text-[14px] text-gray-800 -mt-1">${card.cardId}</div>`;
+            <div class="flex flex-col items-center w-full overflow-hidden">
+                <div class="font-barcode text-5xl text-black leading-none transform scale-[0.6] origin-center tracking-normal whitespace-nowrap">*${card.cardId}*</div>
+                <div class="font-bold text-[10px] text-gray-800 -mt-2">${card.cardId}</div>
+            </div>`;
         }
 
         const rulesHtml = (tpl.cardTplRules || '').replace(/\n/g, '<br>');
@@ -10774,20 +10764,29 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
         <div class="card-wrapper bg-white relative box-border overflow-hidden shrink-0 border border-gray-200" style="width: 340px; height: 540px;">
             ${bgBackUrl ? `<img src="${bgBackUrl}" crossorigin="anonymous" class="absolute inset-0 w-full h-full object-fill z-0">` : ''}
             <div class="absolute inset-0 z-10 flex flex-col px-4 py-6">
+                
                 <div class="flex flex-col items-center mb-3 bg-white/90 rounded-lg py-2 shadow-sm border border-red-50 w-full shrink-0">
                    <h3 class="text-red-600 font-black text-center text-[20px] leading-tight w-full truncate">${tpl.cardRulesTitle1}</h3>
                    <p class="text-red-600 font-bold text-center text-[12px] mt-1 w-full truncate">${tpl.cardRulesTitle2}</p>
                    <p class="text-red-600 font-bold text-center text-[12px] w-full truncate">${tpl.cardRulesTitle3}</p>
                 </div>
-                <!-- บังคับข้อความกฎระเบียบให้อยู่ในกรอบ และไม่ล้น -->
-                <div class="text-gray-800 text-[12px] leading-relaxed whitespace-pre-line font-medium bg-white/80 p-3 rounded-xl backdrop-blur-sm border border-gray-100 flex-1 overflow-hidden h-[160px]">${rulesHtml}</div>
                 
-                <div class="mt-3 flex flex-col items-center justify-center py-3 px-2 bg-white/90 rounded-xl shadow-sm border border-gray-100 w-full shrink-0 h-[150px]">
-                   ${backCodeHtml}
-                   <div class="w-[40%] h-[2px] bg-gray-300 my-2 rounded-full shrink-0"></div>
-                   <div class="flex flex-col items-center text-center text-[11px] font-bold text-gray-600 leading-tight gap-0.5 w-full shrink-0">
-                       <span class="truncate w-full">${tpl.cardFooterLine1}</span><span class="truncate w-full">${tpl.cardFooterLine2}</span><span class="text-indigo-800 truncate w-full">${tpl.cardFooterLine3}</span>
+                <!-- ขยายพื้นที่ให้กฎระเบียบ (flex-1) -->
+                <div class="text-gray-800 text-[12px] leading-relaxed whitespace-pre-line font-medium bg-white/80 p-3 rounded-xl backdrop-blur-sm border border-gray-100 flex-1 overflow-hidden">${rulesHtml}</div>
+                
+                <!-- ดีไซน์ใหม่: แบ่งซ้ายขวา -->
+                <div class="mt-3 flex items-center justify-between p-2 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0 h-[90px] gap-2">
+                   
+                   <div class="w-[35%] shrink-0 flex items-center justify-center border-r border-gray-200 pr-2">
+                       ${backCodeHtml}
                    </div>
+                   
+                   <div class="w-[65%] flex flex-col justify-center text-[9px] font-bold text-gray-600 leading-[1.3] pl-1 h-full">
+                       <span class="truncate w-full">${tpl.cardFooterLine1}</span>
+                       <span class="truncate w-full">${tpl.cardFooterLine2}</span>
+                       <span class="text-indigo-800 truncate w-full mt-1">${tpl.cardFooterLine3}</span>
+                   </div>
+                   
                 </div>
             </div>
         </div>`;
@@ -10873,17 +10872,21 @@ function generateVehicleCardHtml(v, tpl, isFront) {
             </div>
         </div>`;
     } else {
-        // แก้ไขด้านหลังบัตรรถ ให้ QR Code อยู่ตรงกลางและมีพื้นที่เพียงพอ
+        // อัปเกรด 3: ปรับดีไซน์ด้านหลังบัตรรถ เป็นแบบแบ่ง 2 ฝั่ง (ซ้าย-ขวา) 
         let backCodeHtml = '';
         if (tpl.vehicleBackCode === 'qr_center') {
-            const qr = new QRious({value: v.cardId, size: 250}).toDataURL();
+            const qr = new QRious({value: v.cardId, size: 200}).toDataURL();
             backCodeHtml = `
-            <img src="${qr}" class="w-20 h-20 rounded border border-gray-200 shadow-sm bg-white p-1 mb-1">
-            <div class="font-bold text-[14px] text-gray-800">${v.cardId}</div>`;
+            <div class="flex flex-col items-center w-full">
+                <img src="${qr}" class="w-16 h-16 rounded mb-1 bg-white p-0.5 border border-gray-200">
+                <div class="font-bold text-[11px] text-gray-800">${v.cardId}</div>
+            </div>`;
         } else if (tpl.vehicleBackCode === 'barcode_center') {
             backCodeHtml = `
-            <div class="font-barcode text-[42px] text-black leading-none transform scale-x-[0.7] origin-center tracking-normal whitespace-nowrap overflow-visible">*${v.cardId}*</div>
-            <div class="font-bold text-[14px] text-gray-800 mt-1">${v.cardId}</div>`;
+            <div class="flex flex-col items-center w-full overflow-hidden">
+                <div class="font-barcode text-5xl text-black leading-none transform scale-[0.6] origin-center tracking-normal whitespace-nowrap">*${v.cardId}*</div>
+                <div class="font-bold text-[10px] text-gray-800 -mt-2">${v.cardId}</div>
+            </div>`;
         }
 
         const rulesHtml = (tpl.cardTplRulesV || '').replace(/\n/g, '<br>');
@@ -10899,15 +10902,18 @@ function generateVehicleCardHtml(v, tpl, isFront) {
                     <div class="text-red-600 font-bold text-[11px] leading-tight truncate">${tpl.rulesTitleV3}</div>
                 </div>
                 
-                <!-- บังคับกรอบให้อยู่ในขนาด ไม่ดันลงข้างล่าง -->
-                <div class="text-gray-800 text-[11px] leading-relaxed whitespace-pre-line flex-1 font-medium overflow-hidden bg-white/80 p-3 rounded-xl backdrop-blur-sm border border-gray-100 h-[100px]">${rulesHtml}</div>
+                <div class="text-gray-800 text-[11px] leading-relaxed whitespace-pre-line flex-1 font-medium overflow-hidden bg-white/80 p-3 rounded-xl backdrop-blur-sm border border-gray-100">${rulesHtml}</div>
                 
-                <div class="mt-3 flex flex-col items-center justify-center p-3 bg-white/90 rounded-xl shadow-sm border border-gray-100 w-full shrink-0 h-[140px]">
-                    ${backCodeHtml}
-                    <div class="w-[40%] h-[2px] bg-gray-300 my-2 rounded-full mx-auto shrink-0"></div>
-                    <div class="truncate w-full text-center text-[10px] font-bold text-gray-500">${tpl.cardFooterV1}</div>
-                    <div class="truncate w-full text-center text-[10px] font-bold text-gray-500">${tpl.cardFooterV2}</div>
-                    <div class="text-blue-800 truncate w-full text-center text-[10px] font-bold">${tpl.cardFooterV3}</div>
+                <!-- ดีไซน์ใหม่: แบ่งซ้ายขวา -->
+                <div class="mt-3 flex items-center justify-between p-2 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0 h-[90px] gap-2">
+                   <div class="w-[35%] shrink-0 flex items-center justify-center border-r border-gray-200 pr-2">
+                       ${backCodeHtml}
+                   </div>
+                   <div class="w-[65%] flex flex-col justify-center text-[10px] font-bold text-gray-600 leading-[1.3] pl-1 h-full">
+                       <div class="truncate w-full">${tpl.cardFooterV1}</div>
+                       <div class="truncate w-full">${tpl.cardFooterV2}</div>
+                       <div class="text-blue-800 truncate w-full mt-1">${tpl.cardFooterV3}</div>
+                   </div>
                 </div>
             </div>
         </div>`;
@@ -11370,7 +11376,27 @@ function setActiveTemplate() {
     showToast('ตั้งเป็นรูปแบบเริ่มต้นเรียบร้อยแล้ว', 'success');
 }
 
+// ฟังก์ชันกระโดดไปที่หัวข้อตั้งค่า พร้อมเอฟเฟกต์เรืองแสง (Highlight)
+function scrollToSection(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    
+    // หากล่องพ่อ (Container) ที่คลุมมันอยู่ เพื่อให้แสงกระพริบคลุมทั้งกล่อง
+    const containerBox = el.closest('.card-shadow'); 
+    const targetEl = containerBox || el;
 
+    // เลื่อนหน้าจอให้ตำแหน่งนั้นมาอยู่ด้านบน (หักลบความสูง Header นิดหน่อย)
+    const y = targetEl.getBoundingClientRect().top + window.scrollY - 80;
+    window.scrollTo({ top: y, behavior: 'smooth' });
+    
+    // ใส่เอฟเฟกต์เรืองแสงสีฟ้ากระพริบ
+    targetEl.classList.add('ring-4', 'ring-sky-400', 'animate-pulse', 'bg-sky-50/30');
+    
+    // ลบเอฟเฟกต์ออกหลังจาก 2.5 วินาที
+    setTimeout(() => {
+        targetEl.classList.remove('ring-4', 'ring-sky-400', 'animate-pulse', 'bg-sky-50/30');
+    }, 2500);
+}
 	  
   </script>
 
