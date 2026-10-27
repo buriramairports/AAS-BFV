@@ -6903,12 +6903,23 @@ systemSettings.aiAutoCancelTime = parseInt(document.getElementById('aiAutoCancel
 	   systemSettings.ttsVolume = document.getElementById('ttsVolume').value;
 systemSettings.ttsTimingMode = document.getElementById('ttsTimingMode').value;
 systemSettings.ttsGreeting = document.getElementById('ttsGreeting').value;
-    showLoader('กำลังบันทึกการตั้งค่า...');
-    await apiCall('saveSettings', systemSettings);
-    applySettingsToUI(); 
-    initBanner();
+    
+	   showLoader('กำลังบันทึกการตั้งค่า...');
+    try {
+        // --- เปลี่ยนแปลงตรงนี้: รับค่าที่อัปเดตแล้วจากเซิร์ฟเวอร์กลับมาทับตัวแปรเดิม ---
+        const updatedConfig = await apiCall('saveSettings', systemSettings);
+        systemSettings = updatedConfig; 
+        
+        applySettingsToUI(); 
+        initBanner();
+        renderTemplateGallery(); // สั่งให้หน้าต่าง Template รีเฟรชภาพจากลิงก์ Google Drive
+
+        showToast('บันทึกการตั้งค่าระบบเรียบร้อย', 'success');
+    } catch (e) {
+        showToast('เกิดข้อผิดพลาดในการบันทึกการตั้งค่า', 'error');
+        console.error(e);
+    }
     hideLoader();
-    showToast('บันทึกการตั้งค่าระบบเรียบร้อย', 'success');
 }
 
     // --- Banner Logic ---
