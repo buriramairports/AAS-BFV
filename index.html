@@ -1913,7 +1913,7 @@ gap: 1px !important;
                         </div>
 
                         <!-- ช่องทางเข้าออก -->
-                        <div class="absolute bottom-6 left-[35px] text-left">
+                        <div class="absolute bottom-5 left-[35px] text-left">
                             <div class="text-[11px] font-bold text-orange-600">ช่องทางเข้า - ออก</div>
                             <div id="renderGatesV" class="text-[14px] font-black leading-tight">-</div>
                         </div>
@@ -10744,7 +10744,7 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
         let bottomSectionHtml = '';
 
         if (tpl.personBackCode === 'qr_center') {
-            const qr = new QRious({value: card.cardId, size: 230}).toDataURL();
+            const qr = new QRious({value: card.cardId, size: 200}).toDataURL();
             // เลย์เอาต์ QR: แบ่งซ้าย-ขวา
             bottomSectionHtml = `
             <div class="mt-3 flex items-center justify-between p-2 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0 h-[95px] gap-2">
@@ -10832,9 +10832,9 @@ function generateVehicleCardHtml(v, tpl, isFront) {
 
         if (tpl.vehicleFrontCode === 'qr_right') {
             // ย้าย QR Code ไปอยู่ "ขวามือ" (right-[20px]) และดันลงมาให้อยู่ระดับเดียวกับข้อมูล (top-[185px])
-            const qr = new QRious({value: v.cardId, size: 125}).toDataURL();
+            const qr = new QRious({value: v.cardId, size: 100}).toDataURL();
             frontCodeHtml = `
-            <div class="absolute top-[175px] right-[15px] flex flex-col items-center z-20">
+            <div class="absolute top-[150px] right-[12px] flex flex-col items-center z-20">
                 <img src="${qr}" class="w-16 h-16 rounded border border-gray-200 shadow-sm bg-white p-0.5 mb-1">
                 <div class="text-[9px] font-black ${txtMain} leading-none tracking-wide bg-white/50 px-1 rounded backdrop-blur-sm">NO. ${v.cardId}</div>
             </div>`;
@@ -10870,7 +10870,7 @@ function generateVehicleCardHtml(v, tpl, isFront) {
                 </div>
                 
                 <!-- ช่องทางเข้าออก (ตรึงซ้ายเหมือนเดิม) -->
-                <div class="absolute bottom-10 left-[35px] text-left z-20 w-[280px]">
+                <div class="absolute bottom-5 left-[35px] text-left z-20 w-[280px]">
                     <div class="text-[11px] font-bold ${isLight ? 'text-orange-300 drop-shadow' : 'text-orange-600'}">ช่องทางเข้า - ออก</div>
                     <div class="text-[14px] font-black ${txtMain} leading-tight drop-shadow-sm truncate">${gateNames || 'ทุกจุดเข้า-ออก'}</div>
                 </div>
@@ -10902,7 +10902,7 @@ function generateVehicleCardHtml(v, tpl, isFront) {
                <!-- ใช้ -mt-2 ดึงรหัสขึ้นไปให้แนบชิดบาร์โค้ด -->
                <div class="font-bold text-[12px] text-gray-800 -mt-2">${v.cardId}</div>
                <div class="w-[40%] h-[2px] bg-gray-300 my-1.5 rounded-full mx-auto shrink-0"></div>
-               <div class="flex flex-col items-center text-center text-[9px] font-bold text-gray-600 leading-tight gap-0.5 w-full">
+               <div class="flex flex-col items-center text-center text-[8px] font-bold text-gray-600 leading-tight gap-0.5 w-full">
                    <span class="truncate w-full">${tpl.cardFooterV1}</span>
                    <span class="truncate w-full">${tpl.cardFooterV2}</span>
                    <span class="text-blue-800 truncate w-full">${tpl.cardFooterV3}</span>
