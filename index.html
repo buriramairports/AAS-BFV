@@ -11147,12 +11147,12 @@ function switchTplTab(tab) {
 function renderTemplateEditor(tpl) {
     const area = document.getElementById('tplEditorArea');
     
-    // ฟังก์ชันช่วยสร้างกล่องอัปโหลดรูป
-    const makeImgBox = (key, title, val) => `
+    // ฟังก์ชันช่วยสร้างกล่องอัปโหลดรูป (เพิ่มพารามิเตอร์ sizeHint แนะนำขนาด)
+    const makeImgBox = (key, title, val, sizeHint) => `
         <div class="relative w-full h-64 border-2 border-dashed ${val ? 'border-indigo-300' : 'border-slate-300'} rounded-2xl overflow-hidden bg-slate-50 group hover:border-indigo-400 transition cursor-pointer flex items-center justify-center" onclick="document.getElementById('tplImg_${key}').click()">
             <input type="file" id="tplImg_${key}" accept="image/*" class="hidden" onchange="handleTplImageUpload(event, '${key}')">
-            ${val ? `<img src="${val}" class="w-full h-full object-contain p-2">` : `<div class="text-center text-slate-400"><i data-lucide="image-plus" class="w-8 h-8 mx-auto mb-2 opacity-50"></i><p class="text-xs font-bold">${title}</p><p class="text-[9px] mt-1">(54x86 mm)</p></div>`}
-            ${val ? `<div class="absolute inset-0 bg-black/60 hidden group-hover:flex flex-col items-center justify-center text-white"><i data-lucide="refresh-cw" class="w-6 h-6 mb-2"></i><p class="text-xs font-bold">คลิกเพื่อเปลี่ยนรูป</p><button onclick="event.stopPropagation(); removeTplImage('${key}')" class="mt-3 px-3 py-1 bg-red-500 hover:bg-red-600 rounded text-[10px] font-black">ลบรูปทิ้ง</button></div>` : ''}
+            ${val ? `<img src="${val}" class="w-full h-full object-contain p-2">` : `<div class="text-center text-slate-400"><i data-lucide="image-plus" class="w-8 h-8 mx-auto mb-2 opacity-50"></i><p class="text-xs font-bold text-gray-600">${title}</p><p class="text-[10px] font-black text-pink-500 mt-1.5 bg-pink-50 px-2 py-1 rounded inline-block border border-pink-100">${sizeHint}</p></div>`}
+            ${val ? `<div class="absolute inset-0 bg-black/60 hidden group-hover:flex flex-col items-center justify-center text-white"><i data-lucide="refresh-cw" class="w-6 h-6 mb-2"></i><p class="text-xs font-bold">คลิกเพื่อเปลี่ยนรูป</p><button onclick="event.stopPropagation(); removeTplImage('${key}')" class="mt-3 px-3 py-1 bg-red-500 hover:bg-red-600 rounded text-[10px] font-black shadow-lg border border-red-400">ลบรูปทิ้ง</button></div>` : ''}
         </div>
     `;
 
@@ -11162,11 +11162,11 @@ function renderTemplateEditor(tpl) {
                 <!-- โซนรูปภาพ -->
                 <div>
                     <label class="block text-sm font-bold text-pink-700 mb-2">ภาพพื้นหลังบัตรด้านหน้า</label>
-                    ${makeImgBox('personFrontBg', 'อัปโหลดภาพพื้นหลังด้านหน้า', tpl.personFrontBg)}
+                    ${makeImgBox('personFrontBg', 'อัปโหลดภาพพื้นหลังด้านหน้า', tpl.personFrontBg, 'ขนาดแนะนำ: 5.4 x 8.6 ซม. (แนวตั้ง)')}
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-pink-700 mb-2">ภาพพื้นหลังบัตรด้านหลัง</label>
-                    ${makeImgBox('personBackBg', 'อัปโหลดภาพพื้นหลังด้านหลัง', tpl.personBackBg)}
+                    ${makeImgBox('personBackBg', 'อัปโหลดภาพพื้นหลังด้านหลัง', tpl.personBackBg, 'ขนาดแนะนำ: 5.4 x 8.6 ซม. (แนวตั้ง)')}
                 </div>
 
                 <!-- โซนตั้งค่า Layout -->
@@ -11222,11 +11222,11 @@ function renderTemplateEditor(tpl) {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-sm font-bold text-blue-700 mb-2">ภาพพื้นหลังบัตรรถด้านหน้า</label>
-                    ${makeImgBox('vehicleFrontBg', 'อัปโหลดภาพบัตรรถด้านหน้า', tpl.vehicleFrontBg)}
+                    ${makeImgBox('vehicleFrontBg', 'อัปโหลดภาพบัตรรถด้านหน้า', tpl.vehicleFrontBg, 'ขนาดแนะนำ: 8.5 x 10.3 ซม. (แนวตั้ง)')}
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-blue-700 mb-2">ภาพพื้นหลังบัตรรถด้านหลัง</label>
-                    ${makeImgBox('vehicleBackBg', 'อัปโหลดภาพบัตรรถด้านหลัง', tpl.vehicleBackBg)}
+                    ${makeImgBox('vehicleBackBg', 'อัปโหลดภาพบัตรรถด้านหลัง', tpl.vehicleBackBg, 'ขนาดแนะนำ: 8.5 x 10.3 ซม. (แนวตั้ง)')}
                 </div>
                 <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
                     <div>
@@ -11310,7 +11310,7 @@ function removeTplImage(key) {
 
 // 7. จัดการ Template (สร้าง/ลบ/เลือกใช้)
 function createNewTemplate() {
-    const name = prompt("ตั้งชื่อรูปแบบบัตรใหม่ (เช่น รูปแบบปี 2569):");
+    const name = prompt("ตั้งชื่อเซ็ตรูปแบบบัตรใหม่ (ใช้ร่วมกันทั้งคนและรถ)\nตัวอย่าง: รูปแบบบัตร ปี 2569");
     if (!name) return;
     
     const newId = 'tpl_' + Date.now();
