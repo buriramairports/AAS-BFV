@@ -1271,107 +1271,50 @@ gap: 1px !important;
 		   
        </div>
 
-	<!-- Settings: Card Template & Labels -->
-       <div class="bg-rose-50/40 rounded-3xl card-shadow p-6 border-2 border-rose-100 shadow-sm">
-           <h3 class="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-gray-700">
-               <i data-lucide="printer" class="w-5 h-5 text-pink-500"></i> ตั้งค่ารูปแบบบัตรพนักงาน (ID Card Template & Labels)
-           </h3>
-           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-               <!-- รูปลิงก์พื้นหลัง -->
-               <div class="md:col-span-2">
-                   <label class="block text-sm font-bold mb-1 text-pink-700"><i data-lucide="link" class="w-3 h-3 inline"></i> ลิงก์รูปพื้นหลังบัตรด้านหน้า</label>
-                   <input type="url" id="cardTplFront" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-pink-500 bg-pink-50/30">
-               </div>
-               <div class="md:col-span-2">
-                   <label class="block text-sm font-bold mb-1 text-pink-700"><i data-lucide="link" class="w-3 h-3 inline"></i> ลิงก์รูปพื้นหลังบัตรด้านหลัง</label>
-                   <input type="url" id="cardTplBack" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-pink-500 bg-pink-50/30">
-               </div>
-               
-               <!-- ตั้งค่าคำศัพท์บนบัตร -->
-               <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                   <div class="md:col-span-3"><p class="font-bold text-gray-800 text-sm mb-2">ปรับเปลี่ยนคำศัพท์บนบัตร (Labels)</p></div>
-                   <div><label class="block text-xs font-bold mb-1 text-gray-600">คำนำหน้าตำแหน่ง</label><input type="text" id="lblPos" class="w-full border p-2 rounded-lg" placeholder="ค่าเริ่มต้น: ตำแหน่ง"></div>
-                   <div><label class="block text-xs font-bold mb-1 text-gray-600">คำนำหน้าสังกัด/หน่วยงาน</label><input type="text" id="lblOrg" class="w-full border p-2 rounded-lg" placeholder="ค่าเริ่มต้น: สังกัด"></div>
-                   <div><label class="block text-xs font-bold mb-1 text-gray-600">คำนำหน้าวันหมดอายุ</label><input type="text" id="lblExp" class="w-full border p-2 rounded-lg" placeholder="ค่าเริ่มต้น: หมดอายุ"></div>
-               </div>
+	<!-- ======================================================= -->
+<!-- Settings: Template Gallery (คลังรูปแบบบัตร Smart Hybrid) -->
+<!-- ======================================================= -->
+<div class="bg-slate-50/80 rounded-3xl card-shadow p-6 border-2 border-slate-200 shadow-sm mt-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4 mb-4">
+        <div>
+            <h3 class="font-black text-xl flex items-center gap-2 text-slate-800">
+                <i data-lucide="layout-template" class="w-6 h-6 text-indigo-600"></i> คลังรูปแบบบัตร (Template Gallery)
+            </h3>
+            <p class="text-xs text-slate-500 mt-1">จัดการดีไซน์พื้นหลังและเลย์เอาต์สำหรับบัตรพนักงานและบัตรรถ</p>
+        </div>
+        
+        <!-- แถบเลือก Template -->
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+            <select id="tplSelect" onchange="switchTemplate(this.value)" class="flex-1 sm:w-64 border-2 border-indigo-200 p-2.5 rounded-xl font-bold text-indigo-900 outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-sm"></select>
+            <button onclick="createNewTemplate()" class="p-2.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-xl hover:bg-indigo-600 hover:text-white transition shadow-sm" title="สร้างรูปแบบใหม่"><i data-lucide="plus" class="w-5 h-5"></i></button>
+        </div>
+    </div>
 
-               <!-- หัวข้อข้อควรปฏิบัติ (ด้านหลังบัตร 3 บรรทัด) -->
-               <div class="bg-red-50 p-4 rounded-xl border border-red-100 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                   <div class="md:col-span-3"><p class="font-bold text-red-800 text-sm mb-1"><i data-lucide="file-text" class="w-4 h-4 inline mr-1 text-red-500"></i> หัวข้อข้อควรปฏิบัติ (ด้านหลังบัตร)</p></div>
-                   <div><label class="block text-xs font-bold mb-1 text-red-600">บรรทัดที่ 1 (ตัวใหญ่สุด)</label><input type="text" id="cardRulesTitle1" class="w-full border p-2 rounded-lg text-center font-bold text-red-600" placeholder="เช่น ข้อควรปฏิบัติ"></div>
-                   <div><label class="block text-xs font-bold mb-1 text-red-600">บรรทัดที่ 2 (ตัวเล็ก)</label><input type="text" id="cardRulesTitle2" class="w-full border p-2 rounded-lg text-center text-sm text-red-600" placeholder="เช่น การใช้บัตรอนุญาตเข้าพื้นที่หวงห้ามและ"></div>
-                   <div><label class="block text-xs font-bold mb-1 text-red-600">บรรทัดที่ 3 (ตัวเล็ก)</label><input type="text" id="cardRulesTitle3" class="w-full border p-2 rounded-lg text-center text-sm text-red-600" placeholder="เช่น พื้นที่ควบคุม ท่าอากาศยานบุรีรัมย์"></div>
-               </div>
-               
-               <div class="md:col-span-2 mt-2">
-                   <label class="block text-sm font-bold mb-1 text-pink-700">รายละเอียดกฎระเบียบ (ข้อ 1, 2, 3...)</label>
-                   <textarea id="cardTplRules" rows="5" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-pink-500 bg-white leading-relaxed text-[13px]"></textarea>
-               </div>
-			   <!-- ข้อความเพิ่มเติมด้านหลังบัตร (ใต้บาร์โค้ด) -->
-               <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                   <div class="md:col-span-3"><p class="font-bold text-gray-800 text-sm mb-2"><i data-lucide="align-center" class="w-4 h-4 inline mr-1 text-pink-500"></i> ข้อความท้ายบัตรด้านหลัง (แสดงใต้บาร์โค้ด จัดกึ่งกลาง)</p></div>
-                   <div><label class="block text-xs font-bold mb-1 text-gray-600">บรรทัดที่ 1</label><input type="text" id="cardFooterLine1" class="w-full border p-2 rounded-lg text-center" placeholder="เช่น ผู้ใดเก็บได้..."></div>
-                   <div><label class="block text-xs font-bold mb-1 text-gray-600">บรรทัดที่ 2</label><input type="text" id="cardFooterLine2" class="w-full border p-2 rounded-lg text-center" placeholder="เช่น กรุณาส่งคืนที่..."></div>
-                   <div><label class="block text-xs font-bold mb-1 text-gray-600">บรรทัดที่ 3</label><input type="text" id="cardFooterLine3" class="w-full border p-2 rounded-lg text-center" placeholder="เช่น โทร. 044-xxxxxx"></div>
-               </div>
-           </div>
-       </div>
-<!-- Settings: Vehicle Card Template (เพิ่มใหม่) -->
-<div class="bg-blue-50/40 rounded-3xl card-shadow p-6 border-2 border-blue-100 shadow-sm mt-6">
-    <h3 class="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-gray-700">
-        <i data-lucide="truck" class="w-5 h-5 text-blue-500"></i> ตั้งค่ารูปแบบบัตรยานพาหนะ (Vehicle Card Template)
-    </h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div class="md:col-span-2">
-            <label class="block text-sm font-bold mb-1 text-blue-700">ลิงก์รูปพื้นหลังบัตรรถด้านหน้า</label>
-            <input type="url" id="cardTplFrontV" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+    <!-- แถบสถานะของ Template ที่เลือก -->
+    <div class="flex flex-wrap justify-between items-center mb-4 p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center gap-3">
+            <span id="tplStatusBadge" class="px-3 py-1 rounded-lg text-xs font-black uppercase tracking-widest">-</span>
+            <span id="tplNameDisplay" class="font-bold text-sm text-slate-700">-</span>
         </div>
-        <div class="md:col-span-2">
-            <label class="block text-sm font-bold mb-1 text-blue-700">ลิงก์รูปพื้นหลังบัตรรถด้านหลัง</label>
-            <input type="url" id="cardTplBackV" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+        <div class="flex gap-2 mt-2 sm:mt-0">
+            <button id="btnSetTplActive" onclick="setActiveTemplate()" class="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg transition shadow-sm flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> ตั้งเป็นค่าเริ่มต้น</button>
+            <button onclick="previewCurrentTemplate()" class="text-xs px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-lg transition shadow-sm flex items-center gap-1"><i data-lucide="eye" class="w-3.5 h-3.5"></i> ดูตัวอย่าง</button>
+            <button id="btnDeleteTpl" onclick="deleteTemplate()" class="text-xs px-3 py-1.5 bg-red-100 hover:bg-red-500 text-red-600 hover:text-white font-bold rounded-lg transition shadow-sm flex items-center gap-1"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> ลบ</button>
         </div>
-		<!-- ในหน้า Settings เพิ่มส่วน Labels ของรถ -->
-<div class="bg-blue-50 p-4 rounded-xl border border-blue-200 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-    <div class="md:col-span-3"><p class="font-bold text-blue-800 text-sm mb-2">ปรับเปลี่ยนคำศัพท์บนบัตรรถ (Vehicle Labels)</p></div>
-    <div><label class="block text-xs font-bold mb-1">คำนำหน้าสังกัด</label><input type="text" id="lblOrgV" class="w-full border p-2 rounded-lg" placeholder="สังกัดบริษัท"></div>
-    <div><label class="block text-xs font-bold mb-1">คำนำหน้าทะเบียนรถ</label><input type="text" id="lblRegV" class="w-full border p-2 rounded-lg" placeholder="เลขทะเบียนยานพาหนะ"></div>
-    <div><label class="block text-xs font-bold mb-1">คำนำหน้าเลขควบคุม</label><input type="text" id="lblIdV" class="w-full border p-2 rounded-lg" placeholder="ทะเบียนควบคุมเลขที่"></div>
-</div>
+    </div>
 
-<!-- เพิ่มหัวข้อปฏิบัติหลังบัตรรถ 3 บรรทัด -->
-<div class="bg-red-50 p-4 rounded-xl border border-red-100 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-    <div class="md:col-span-3"><p class="font-bold text-red-800 text-sm mb-1">หัวข้อข้อควรปฏิบัติหลังบัตรรถ</p></div>
-    <div><label class="block text-xs font-bold">บรรทัดที่ 1</label><input type="text" id="rulesTitleV1" class="w-full border p-2 rounded-lg"></div>
-    <div><label class="block text-xs font-bold">บรรทัดที่ 2</label><input type="text" id="rulesTitleV2" class="w-full border p-2 rounded-lg"></div>
-    <div><label class="block text-xs font-bold">บรรทัดที่ 3</label><input type="text" id="rulesTitleV3" class="w-full border p-2 rounded-lg"></div>
-</div>
-<!-- ข้อความเพิ่มเติมท้ายบัตรรถด้านหลัง (3 บรรทัด) -->
-<div class="bg-gray-50 p-4 rounded-xl border border-gray-200 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-    <div class="md:col-span-3">
-        <p class="font-bold text-gray-800 text-sm mb-2">
-            <i data-lucide="align-center" class="w-4 h-4 inline mr-1 text-blue-500"></i> 
-            ข้อความท้ายบัตรรถด้านหลัง (แสดงส่วนท้ายสุด จัดกึ่งกลาง)
-        </p>
+    <!-- Tab ควบคุม (บุคคล / รถ) -->
+    <div class="flex gap-2 mb-4">
+        <button onclick="switchTplTab('person')" id="tplTabPerson" class="px-4 py-2 font-bold text-sm rounded-lg transition bg-pink-100 text-pink-700 shadow-inner">บัตรพนักงาน</button>
+        <button onclick="switchTplTab('vehicle')" id="tplTabVehicle" class="px-4 py-2 font-bold text-sm rounded-lg transition text-slate-500 hover:bg-slate-100">บัตรรถ</button>
     </div>
-    <div>
-        <label class="block text-xs font-bold mb-1 text-gray-600">บรรทัดที่ 1</label>
-        <input type="text" id="cardFooterV1" class="w-full border p-2 rounded-lg text-center shadow-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="เช่น หากเก็บได้กรุณาส่งคืนที่">
-    </div>
-    <div>
-        <label class="block text-xs font-bold mb-1 text-gray-600">บรรทัดที่ 2</label>
-        <input type="text" id="cardFooterV2" class="w-full border p-2 rounded-lg text-center shadow-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="เช่น ฝ่ายรักษาความปลอดภัย">
-    </div>
-    <div>
-        <label class="block text-xs font-bold mb-1 text-gray-600">บรรทัดที่ 3</label>
-        <input type="text" id="cardFooterV3" class="w-full border p-2 rounded-lg text-center shadow-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-800" placeholder="เช่น โทร. 044-xxxxxx">
+
+    <!-- พื้นที่ทำงาน (เปลี่ยนตาม Tab) -->
+    <div id="tplEditorArea" class="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <!-- JS จะวาดฟอร์มตั้งค่าของพนักงานและรถตรงนี้ -->
     </div>
 </div>
-        <div class="md:col-span-2">
-            <label class="block text-sm font-bold mb-1 text-blue-700">รายละเอียดกฎระเบียบหลังบัตรรถ</label>
-            <textarea id="cardTplRulesV" rows="4" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white"></textarea>
-        </div>
-    </div>
-</div>
+<!-- ======================================================= -->
        <!-- Settings: Banner -->
        <div class="bg-purple-50/40 rounded-3xl card-shadow p-6 border-2 border-purple-100 shadow-sm">
            <div class="flex flex-wrap justify-between items-center mb-4 gap-4 border-b pb-2">
@@ -6869,31 +6812,8 @@ async function confirmDeleteUser(id, username) {
 		
 
     // 2. รูปแบบบัตร (Card Template) - **ส่วนที่หายไปของคุณ**
-    document.getElementById('cardTplFront').value = systemSettings.cardTplFront || '';
-    document.getElementById('cardTplBack').value = systemSettings.cardTplBack || '';
-    document.getElementById('cardRulesTitle1').value = systemSettings.cardRulesTitle1 || 'ข้อควรปฏิบัติ';
-    document.getElementById('cardRulesTitle2').value = systemSettings.cardRulesTitle2 || '';
-    document.getElementById('cardRulesTitle3').value = systemSettings.cardRulesTitle3 || '';
-    document.getElementById('cardTplRules').value = systemSettings.cardTplRules || '';
-    document.getElementById('lblPos').value = systemSettings.lblPos || '';
-    document.getElementById('lblOrg').value = systemSettings.lblOrg || '';
-    document.getElementById('lblExp').value = systemSettings.lblExp || '';
-    document.getElementById('cardFooterLine1').value = systemSettings.cardFooterLine1 || '';
-    document.getElementById('cardFooterLine2').value = systemSettings.cardFooterLine2 || '';
-    document.getElementById('cardFooterLine3').value = systemSettings.cardFooterLine3 || '';
-	// รถ
-	document.getElementById('cardTplFrontV').value = systemSettings.cardTplFrontV || '';
-	document.getElementById('cardTplBackV').value = systemSettings.cardTplBackV || '';
-	document.getElementById('cardTplRulesV').value = systemSettings.cardTplRulesV || '';
-	document.getElementById('cardFooterV1').value = systemSettings.cardFooterV1 || '';
-document.getElementById('cardFooterV2').value = systemSettings.cardFooterV2 || '';
-document.getElementById('cardFooterV3').value = systemSettings.cardFooterV3 || '';
-		document.getElementById('rulesTitleV1').value = systemSettings.rulesTitleV1 || 'ข้อควรปฏิบัติ';
-		document.getElementById('rulesTitleV2').value = systemSettings.rulesTitleV2 || '';
-		document.getElementById('rulesTitleV3').value = systemSettings.rulesTitleV3 || '';
-		document.getElementById('lblOrgV').value = systemSettings.lblOrgV || 'สังกัด';
-document.getElementById('lblRegV').value = systemSettings.lblRegV || 'เลขทะเบียน';
-document.getElementById('lblIdV').value = systemSettings.lblIdV || 'ทะเบียนควบคุมเลขที่';
+    // สั่งให้วาดระบบคลังรูปแบบบัตรขึ้นมาแทน
+    renderTemplateGallery();
 
 document.getElementById('aiManualConfirm').checked = systemSettings.aiManualConfirm || false;
 document.getElementById('aiConfirmKey').value = systemSettings.aiConfirmKey || 'Enter';
@@ -6961,32 +6881,10 @@ toggleTtsFields(); // เรียกเพื่อเปิดฟิลด์�
     systemSettings.aiPadTop = parseInt(document.getElementById('aiPadTop').value) || 35;
 
 	// รถ
-	systemSettings.cardTplFrontV = document.getElementById('cardTplFrontV').value;
-systemSettings.cardTplBackV = document.getElementById('cardTplBackV').value;
-systemSettings.cardTplRulesV = document.getElementById('cardTplRulesV').value;
-systemSettings.rulesTitleV1 = document.getElementById('rulesTitleV1').value;
-systemSettings.rulesTitleV2 = document.getElementById('rulesTitleV2').value;
-systemSettings.rulesTitleV3 = document.getElementById('rulesTitleV3').value;
-systemSettings.cardFooterV1 = document.getElementById('cardFooterV1').value;
-systemSettings.cardFooterV2 = document.getElementById('cardFooterV2').value;
-systemSettings.cardFooterV3 = document.getElementById('cardFooterV3').value;
-systemSettings.lblOrgV = document.getElementById('lblOrgV').value.trim();
-systemSettings.lblRegV = document.getElementById('lblRegV').value.trim();
-systemSettings.lblIdV = document.getElementById('lblIdV').value.trim();	   
+	  
 
     // 2. รูปแบบบัตร (Card Template)
-    systemSettings.cardTplFront = document.getElementById('cardTplFront').value;
-    systemSettings.cardTplBack = document.getElementById('cardTplBack').value;
-    systemSettings.cardRulesTitle1 = document.getElementById('cardRulesTitle1').value.trim();
-    systemSettings.cardRulesTitle2 = document.getElementById('cardRulesTitle2').value.trim();
-    systemSettings.cardRulesTitle3 = document.getElementById('cardRulesTitle3').value.trim();
-    systemSettings.cardTplRules = document.getElementById('cardTplRules').value;
-    systemSettings.lblPos = document.getElementById('lblPos').value.trim();
-    systemSettings.lblOrg = document.getElementById('lblOrg').value.trim();
-    systemSettings.lblExp = document.getElementById('lblExp').value.trim();
-    systemSettings.cardFooterLine1 = document.getElementById('cardFooterLine1').value.trim();
-    systemSettings.cardFooterLine2 = document.getElementById('cardFooterLine2').value.trim();
-    systemSettings.cardFooterLine3 = document.getElementById('cardFooterLine3').value.trim();
+    
 
 
 	systemSettings.aiManualConfirm = document.getElementById('aiManualConfirm').checked;
@@ -9067,7 +8965,7 @@ saveTypeCard = async function() {
 // ==========================================
     // JS: อัปเดตการตั้งค่า & การจัดการจุดเข้าออก (Gate)
     // ==========================================
-    const origLoadSettings = loadSettings;
+    /*const origLoadSettings = loadSettings;
     loadSettings = function() {
         origLoadSettings();
         document.getElementById('cardTplFront').value = systemSettings.cardTplFront || '';
@@ -9098,7 +8996,7 @@ saveTypeCard = async function() {
         systemSettings.cardFooterLine2 = document.getElementById('cardFooterLine2').value.trim();
         systemSettings.cardFooterLine3 = document.getElementById('cardFooterLine3').value.trim();
         await origSaveSettings();
-    }
+    }*/
 
     // (ส่วน Checkbox Area ปล่อยไว้เหมือนเดิม)
    function renderAreaCheckboxesGen(selectedAreaStr, containerId, inputClass) {
@@ -11114,6 +11012,335 @@ async function printBulkCardsA4() {
     });
 }
 
+// ==========================================
+// ระบบคลังรูปแบบบัตร (Template Gallery)
+// ==========================================
+let currentEditingTemplateId = null;
+let currentTplTab = 'person';
+
+// 1. ฟังก์ชันอัปเกรดข้อมูลเก่าให้กลายเป็นระบบ Template Array อัตโนมัติ
+function migrateTemplatesData() {
+    if (!systemSettings.cardTemplates || systemSettings.cardTemplates.length === 0) {
+        // ดึงของเก่ามาสร้างเป็น Template แรก
+        systemSettings.cardTemplates = [{
+            id: 'tpl_default',
+            name: 'รูปแบบมาตรฐาน (ค่าเริ่มต้น)',
+            
+            // บุคคล
+            personFrontBg: systemSettings.cardTplFront || '',
+            personBackBg: systemSettings.cardTplBack || '',
+            personFrontCode: 'none', 
+            personBackCode: 'barcode_center', 
+            personTheme: 'dark',
+            
+            // รถ
+            vehicleFrontBg: systemSettings.cardTplFrontV || '',
+            vehicleBackBg: systemSettings.cardTplBackV || '',
+            vehicleFrontCode: 'none',
+            vehicleBackCode: 'barcode_center',
+            vehicleTheme: 'dark',
+            
+            // Labels บุคคล (ย้ายมาเก็บในเซ็ต)
+            lblPos: systemSettings.lblPos || 'ตำแหน่ง',
+            lblOrg: systemSettings.lblOrg || 'สังกัด',
+            lblExp: systemSettings.lblExp || 'หมดอายุ',
+            cardRulesTitle1: systemSettings.cardRulesTitle1 || 'ข้อควรปฏิบัติ',
+            cardRulesTitle2: systemSettings.cardRulesTitle2 || '',
+            cardRulesTitle3: systemSettings.cardRulesTitle3 || '',
+            cardTplRules: systemSettings.cardTplRules || '',
+            cardFooterLine1: systemSettings.cardFooterLine1 || '',
+            cardFooterLine2: systemSettings.cardFooterLine2 || '',
+            cardFooterLine3: systemSettings.cardFooterLine3 || '',
+            
+            // Labels รถ
+            lblOrgV: systemSettings.lblOrgV || 'สังกัด',
+            lblRegV: systemSettings.lblRegV || 'ทะเบียนรถ',
+            lblIdV: systemSettings.lblIdV || 'เลขควบคุม',
+            rulesTitleV1: systemSettings.rulesTitleV1 || 'ข้อควรปฏิบัติ',
+            rulesTitleV2: systemSettings.rulesTitleV2 || '',
+            rulesTitleV3: systemSettings.rulesTitleV3 || '',
+            cardTplRulesV: systemSettings.cardTplRulesV || '',
+            cardFooterV1: systemSettings.cardFooterV1 || '',
+            cardFooterV2: systemSettings.cardFooterV2 || '',
+            cardFooterV3: systemSettings.cardFooterV3 || ''
+        }];
+        systemSettings.activeTemplateId = 'tpl_default';
+    }
+}
+
+// 2. โหลดรายการลง Dropdown
+function renderTemplateGallery() {
+    migrateTemplatesData();
+    const select = document.getElementById('tplSelect');
+    
+    select.innerHTML = systemSettings.cardTemplates.map(t => {
+        const isActive = t.id === systemSettings.activeTemplateId ? '⭐ ' : '';
+        return `<option value="${t.id}">${isActive}${t.name}</option>`;
+    }).join('');
+    
+    // ตั้งค่าให้เลือกอันที่แก้ไขล่าสุด หรืออันที่เป็น Active
+    const idToSelect = currentEditingTemplateId || systemSettings.activeTemplateId || systemSettings.cardTemplates[0].id;
+    select.value = idToSelect;
+    
+    switchTemplate(idToSelect);
+}
+
+// 3. เปลี่ยน Template
+function switchTemplate(id) {
+    currentEditingTemplateId = id;
+    const tpl = systemSettings.cardTemplates.find(t => t.id === id);
+    if (!tpl) return;
+
+    // อัปเดตป้ายสถานะ
+    const isActive = systemSettings.activeTemplateId === id;
+    const badge = document.getElementById('tplStatusBadge');
+    const btnActive = document.getElementById('btnSetTplActive');
+    const btnDel = document.getElementById('btnDeleteTpl');
+
+    document.getElementById('tplNameDisplay').textContent = tpl.name;
+
+    if (isActive) {
+        badge.textContent = 'ใช้งานอยู่ (Active)';
+        badge.className = 'px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 border border-emerald-200';
+        btnActive.classList.add('hidden');
+        btnDel.classList.add('hidden'); // ห้ามลบตัวที่ใช้งานอยู่
+    } else {
+        badge.textContent = 'ยังไม่เปิดใช้งาน';
+        badge.className = 'px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-gray-100 text-gray-500 border border-gray-200';
+        btnActive.classList.remove('hidden');
+        btnDel.classList.remove('hidden');
+    }
+
+    renderTemplateEditor(tpl);
+}
+
+// 4. สลับ Tab พนักงาน / รถ
+function switchTplTab(tab) {
+    currentTplTab = tab;
+    const btnP = document.getElementById('tplTabPerson');
+    const btnV = document.getElementById('tplTabVehicle');
+
+    if (tab === 'person') {
+        btnP.className = "px-4 py-2 font-bold text-sm rounded-lg transition bg-pink-100 text-pink-700 shadow-inner";
+        btnV.className = "px-4 py-2 font-bold text-sm rounded-lg transition text-slate-500 hover:bg-slate-100";
+    } else {
+        btnV.className = "px-4 py-2 font-bold text-sm rounded-lg transition bg-blue-100 text-blue-700 shadow-inner";
+        btnP.className = "px-4 py-2 font-bold text-sm rounded-lg transition text-slate-500 hover:bg-slate-100";
+    }
+
+    const tpl = systemSettings.cardTemplates.find(t => t.id === currentEditingTemplateId);
+    if (tpl) renderTemplateEditor(tpl);
+}
+
+// 5. วาดฟอร์มให้กรอก (ใช้ Onchange เพื่อเซฟลงตัวแปรทันที)
+function renderTemplateEditor(tpl) {
+    const area = document.getElementById('tplEditorArea');
+    
+    // ฟังก์ชันช่วยสร้างกล่องอัปโหลดรูป
+    const makeImgBox = (key, title, val) => `
+        <div class="relative w-full h-64 border-2 border-dashed ${val ? 'border-indigo-300' : 'border-slate-300'} rounded-2xl overflow-hidden bg-slate-50 group hover:border-indigo-400 transition cursor-pointer flex items-center justify-center" onclick="document.getElementById('tplImg_${key}').click()">
+            <input type="file" id="tplImg_${key}" accept="image/*" class="hidden" onchange="handleTplImageUpload(event, '${key}')">
+            ${val ? `<img src="${val}" class="w-full h-full object-contain p-2">` : `<div class="text-center text-slate-400"><i data-lucide="image-plus" class="w-8 h-8 mx-auto mb-2 opacity-50"></i><p class="text-xs font-bold">${title}</p><p class="text-[9px] mt-1">(54x86 mm)</p></div>`}
+            ${val ? `<div class="absolute inset-0 bg-black/60 hidden group-hover:flex flex-col items-center justify-center text-white"><i data-lucide="refresh-cw" class="w-6 h-6 mb-2"></i><p class="text-xs font-bold">คลิกเพื่อเปลี่ยนรูป</p><button onclick="event.stopPropagation(); removeTplImage('${key}')" class="mt-3 px-3 py-1 bg-red-500 hover:bg-red-600 rounded text-[10px] font-black">ลบรูปทิ้ง</button></div>` : ''}
+        </div>
+    `;
+
+    if (currentTplTab === 'person') {
+        area.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- โซนรูปภาพ -->
+                <div>
+                    <label class="block text-sm font-bold text-pink-700 mb-2">ภาพพื้นหลังบัตรด้านหน้า</label>
+                    ${makeImgBox('personFrontBg', 'อัปโหลดภาพพื้นหลังด้านหน้า', tpl.personFrontBg)}
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-pink-700 mb-2">ภาพพื้นหลังบัตรด้านหลัง</label>
+                    ${makeImgBox('personBackBg', 'อัปโหลดภาพพื้นหลังด้านหลัง', tpl.personBackBg)}
+                </div>
+
+                <!-- โซนตั้งค่า Layout -->
+                <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-pink-50/50 p-4 rounded-xl border border-pink-100">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">สัญลักษณ์ (ด้านหน้า)</label>
+                        <select onchange="updateTplField('personFrontCode', this.value)" class="w-full p-2 border rounded-lg text-xs outline-none bg-white">
+                            <option value="none" ${tpl.personFrontCode==='none'?'selected':''}>ไม่แสดง</option>
+                            <option value="qr_bottom_left" ${tpl.personFrontCode==='qr_bottom_left'?'selected':''}>QR Code (มุมซ้ายล่าง)</option>
+                            <option value="barcode_bottom" ${tpl.personFrontCode==='barcode_bottom'?'selected':''}>Barcode (ด้านล่างสุด)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">สัญลักษณ์ (ด้านหลัง)</label>
+                        <select onchange="updateTplField('personBackCode', this.value)" class="w-full p-2 border rounded-lg text-xs outline-none bg-white">
+                            <option value="barcode_center" ${tpl.personBackCode==='barcode_center'?'selected':''}>Barcode (แนวนอนตรงกลาง)</option>
+                            <option value="qr_center" ${tpl.personBackCode==='qr_center'?'selected':''}>QR Code (ตรงกลาง)</option>
+                            <option value="none" ${tpl.personBackCode==='none'?'selected':''}>ไม่แสดง</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">ธีมสีตัวอักษรหลัก</label>
+                        <select onchange="updateTplField('personTheme', this.value)" class="w-full p-2 border rounded-lg text-xs outline-none font-bold ${tpl.personTheme==='light'?'bg-gray-800 text-white':'bg-white text-gray-800'}">
+                            <option value="dark" ${tpl.personTheme==='dark'?'selected':''}>สีดำ/น้ำเงินเข้ม (Dark)</option>
+                            <option value="light" ${tpl.personTheme==='light'?'selected':''}>สีขาว (Light)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- โซนคำศัพท์ (Labels) -->
+                <div class="md:col-span-2 grid grid-cols-3 gap-3">
+                    <div class="col-span-3 text-sm font-bold text-gray-700 border-b pb-1 mt-2"><i data-lucide="type" class="w-4 h-4 inline mr-1 text-pink-500"></i> คำศัพท์หน้าบัตร</div>
+                    <div><label class="block text-[10px] font-bold text-gray-500 mb-1">คำนำหน้าตำแหน่ง</label><input type="text" value="${tpl.lblPos}" onchange="updateTplField('lblPos', this.value)" class="w-full border p-2 rounded text-xs bg-white"></div>
+                    <div><label class="block text-[10px] font-bold text-gray-500 mb-1">คำนำหน้าสังกัด</label><input type="text" value="${tpl.lblOrg}" onchange="updateTplField('lblOrg', this.value)" class="w-full border p-2 rounded text-xs bg-white"></div>
+                    <div><label class="block text-[10px] font-bold text-gray-500 mb-1">คำนำหน้าวันหมดอายุ</label><input type="text" value="${tpl.lblExp}" onchange="updateTplField('lblExp', this.value)" class="w-full border p-2 rounded text-xs bg-white"></div>
+                </div>
+
+                <!-- โซนกฎระเบียบหลังบัตร -->
+                <div class="md:col-span-2 grid grid-cols-3 gap-3">
+                    <div class="col-span-3 text-sm font-bold text-gray-700 border-b pb-1 mt-2"><i data-lucide="align-left" class="w-4 h-4 inline mr-1 text-pink-500"></i> ข้อความด้านหลังบัตร</div>
+                    <div><label class="block text-[10px] font-bold text-gray-500 mb-1">หัวข้อบรรทัด 1 (ตัวใหญ่สุด)</label><input type="text" value="${tpl.cardRulesTitle1}" onchange="updateTplField('cardRulesTitle1', this.value)" class="w-full border p-2 rounded text-xs bg-white text-center font-bold text-red-600"></div>
+                    <div><label class="block text-[10px] font-bold text-gray-500 mb-1">หัวข้อบรรทัด 2</label><input type="text" value="${tpl.cardRulesTitle2}" onchange="updateTplField('cardRulesTitle2', this.value)" class="w-full border p-2 rounded text-xs bg-white text-center text-red-600"></div>
+                    <div><label class="block text-[10px] font-bold text-gray-500 mb-1">หัวข้อบรรทัด 3</label><input type="text" value="${tpl.cardRulesTitle3}" onchange="updateTplField('cardRulesTitle3', this.value)" class="w-full border p-2 rounded text-xs bg-white text-center text-red-600"></div>
+                    <div class="col-span-3"><label class="block text-[10px] font-bold text-gray-500 mb-1">รายละเอียดกฎ (ข้อ 1, 2, 3...)</label><textarea onchange="updateTplField('cardTplRules', this.value)" rows="4" class="w-full border p-2 rounded text-xs bg-white">${tpl.cardTplRules}</textarea></div>
+                    <div><label class="block text-[10px] font-bold text-gray-500 mb-1">ท้ายบัตรบรรทัด 1</label><input type="text" value="${tpl.cardFooterLine1}" onchange="updateTplField('cardFooterLine1', this.value)" class="w-full border p-2 rounded text-[10px] bg-white text-center"></div>
+                    <div><label class="block text-[10px] font-bold text-gray-500 mb-1">ท้ายบัตรบรรทัด 2</label><input type="text" value="${tpl.cardFooterLine2}" onchange="updateTplField('cardFooterLine2', this.value)" class="w-full border p-2 rounded text-[10px] bg-white text-center"></div>
+                    <div><label class="block text-[10px] font-bold text-gray-500 mb-1">ท้ายบัตรบรรทัด 3</label><input type="text" value="${tpl.cardFooterLine3}" onchange="updateTplField('cardFooterLine3', this.value)" class="w-full border p-2 rounded text-[10px] bg-white text-center font-bold text-indigo-700"></div>
+                </div>
+            </div>`;
+    } else {
+        // ส่วนของบัตรรถ (เขียนล้อตามของคน แค่เปลี่ยนตัวแปรเป็น Vehicle)
+        area.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-bold text-blue-700 mb-2">ภาพพื้นหลังบัตรรถด้านหน้า</label>
+                    ${makeImgBox('vehicleFrontBg', 'อัปโหลดภาพบัตรรถด้านหน้า', tpl.vehicleFrontBg)}
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-blue-700 mb-2">ภาพพื้นหลังบัตรรถด้านหลัง</label>
+                    ${makeImgBox('vehicleBackBg', 'อัปโหลดภาพบัตรรถด้านหลัง', tpl.vehicleBackBg)}
+                </div>
+                <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">สัญลักษณ์ (ด้านหน้า)</label>
+                        <select onchange="updateTplField('vehicleFrontCode', this.value)" class="w-full p-2 border rounded-lg text-xs outline-none bg-white">
+                            <option value="none" ${tpl.vehicleFrontCode==='none'?'selected':''}>ไม่แสดง</option>
+                            <option value="qr_bottom_left" ${tpl.vehicleFrontCode==='qr_bottom_left'?'selected':''}>QR Code (มุมซ้ายล่าง)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">สัญลักษณ์ (ด้านหลัง)</label>
+                        <select onchange="updateTplField('vehicleBackCode', this.value)" class="w-full p-2 border rounded-lg text-xs outline-none bg-white">
+                            <option value="barcode_center" ${tpl.vehicleBackCode==='barcode_center'?'selected':''}>Barcode (แนวนอนตรงกลาง)</option>
+                            <option value="qr_center" ${tpl.vehicleBackCode==='qr_center'?'selected':''}>QR Code (ตรงกลาง)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">ธีมสีตัวอักษรหลัก</label>
+                        <select onchange="updateTplField('vehicleTheme', this.value)" class="w-full p-2 border rounded-lg text-xs outline-none font-bold ${tpl.vehicleTheme==='light'?'bg-gray-800 text-white':'bg-white text-gray-800'}">
+                            <option value="dark" ${tpl.vehicleTheme==='dark'?'selected':''}>สีดำ/น้ำเงินเข้ม (Dark)</option>
+                            <option value="light" ${tpl.vehicleTheme==='light'?'selected':''}>สีขาว (Light)</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- โซนคำศัพท์ (Labels) รถ -->
+                <div class="md:col-span-2 grid grid-cols-3 gap-3">
+                    <div class="col-span-3 text-sm font-bold text-gray-700 border-b pb-1 mt-2"><i data-lucide="type" class="w-4 h-4 inline mr-1 text-blue-500"></i> คำศัพท์หน้าบัตร (รถ)</div>
+                    <div><label class="block text-[10px] font-bold text-gray-500 mb-1">คำนำหน้าสังกัด</label><input type="text" value="${tpl.lblOrgV}" onchange="updateTplField('lblOrgV', this.value)" class="w-full border p-2 rounded text-xs bg-white"></div>
+                    <div><label class="block text-[10px] font-bold text-gray-500 mb-1">คำนำหน้าทะเบียนรถ</label><input type="text" value="${tpl.lblRegV}" onchange="updateTplField('lblRegV', this.value)" class="w-full border p-2 rounded text-xs bg-white"></div>
+                    <div><label class="block text-[10px] font-bold text-gray-500 mb-1">คำนำหน้าเลขควบคุม</label><input type="text" value="${tpl.lblIdV}" onchange="updateTplField('lblIdV', this.value)" class="w-full border p-2 rounded text-xs bg-white"></div>
+                </div>
+                <!-- กฎระเบียบหลังบัตร รถ -->
+                <div class="md:col-span-2 grid grid-cols-3 gap-3">
+                    <div class="col-span-3 text-sm font-bold text-gray-700 border-b pb-1 mt-2"><i data-lucide="align-left" class="w-4 h-4 inline mr-1 text-blue-500"></i> ข้อความด้านหลังบัตร (รถ)</div>
+                    <div><input type="text" value="${tpl.rulesTitleV1}" onchange="updateTplField('rulesTitleV1', this.value)" class="w-full border p-2 rounded text-xs bg-white text-center font-bold text-red-600"></div>
+                    <div><input type="text" value="${tpl.rulesTitleV2}" onchange="updateTplField('rulesTitleV2', this.value)" class="w-full border p-2 rounded text-xs bg-white text-center text-red-600"></div>
+                    <div><input type="text" value="${tpl.rulesTitleV3}" onchange="updateTplField('rulesTitleV3', this.value)" class="w-full border p-2 rounded text-xs bg-white text-center text-red-600"></div>
+                    <div class="col-span-3"><textarea onchange="updateTplField('cardTplRulesV', this.value)" rows="4" class="w-full border p-2 rounded text-xs bg-white">${tpl.cardTplRulesV}</textarea></div>
+                    <div><input type="text" value="${tpl.cardFooterV1}" onchange="updateTplField('cardFooterV1', this.value)" class="w-full border p-2 rounded text-[10px] bg-white text-center"></div>
+                    <div><input type="text" value="${tpl.cardFooterV2}" onchange="updateTplField('cardFooterV2', this.value)" class="w-full border p-2 rounded text-[10px] bg-white text-center"></div>
+                    <div><input type="text" value="${tpl.cardFooterV3}" onchange="updateTplField('cardFooterV3', this.value)" class="w-full border p-2 rounded text-[10px] bg-white text-center font-bold text-blue-700"></div>
+                </div>
+            </div>`;
+    }
+    if (window.lucide) lucide.createIcons();
+}
+
+// ฟังก์ชันอัปเดตข้อมูลลง Array
+function updateTplField(key, value) {
+    const tpl = systemSettings.cardTemplates.find(t => t.id === currentEditingTemplateId);
+    if (tpl) tpl[key] = value;
+}
+
+// 6. อัปโหลดรูปภาพ (รับเป็น Base64 เก็บไว้ชั่วคราวก่อนเซฟจริง)
+function handleTplImageUpload(e, key) {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        const img = new Image();
+        img.onload = function() { 
+            const canvas = document.createElement('canvas');
+            const width = 800; // บังคับสเกลให้ภาพชัด
+            const height = img.height * (width / img.width);
+            canvas.width = width; canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            
+            // เก็บ Base64 ลงในตัวแปร รอเซิร์ฟเวอร์นำไปอัปโหลด Drive
+            updateTplField(key, canvas.toDataURL('image/jpeg', 0.9));
+            renderTemplateEditor(systemSettings.cardTemplates.find(t => t.id === currentEditingTemplateId));
+        }
+        img.src = evt.target.result;
+    }
+    reader.readAsDataURL(file);
+}
+
+function removeTplImage(key) {
+    updateTplField(key, '');
+    renderTemplateEditor(systemSettings.cardTemplates.find(t => t.id === currentEditingTemplateId));
+}
+
+// 7. จัดการ Template (สร้าง/ลบ/เลือกใช้)
+function createNewTemplate() {
+    const name = prompt("ตั้งชื่อรูปแบบบัตรใหม่ (เช่น รูปแบบปี 2569):");
+    if (!name) return;
+    
+    const newId = 'tpl_' + Date.now();
+    const newTpl = {
+        id: newId, name: name,
+        personFrontBg: '', personBackBg: '', personFrontCode: 'none', personBackCode: 'barcode_center', personTheme: 'dark',
+        vehicleFrontBg: '', vehicleBackBg: '', vehicleFrontCode: 'none', vehicleBackCode: 'barcode_center', vehicleTheme: 'dark',
+        lblPos: 'ตำแหน่ง', lblOrg: 'สังกัด', lblExp: 'หมดอายุ', cardRulesTitle1: 'ข้อควรปฏิบัติ', cardRulesTitle2: '', cardRulesTitle3: '', cardTplRules: '', cardFooterLine1: '', cardFooterLine2: '', cardFooterLine3: '',
+        lblOrgV: 'สังกัด', lblRegV: 'ทะเบียนรถ', lblIdV: 'เลขควบคุม', rulesTitleV1: 'ข้อควรปฏิบัติ', rulesTitleV2: '', rulesTitleV3: '', cardTplRulesV: '', cardFooterV1: '', cardFooterV2: '', cardFooterV3: ''
+    };
+    
+    systemSettings.cardTemplates.push(newTpl);
+    renderTemplateGallery();
+    switchTemplate(newId);
+    showToast('สร้างรูปแบบใหม่สำเร็จ', 'success');
+}
+
+function deleteTemplate() {
+    if (currentEditingTemplateId === systemSettings.activeTemplateId) return showToast('ไม่สามารถลบรูปแบบที่กำลังเปิดใช้งานอยู่ได้', 'error');
+    if (!confirm('ยืนยันการลบรูปแบบนี้? (ภาพที่เกี่ยวข้องจะถูกลบออกจาก Google Drive ด้วยเมื่อกดบันทึกการตั้งค่า)')) return;
+
+    // มาร์คไว้ว่าถูกลบ (เดี๋ยวเซิร์ฟเวอร์จะไปตามลบภาพใน Drive ทิ้งให้)
+    const tpl = systemSettings.cardTemplates.find(t => t.id === currentEditingTemplateId);
+    if (!systemSettings.deletedTemplates) systemSettings.deletedTemplates = [];
+    systemSettings.deletedTemplates.push(tpl);
+
+    systemSettings.cardTemplates = systemSettings.cardTemplates.filter(t => t.id !== currentEditingTemplateId);
+    renderTemplateGallery();
+    showToast('ลบรูปแบบทิ้งแล้ว (อย่าลืมกดบันทึกการตั้งค่าด้านล่าง)', 'info');
+}
+
+function setActiveTemplate() {
+    systemSettings.activeTemplateId = currentEditingTemplateId;
+    renderTemplateGallery();
+    showToast('ตั้งเป็นรูปแบบเริ่มต้นเรียบร้อยแล้ว', 'success');
+}
+
+function previewCurrentTemplate() {
+    showToast('เตรียมรอรับชมในสเต็ปที่ 3 ครับ!', 'info');
+}
+	  
   </script>
 
 
