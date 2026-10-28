@@ -1474,8 +1474,19 @@ gap: 1px !important;
         <button onclick="scrollToSection('bannerEnabled')" class="px-8 py-3.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg transition">Banner</button>
         <button onclick="scrollToSection('announcementMode')" class="px-8 py-3.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg transition">เสียงแจ้งเตือน</button>
     </div>
-           <button onclick="saveAllSettings()" class="btn-primary text-white px-8 py-3.5 rounded-xl shadow-lg font-bold text-lg flex items-center gap-2 hover:-translate-y-1"><i data-lucide="save" class="w-6 h-6"></i> บันทึกการตั้งค่าทั้งหมด</button>
-       </div>
+
+	
+    <!-- กลุ่มปุ่มจัดการ (ยกเลิก / บันทึก) -->
+    <div class="flex gap-2 w-full xl:w-auto shrink-0 mt-3 xl:mt-0">
+        <button onclick="discardSettingsChanges()" class="flex-1 xl:flex-none px-6 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-base transition border border-gray-200">
+            ยกเลิกการแก้ไข
+        </button>
+        <button onclick="saveAllSettings()" class="flex-[2] xl:flex-none btn-primary text-white px-8 py-3.5 rounded-xl shadow-lg font-bold text-base flex items-center justify-center gap-2 hover:-translate-y-1">
+            <i data-lucide="save" class="w-5 h-5"></i> บันทึกการตั้งค่าทั้งหมด
+        </button>
+    </div>      
+      
+	</div>
       </div>
 
       <!-- ============================================== -->
@@ -2515,6 +2526,9 @@ let isProcessingScanQueue = false; // ตัวเช็คสถานะว่
 //let lastManualScan = { cardId: null, time: 0 }; // <-- เพิ่มบรรทัดนี้
 let globalScanTracker = {};
 // ----------------------
+
+	// ตัวแปรเก็บสำเนาการตั้งค่าเดิม (เผื่อผู้ใช้กดยกเลิกการแก้ไข)
+	let originalSettingsSnapshot = null;
 	  
     let currentUser = null, currentPage = 'home';
     let systemSettings = { 
@@ -6907,6 +6921,9 @@ async function confirmDeleteUser(id, username) {
     // 7. ตั้งค่า & Banner (Settings)
     // ==========================================
     function loadSettings() {
+		// --- เพิ่มบรรทัดนี้: ถ่ายสำเนาการตั้งค่าปัจจุบันเก็บไว้ก่อนเผื่อกดยกเลิก ---
+   		 originalSettingsSnapshot = JSON.stringify(systemSettings);
+		
     // 1. ข้อมูลทั่วไป
     document.getElementById('bannerEnabled').checked = systemSettings.bannerEnabled;
     document.getElementById('bannerSpeed').value = systemSettings.bannerSpeed || 4;
@@ -6977,6 +6994,24 @@ toggleTtsFields(); // เรียกเพื่อเปิดฟิลด์�
     }
     function addBannerSlot() { if(!systemSettings.banners) systemSettings.banners=[]; systemSettings.banners.push({id: Date.now(), url: '', active: true}); renderBannerList(); }
 
+
+	// ฟังก์ชันยกเลิกการแก้ไขและคืนค่าเดิมทั้งหมด
+function discardSettingsChanges() {
+    if (!originalSettingsSnapshot) return;
+    if (!confirm('ยืนยันการยกเลิกการแก้ไข?\n(ข้อมูลที่คุณทดลองปรับเปลี่ยน รวมถึงรูปภาพที่ลบไป จะกลับคืนสู่สภาพเดิม)')) return;
+    
+    // 1. กู้คืนข้อมูลจากการถ่ายสำเนา
+    systemSettings = JSON.parse(originalSettingsSnapshot);
+    
+    // 2. เคลียร์ถังขยะชั่วคราว (เผื่อกดลบรูปหรือลบเทมเพลตค้างไว้ เซิร์ฟเวอร์จะได้ไม่ไปตามลบไฟล์จริง)
+    delete systemSettings.deletedImages;
+    delete systemSettings.deletedTemplates;
+    
+    // 3. สั่งวาดหน้าจอใหม่ทั้งหมดด้วยข้อมูลเดิม
+    loadSettings();
+    showToast('คืนค่าเดิมเรียบร้อยแล้ว', 'info');
+}
+	  
    async function saveAllSettings() {
     // 1. ข้อมูลทั่วไป
     systemSettings.bannerEnabled = document.getElementById('bannerEnabled').checked;
@@ -7023,6 +7058,9 @@ systemSettings.ttsGreeting = document.getElementById('ttsGreeting').value;
         // --- เปลี่ยนแปลงตรงนี้: รับค่าที่อัปเดตแล้วจากเซิร์ฟเวอร์กลับมาทับตัวแปรเดิม ---
         const updatedConfig = await apiCall('saveSettings', systemSettings);
         systemSettings = updatedConfig; 
+
+	  	// --- เพิ่มบรรทัดนี้: อัปเดตสำเนาใหม่หลังจากบันทึกสำเร็จ ---
+        originalSettingsSnapshot = JSON.stringify(systemSettings); 
         
         applySettingsToUI(); 
         initBanner();
