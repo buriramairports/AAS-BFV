@@ -1478,7 +1478,7 @@ gap: 1px !important;
 	
     <!-- กลุ่มปุ่มจัดการ (ยกเลิก / บันทึก) -->
     <div class="flex gap-2 w-full xl:w-auto shrink-0 mt-3 xl:mt-0">
-        <button onclick="discardSettingsChanges()" class="flex-1 xl:flex-none px-6 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-base transition border border-gray-200">
+        <button id="btnDiscardSettings" onclick="discardSettingsChanges()" class="hidden flex-1 xl:flex-none px-6 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-base transition border border-gray-200">
             ยกเลิกการแก้ไข
         </button>
         <button onclick="saveAllSettings()" class="flex-[2] xl:flex-none btn-primary text-white px-8 py-3.5 rounded-xl shadow-lg font-bold text-base flex items-center justify-center gap-2 hover:-translate-y-1">
@@ -6923,6 +6923,7 @@ async function confirmDeleteUser(id, username) {
     function loadSettings() {
 		// --- เพิ่มบรรทัดนี้: ถ่ายสำเนาการตั้งค่าปัจจุบันเก็บไว้ก่อนเผื่อกดยกเลิก ---
    		 originalSettingsSnapshot = JSON.stringify(systemSettings);
+		resetSettingsChanged(); // <--- เพิ่มบรรทัดนี้: ซ่อนปุ่มตอนโหลดหน้าครั้งแรก
 		
     // 1. ข้อมูลทั่วไป
     document.getElementById('bannerEnabled').checked = systemSettings.bannerEnabled;
@@ -7009,6 +7010,7 @@ function discardSettingsChanges() {
     
     // 3. สั่งวาดหน้าจอใหม่ทั้งหมดด้วยข้อมูลเดิม
     loadSettings();
+	resetSettingsChanged(); // <--- เพิ่มบรรทัดนี้: ซ่อนปุ่มหลังกดยกเลิก
     showToast('คืนค่าเดิมเรียบร้อยแล้ว', 'info');
 }
 	  
@@ -7067,6 +7069,7 @@ systemSettings.ttsGreeting = document.getElementById('ttsGreeting').value;
         renderTemplateGallery(); // สั่งให้หน้าต่าง Template รีเฟรชภาพจากลิงก์ Google Drive
 
         showToast('บันทึกการตั้งค่าระบบเรียบร้อย', 'success');
+		resetSettingsChanged(); // <--- เพิ่มบรรทัดนี้: ซ่อนปุ่มหลังบันทึกสำเร็จ
     } catch (e) {
         showToast('เกิดข้อผิดพลาดในการบันทึกการตั้งค่า', 'error');
         console.error(e);
@@ -11468,6 +11471,7 @@ function removeTplImage(key) {
     
     updateTplField(key, '');
     renderTemplateEditor(tpl);
+	markSettingsChanged(); // <--- เพิ่มบรรทัดนี้
     showToast('ลบรูปชั่วคราวแล้ว (กรุณากดบันทึกการตั้งค่าเพื่อลบไฟล์ถาวร)', 'info');
 }
 
@@ -11488,6 +11492,7 @@ function createNewTemplate() {
     systemSettings.cardTemplates.push(newTpl);
     renderTemplateGallery();
     switchTemplate(newId);
+	markSettingsChanged(); // <--- เพิ่มบรรทัดนี้
     showToast('สร้างรูปแบบใหม่สำเร็จ', 'success');
 }
 
@@ -11529,12 +11534,14 @@ function deleteTemplate() {
     currentEditingTemplateId = systemSettings.activeTemplateId; 
 	
     renderTemplateGallery();
+	markSettingsChanged(); // <--- เพิ่มบรรทัดนี้
     showToast('ลบรูปแบบทิ้งแล้ว (อย่าลืมกดบันทึกการตั้งค่าด้านล่าง)', 'info');
 }
 
 function setActiveTemplate() {
     systemSettings.activeTemplateId = currentEditingTemplateId;
     renderTemplateGallery();
+	markSettingsChanged(); // <--- เพิ่มบรรทัดนี้
     showToast('ตั้งเป็นรูปแบบเริ่มต้นเรียบร้อยแล้ว', 'success');
 }
 
@@ -11714,6 +11721,23 @@ async function executePrintBulkVehicles(layoutType) {
         }, 2000);
     });
 }
+
+// ==========================================
+// ระบบตรวจจับการเปลี่ยนแปลงการตั้งค่า (Change Detection)
+// ==========================================
+function markSettingsChanged() {
+    const btn = document.getElementById('btnDiscardSettings');
+    if (btn) btn.classList.remove('hidden');
+}
+
+function resetSettingsChanged() {
+    const btn = document.getElementById('btnDiscardSettings');
+    if (btn) btn.classList.add('hidden');
+}
+
+// แอบดักฟังการพิมพ์ตัวอักษร, การติ๊ก Checkbox, การเปลี่ยน Dropdown ในหน้าตั้งค่าทั้งหมด
+document.getElementById('settingsPage').addEventListener('input', markSettingsChanged);
+document.getElementById('settingsPage').addEventListener('change', markSettingsChanged);
 	  
   </script>
 
