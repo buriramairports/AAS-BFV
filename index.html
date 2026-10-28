@@ -2429,7 +2429,43 @@ gap: 1px !important;
         </div>
     </div>
 </div>
-	
+
+<!-- Modal: ตัวเลือกการพิมพ์บัตรรถ (A4) -->
+<div id="vehiclePrintOptionsModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm modal-overlay" onclick="closeVehiclePrintOptionsModal()"></div>
+    <div class="relative bg-white rounded-2xl w-full max-w-sm flex flex-col shadow-2xl animate-fadeIn border-t-4 border-pink-500">
+        <div class="p-5 flex justify-between items-center border-b border-gray-100">
+            <h3 class="font-black text-gray-800 flex items-center gap-2 text-lg"><i data-lucide="printer" class="text-pink-500"></i> รูปแบบการพิมพ์ (A4)</h3>
+            <button onclick="closeVehiclePrintOptionsModal()" class="hover:bg-gray-100 p-1.5 rounded-lg transition text-gray-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 bg-gray-50 flex flex-col gap-4 rounded-b-2xl">
+            <!-- ตัวเลือก 1x2 -->
+            <button onclick="executePrintBulkVehicles('1x2')" class="p-4 bg-white border-2 border-pink-100 hover:border-pink-500 rounded-xl flex flex-col items-center justify-center gap-2 transition group shadow-sm hover:shadow-md">
+                <div class="w-10 h-16 border-2 border-gray-300 rounded flex flex-col items-center justify-evenly p-1">
+                    <div class="w-full h-[30%] bg-pink-100 group-hover:bg-pink-300 rounded"></div>
+                    <div class="w-full h-[30%] bg-pink-100 group-hover:bg-pink-300 rounded"></div>
+                </div>
+                <div class="text-center mt-1">
+                    <p class="font-black text-pink-700">ขนาดใหญ่ (1x2)</p>
+                    <p class="text-[10px] text-gray-500 font-bold">ได้ 2 ใบ/หน้า (ขนาดใกล้เคียงบัตรจริง)</p>
+                </div>
+            </button>
+            
+            <!-- ตัวเลือก 2x2 -->
+            <button onclick="executePrintBulkVehicles('2x2')" class="p-4 bg-white border-2 border-indigo-100 hover:border-indigo-500 rounded-xl flex flex-col items-center justify-center gap-2 transition group shadow-sm hover:shadow-md">
+                <div class="w-16 h-16 border-2 border-gray-300 rounded grid grid-cols-2 grid-rows-2 gap-1 p-1">
+                    <div class="bg-indigo-100 group-hover:bg-indigo-300 rounded"></div><div class="bg-indigo-100 group-hover:bg-indigo-300 rounded"></div>
+                    <div class="bg-indigo-100 group-hover:bg-indigo-300 rounded"></div><div class="bg-indigo-100 group-hover:bg-indigo-300 rounded"></div>
+                </div>
+                <div class="text-center mt-1">
+                    <p class="font-black text-indigo-700">ประหยัดกระดาษ (2x2)</p>
+                    <p class="text-[10px] text-gray-500 font-bold">ได้ 4 ใบ/หน้า (ย่อขนาดบัตรลง 85%)</p>
+                </div>
+            </button>
+        </div>
+    </div>
+</div>
+		 
 <!-- Modal: ระงับบัตรแบบกลุ่ม (Bulk Suspend)>
 <div id="bulkSuspendModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/60 backdrop-blur-sm modal-overlay" onclick="closeBulkSuspendModal()"></div>
@@ -11383,9 +11419,18 @@ function handleTplImageUpload(e, key) {
     reader.readAsDataURL(file);
 }
 
+// ฟังก์ชันลบรูปเดี่ยวในคลังรูปแบบบัตร
 function removeTplImage(key) {
+    const tpl = systemSettings.cardTemplates.find(t => t.id === currentEditingTemplateId);
+    if (tpl && tpl[key] && tpl[key].includes('drive.google.com')) {
+        // แอบจดรายชื่อไฟล์ที่จะต้องลบทิ้งใน Google Drive
+        if (!systemSettings.deletedImages) systemSettings.deletedImages = [];
+        systemSettings.deletedImages.push(tpl[key]);
+    }
+    
     updateTplField(key, '');
-    renderTemplateEditor(systemSettings.cardTemplates.find(t => t.id === currentEditingTemplateId));
+    renderTemplateEditor(tpl);
+    showToast('ลบรูปชั่วคราวแล้ว (กรุณากดบันทึกการตั้งค่าเพื่อลบไฟล์ถาวร)', 'info');
 }
 
 // 7. จัดการ Template (สร้าง/ลบ/เลือกใช้)
@@ -11559,9 +11604,20 @@ async function processVehicleStatusChange() {
     }
 }
 
-// --- พิมพ์บัตรรถลง A4 แบบ 2x2 (4 คันต่อหน้า) ---
-async function printBulkVehiclesA4() {
+
+// --- เปิดหน้าต่างพิมพ์บัตรรถลง A4 แบบเลือกรูปแบบพิมพ์บัตรรถ ---
+function printBulkVehiclesA4() {
     if (selectedVehiclesArray.length === 0) return showToast('กรุณาเลือกบัตรรถอย่างน้อย 1 ใบ', 'warning');
+    document.getElementById('vehiclePrintOptionsModal').classList.remove('hidden');
+    if(window.lucide) lucide.createIcons();
+}
+function closeVehiclePrintOptionsModal() {
+    document.getElementById('vehiclePrintOptionsModal').classList.add('hidden');
+}
+
+// --- พิมพ์บัตรรถลง A4 ตามรูปแบบที่เลือก ---
+async function executePrintBulkVehicles(layoutType) {
+    closeVehiclePrintOptionsModal();
     showLoader('กำลังจัดเตรียมหน้ากระดาษ PDF (A4)...');
     
     const tpl = getActiveTemplate();
@@ -11581,20 +11637,33 @@ async function printBulkVehiclesA4() {
         const vToPrint = allVehicles.filter(v => selectedVehiclesArray.includes(parseInt(v.id)));
         let pagesHtml = '';
         
-        // แบ่ง 4 คัน ต่อ 1 แผ่น
-        for (let i = 0; i < vToPrint.length; i += 4) {
-            let chunk = vToPrint.slice(i, i + 4);
+        // กำหนดจำนวนบัตรต่อหน้าตาม Layout ที่เลือก
+        const cardsPerPage = layoutType === '1x2' ? 2 : 4;
+        
+        for (let i = 0; i < vToPrint.length; i += cardsPerPage) {
+            let chunk = vToPrint.slice(i, i + cardsPerPage);
             
-            // หน้าบัตร (เรียง 0 1 / 2 3)
+            // หน้าบัตร
             let frontGrid = '';
-            for (let j = 0; j < 4; j++) frontGrid += chunk[j] ? generateVehicleCardHtml(chunk[j], tpl, true) : `<div class="card-wrapper bg-white" style="width: 360px; height: 435px;"></div>`;
-            pagesHtml += `<div class="a4-sheet"><div class="print-vehicle-scale-wrapper"><div class="grid-2x2">${frontGrid}</div></div></div>`;
+            for (let j = 0; j < cardsPerPage; j++) {
+                frontGrid += chunk[j] ? generateVehicleCardHtml(chunk[j], tpl, true) : `<div class="card-wrapper bg-white" style="width: 360px; height: 435px;"></div>`;
+            }
+            
+            const gridClass = layoutType === '1x2' ? 'grid-1x2' : 'grid-2x2';
+            const scaleClass = layoutType === '1x2' ? 'print-vehicle-scale-wrapper-1x2' : 'print-vehicle-scale-wrapper';
 
-            // หลังบัตร (สลับ 1 0 / 3 2 เพื่อให้ตรงตอนพลิกกระดาษแบบ Flip on Long Edge)
+            pagesHtml += `<div class="a4-sheet"><div class="${scaleClass}"><div class="${gridClass}">${frontGrid}</div></div></div>`;
+
+            // หลังบัตร (การสลับหน้า-หลัง Duplex Alignment)
             let backGrid = '';
-            const reverseOrder = [1, 0, 3, 2]; 
-            for (let idx of reverseOrder) backGrid += chunk[idx] ? generateVehicleCardHtml(chunk[idx], tpl, false) : `<div class="card-wrapper bg-white" style="width: 360px; height: 435px;"></div>`;
-            pagesHtml += `<div class="a4-sheet"><div class="print-vehicle-scale-wrapper"><div class="grid-2x2">${backGrid}</div></div></div>`;
+            // ถ้าเป็น 1x2 (คอลัมน์เดียว) ไม่ต้องสลับซ้าย-ขวา ลำดับจะเป็น [0, 1] เหมือนเดิม!
+            // ถ้าเป็น 2x2 ต้องสลับซ้าย-ขวา ลำดับจะเป็น [1, 0, 3, 2]
+            const reverseOrder = layoutType === '1x2' ? [0, 1] : [1, 0, 3, 2]; 
+            
+            for (let idx of reverseOrder) {
+                backGrid += chunk[idx] ? generateVehicleCardHtml(chunk[idx], tpl, false) : `<div class="card-wrapper bg-white" style="width: 360px; height: 435px;"></div>`;
+            }
+            pagesHtml += `<div class="a4-sheet"><div class="${scaleClass}"><div class="${gridClass}">${backGrid}</div></div></div>`;
         }
 
         const printContainer = document.getElementById('printA4Area');
@@ -11670,6 +11739,20 @@ async function printBulkVehiclesA4() {
         /* สเกลย่อบัตรรถให้พอดี A4 (ย่อเหลือ 85%) */
         .print-vehicle-scale-wrapper {
             transform: scale(0.85); 
+            transform-origin: center center;
+        }
+
+		/* ตาราง 1x2 สำหรับบัตรรถขนาดใหญ่ */
+        .grid-1x2 { 
+            display: grid; 
+            grid-template-columns: 360px; /* 1 คอลัมน์ */
+            grid-template-rows: repeat(2, 435px); /* 2 แถว */
+            gap: 0;
+        }
+
+        /* สเกลบัตรรถขนาดใหญ่ (ไม่ต้องย่อ 100% เท่าของจริง) */
+        .print-vehicle-scale-wrapper-1x2 {
+            transform: scale(1); 
             transform-origin: center center;
         }
     }
