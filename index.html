@@ -796,6 +796,21 @@ gap: 1px !important;
     <!-- Header & Buttons -->
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <h2 class="text-xl font-bold flex items-center gap-2 text-gray-800"><i data-lucide="truck" class="w-6 h-6 text-blue-600"></i> จัดการฐานข้อมูลยานพาหนะ</h2>
+		<!-- กลุ่มปุ่มจัดการหลายรายการ (บัตรรถ) -->
+    <div id="vehicleActionButtons" class="hidden items-center gap-2 mt-4 mb-2">
+        <span class="text-sm font-bold text-blue-700 bg-blue-50 px-3 py-2.5 rounded-xl border border-blue-100 shadow-sm">
+            เลือกแล้ว <span id="vehicleSelectedCount" class="text-lg font-black">0</span> คัน
+        </span>
+        <button onclick="printBulkVehiclesA4()" class="px-4 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl flex items-center gap-2 text-sm font-bold transition shadow-lg hover:-translate-y-1">
+            <i data-lucide="printer" class="w-4 h-4"></i> พิมพ์บัตรรถ (A4)
+        </button>
+        <button onclick="openVehicleStatusModal()" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center gap-2 text-sm font-bold transition shadow-lg hover:-translate-y-1">
+            <i data-lucide="toggle-left" class="w-4 h-4"></i> เปลี่ยนสถานะ
+        </button>
+        <button onclick="deleteSelectedVehicles()" class="px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center gap-2 text-sm font-bold transition shadow-lg hover:-translate-y-1">
+            <i data-lucide="trash-2" class="w-4 h-4"></i> ลบทิ้ง
+        </button>
+    </div>
         <div class="flex items-center gap-2 flex-wrap justify-end">
             <button onclick="refreshVehiclesData()" class="px-4 py-2.5 bg-sky-50 text-sky-600 border border-sky-200 rounded-xl flex items-center gap-2 text-sm font-bold shadow-sm transition hover:bg-sky-100"><i data-lucide="refresh-cw" class="w-4 h-4"></i> อัพเดตข้อมูล</button>
             <button onclick="openVehicleModal()" class="btn-primary text-white px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg text-sm font-bold"><i data-lucide="plus" class="w-4 h-4"></i> เพิ่มรถใหม่</button>
@@ -2390,6 +2405,30 @@ gap: 1px !important;
         </div>
     </div>
 </div>
+
+<!-- Modal: เปลี่ยนสถานะหลายรายการ (บัตรรถ) -->
+<div id="vehicleStatusModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm modal-overlay" onclick="closeVehicleStatusModal()"></div>
+    <div class="relative bg-white rounded-2xl w-full max-w-sm flex flex-col shadow-2xl animate-fadeIn">
+        <div class="bg-amber-500 text-white p-4 rounded-t-2xl flex justify-between items-center">
+            <h3 class="font-bold flex items-center gap-2 text-lg"><i data-lucide="toggle-left"></i> เปลี่ยนสถานะบัตรรถ</h3>
+            <button onclick="closeVehicleStatusModal()" class="hover:bg-white/20 p-1.5 rounded-lg transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 bg-gray-50">
+            <label class="block text-sm font-bold text-gray-800 mb-2">เลือกสถานะใหม่ที่ต้องการ</label>
+            <select id="vehicleNewStatus" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 bg-white font-bold text-gray-700 shadow-sm">
+                <option value="active">เปิดใช้งาน (Active)</option>
+                <option value="inactive">ระงับการใช้งาน (Inactive)</option>
+            </select>
+        </div>
+        <div class="p-4 border-t bg-white rounded-b-2xl flex justify-end gap-3 shadow-inner">
+            <button onclick="closeVehicleStatusModal()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">ยกเลิก</button>
+            <button onclick="processVehicleStatusChange()" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2">
+                <i data-lucide="save" class="w-4 h-4"></i> ยืนยัน
+            </button>
+        </div>
+    </div>
+</div>
 	
 <!-- Modal: ระงับบัตรแบบกลุ่ม (Bulk Suspend)>
 <div id="bulkSuspendModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
@@ -3302,12 +3341,12 @@ function renderVehicleDashboard(stats) {
     `;
 }
 
-/**
- * 3. แก้ไขตาราง (เพิ่มคอลัมน์ และปุ่มจัดการ)
- */
+// ==========================================
+// ฟังก์ชันวาดตารางยานพาหนะ (อัปเดตรองรับ Checkbox เลือกหลายรายการ)
+// ==========================================
 function renderVehiclesTable() {
     // 1. กำหนดค่าพื้นฐานสำหรับการแบ่งหน้า
-    const size = cardsPagination.size || 10; // ดึงขนาดจากตัวแปร Global
+    const size = cardsPagination.size || 10; 
     const cp = cardsPagination.page || 1;
     const start = (cp - 1) * size;
     const list = currentFilteredVehicles || [];
@@ -3317,9 +3356,26 @@ function renderVehiclesTable() {
     const now = new Date();
     now.setHours(0,0,0,0);
 
-    // 3. กรณีไม่มีข้อมูล
+    // --- ส่วนที่อัปเดต 1: อัปเดตหัวตาราง (Thead) ให้มี Checkbox "เลือกทั้งหมด" ---
+    const thead = document.querySelector('#manageVehiclesPage thead tr');
+    // เช็คว่ามี Checkbox อยู่ในหัวตารางหรือยัง ถ้ายังให้สร้างใหม่
+    if (thead && !thead.cells[0].querySelector('input[type="checkbox"]')) {
+        thead.innerHTML = `
+            <th class="px-4 py-3 text-center w-10"><input type="checkbox" onclick="toggleAllVehiclesSelection(this.checked)" class="w-4 h-4 rounded text-blue-600 cursor-pointer shadow-sm"></th>
+            <th class="px-4 py-3 text-sm font-bold text-gray-500">รหัสบัตร</th>
+            <th class="px-4 py-3 text-sm font-bold text-gray-500">ทะเบียนรถ</th>
+            <th class="px-4 py-3 text-sm font-bold text-gray-500">ผู้ยื่นคำขอ / หน่วยงาน</th>
+            <th class="px-4 py-3 text-sm font-bold text-gray-500">ประเภทบัตร</th>
+            <th class="px-4 py-3 text-center text-sm font-bold text-gray-500">วันหมดอายุ</th>
+            <th class="px-4 py-3 text-center text-sm font-bold text-gray-500">สถานะ</th>
+            <th class="px-4 py-3 text-center text-sm font-bold text-gray-500 w-20">ปัจจุบัน</th>
+            <th class="px-4 py-3 text-center text-sm font-bold text-gray-500 min-w-[140px]">จัดการ</th>
+        `;
+    }
+
+    // 3. กรณีไม่มีข้อมูล (อัปเดต colspan เป็น 9 ให้พอดีกับคอลัมน์ใหม่)
     if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="p-12 text-center text-gray-400 flex-col"><i data-lucide="info" class="w-10 h-10 mx-auto mb-2 opacity-20"></i> ไม่พบข้อมูลยานพาหนะตามเงื่อนไขที่เลือก</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="p-12 text-center text-gray-400 flex-col"><i data-lucide="info" class="w-10 h-10 mx-auto mb-2 opacity-20"></i> ไม่พบข้อมูลยานพาหนะตามเงื่อนไขที่เลือก</td></tr>';
         document.getElementById('vehiclesPagination').innerHTML = '';
         if (window.lucide) lucide.createIcons();
         return;
@@ -3362,8 +3418,12 @@ function renderVehiclesTable() {
             `<span class="px-2.5 py-1 rounded-lg text-[10px] font-black bg-green-600 text-white shadow-sm ring-2 ring-green-100 animate-pulse">IN</span>` : 
             `<span class="px-2.5 py-1 rounded-lg text-[10px] font-black bg-gray-200 text-gray-500 uppercase">OUT</span>`;
 
+        // --- ส่วนที่อัปเดต 2: เพิ่ม <td> สำหรับ Checkbox เลือกทีละรายการ ---
         return `
         <tr class="border-b border-gray-100 hover:bg-blue-50/20 transition bg-white group">
+            <td class="px-4 py-4 text-center">
+                <input type="checkbox" value="${v.id}" ${selectedVehiclesArray.includes(parseInt(v.id)) ? 'checked' : ''} onchange="toggleVehicleSelection(${v.id}, this.checked)" class="vehicle-delete-cb w-4 h-4 rounded text-blue-600 cursor-pointer shadow-sm">
+            </td>
             <td class="px-4 py-4 font-black text-blue-700 select-all">${v.cardId}</td>
             <td class="px-4 py-4 font-bold text-gray-800">${v.vehicleReg}</td>
             <td class="px-4 py-4">
@@ -11381,6 +11441,10 @@ function deleteTemplate() {
     systemSettings.deletedTemplates.push(tpl);
 
     systemSettings.cardTemplates = systemSettings.cardTemplates.filter(t => t.id !== currentEditingTemplateId);
+
+	// --- เพิ่มบรรทัดนี้: ให้ระบบกลับไปเลือก Template ที่ Active อยู่เสมอ ---
+    currentEditingTemplateId = systemSettings.activeTemplateId; 
+	
     renderTemplateGallery();
     showToast('ลบรูปแบบทิ้งแล้ว (อย่าลืมกดบันทึกการตั้งค่าด้านล่าง)', 'info');
 }
@@ -11409,6 +11473,139 @@ function scrollToSection(elementId) {
     setTimeout(() => {
         targetEl.classList.remove('ring-4', 'ring-sky-500', 'border-sky-300');
     }, 2500);
+}
+
+
+// ==========================================
+// ระบบจัดการบัตรรถหลายรายการ และ Print A4 (2x2)
+// ==========================================
+let selectedVehiclesArray = [];
+
+function toggleVehicleSelection(id, isChecked) {
+    if (isChecked) selectedVehiclesArray.push(parseInt(id));
+    else selectedVehiclesArray = selectedVehiclesArray.filter(x => x !== parseInt(id));
+    updateBulkVehicleActionsUI();
+}
+
+function toggleAllVehiclesSelection(isChecked) {
+    const cbs = document.querySelectorAll('.vehicle-delete-cb');
+    cbs.forEach(cb => {
+        cb.checked = isChecked;
+        const id = parseInt(cb.value);
+        if (isChecked && !selectedVehiclesArray.includes(id)) selectedVehiclesArray.push(id);
+        if (!isChecked) selectedVehiclesArray = selectedVehiclesArray.filter(x => x !== id);
+    });
+    updateBulkVehicleActionsUI();
+}
+
+function updateBulkVehicleActionsUI() {
+    const container = document.getElementById('vehicleActionButtons');
+    if (!container) return;
+    if (selectedVehiclesArray.length > 0) {
+        container.classList.remove('hidden');
+        container.classList.add('flex');
+        document.getElementById('vehicleSelectedCount').textContent = selectedVehiclesArray.length;
+    } else {
+        container.classList.add('hidden');
+        container.classList.remove('flex');
+    }
+}
+
+// ลบรถ
+async function deleteSelectedVehicles() {
+    if (!confirm(`ยืนยันการลบบัตรรถที่เลือกจำนวน ${selectedVehiclesArray.length} รายการ?`)) return;
+    showLoader('กำลังลบข้อมูลหลายรายการ...');
+    try {
+        await apiCall('deleteBulkVehicles', { ids: selectedVehiclesArray });
+        allVehicles = allVehicles.filter(v => !selectedVehiclesArray.includes(parseInt(v.id)));
+        selectedVehiclesArray = []; 
+        updateBulkVehicleActionsUI();
+        const selectAllCb = document.querySelector('#manageVehiclesPage th input[type="checkbox"]');
+        if(selectAllCb) selectAllCb.checked = false;
+        filterVehiclesTable(); 
+        showToast('ลบข้อมูลที่เลือกสำเร็จ', 'success');
+    } catch (e) {
+        showToast('เกิดข้อผิดพลาดในการลบ', 'error');
+    } finally {
+        hideLoader();
+    }
+}
+
+// เปลี่ยนสถานะรถ
+function openVehicleStatusModal() { document.getElementById('vehicleStatusModal').classList.remove('hidden'); if(window.lucide) lucide.createIcons(); }
+function closeVehicleStatusModal() { document.getElementById('vehicleStatusModal').classList.add('hidden'); }
+
+async function processVehicleStatusChange() {
+    const newStatus = document.getElementById('vehicleNewStatus').value;
+    if(!confirm(`ยืนยันการเปลี่ยนสถานะบัตรรถที่เลือกเป็น ${newStatus} หรือไม่?`)) return;
+
+    showLoader('กำลังอัปเดตสถานะ...');
+    try {
+        const res = await apiCall('bulkUpdateVehicleStatus', { ids: selectedVehiclesArray, status: newStatus });
+        if(res.success) {
+            selectedVehiclesArray.forEach(id => {
+                const idx = allVehicles.findIndex(v => parseInt(v.id) === parseInt(id));
+                if(idx !== -1) allVehicles[idx].status = newStatus;
+            });
+            selectedVehiclesArray = []; 
+            updateBulkVehicleActionsUI();
+            filterVehiclesTable(); 
+            showToast(`อัปเดตสถานะสำเร็จ ${res.count} คัน`, 'success');
+        }
+    } catch(e) {
+        showToast('เกิดข้อผิดพลาด', 'error');
+    } finally {
+        hideLoader(); closeVehicleStatusModal();
+    }
+}
+
+// --- พิมพ์บัตรรถลง A4 แบบ 2x2 (4 คันต่อหน้า) ---
+async function printBulkVehiclesA4() {
+    if (selectedVehiclesArray.length === 0) return showToast('กรุณาเลือกบัตรรถอย่างน้อย 1 ใบ', 'warning');
+    showLoader('กำลังจัดเตรียมหน้ากระดาษ PDF (A4)...');
+    
+    const tpl = getActiveTemplate();
+    let fontPreloader = document.getElementById('barcode-font-preloader');
+    if (!fontPreloader) {
+        fontPreloader = document.createElement('span');
+        fontPreloader.id = 'barcode-font-preloader';
+        fontPreloader.className = 'font-barcode';
+        fontPreloader.style.cssText = 'position:fixed; top:-9999px; opacity:0;';
+        fontPreloader.textContent = '*PRELOAD*';
+        document.body.appendChild(fontPreloader);
+    }
+
+    try { await document.fonts.load('60px "Libre Barcode 39"'); } catch(e){}
+
+    document.fonts.ready.then(() => {
+        const vToPrint = allVehicles.filter(v => selectedVehiclesArray.includes(parseInt(v.id)));
+        let pagesHtml = '';
+        
+        // แบ่ง 4 คัน ต่อ 1 แผ่น
+        for (let i = 0; i < vToPrint.length; i += 4) {
+            let chunk = vToPrint.slice(i, i + 4);
+            
+            // หน้าบัตร (เรียง 0 1 / 2 3)
+            let frontGrid = '';
+            for (let j = 0; j < 4; j++) frontGrid += chunk[j] ? generateVehicleCardHtml(chunk[j], tpl, true) : `<div class="card-wrapper bg-white" style="width: 360px; height: 435px;"></div>`;
+            pagesHtml += `<div class="a4-sheet"><div class="print-vehicle-scale-wrapper"><div class="grid-2x2">${frontGrid}</div></div></div>`;
+
+            // หลังบัตร (สลับ 1 0 / 3 2 เพื่อให้ตรงตอนพลิกกระดาษแบบ Flip on Long Edge)
+            let backGrid = '';
+            const reverseOrder = [1, 0, 3, 2]; 
+            for (let idx of reverseOrder) backGrid += chunk[idx] ? generateVehicleCardHtml(chunk[idx], tpl, false) : `<div class="card-wrapper bg-white" style="width: 360px; height: 435px;"></div>`;
+            pagesHtml += `<div class="a4-sheet"><div class="print-vehicle-scale-wrapper"><div class="grid-2x2">${backGrid}</div></div></div>`;
+        }
+
+        const printContainer = document.getElementById('printA4Area');
+        printContainer.innerHTML = pagesHtml;
+
+        setTimeout(() => {
+            hideLoader();
+            window.print();
+            setTimeout(() => { printContainer.innerHTML = ''; }, 1000);
+        }, 2000);
+    });
 }
 	  
   </script>
@@ -11461,6 +11658,19 @@ function scrollToSection(elementId) {
             box-sizing: border-box;
             background: white;
             -webkit-print-color-adjust: exact;
+        }
+		/* ตาราง 2x2 สำหรับบัตรรถ */
+        .grid-2x2 { 
+            display: grid; 
+            grid-template-columns: repeat(2, 360px);
+            grid-template-rows: repeat(2, 435px);
+            gap: 0;
+        }
+
+        /* สเกลย่อบัตรรถให้พอดี A4 (ย่อเหลือ 85%) */
+        .print-vehicle-scale-wrapper {
+            transform: scale(0.85); 
+            transform-origin: center center;
         }
     }
 </style>
