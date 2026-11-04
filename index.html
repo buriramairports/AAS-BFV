@@ -10858,19 +10858,24 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
                    </div>
                </div>
                
-               <div class="absolute top-[315px] left-[16px] right-[12px] flex flex-col ${txtMain} font-bold text-[14px] z-10">
-                   <div class="text-[20px] font-black mb-1.5 leading-[1.2] py-1 truncate">${card.firstName} ${card.lastName}</div>
+               <!-- แก้ไข: เพิ่ม padding-top/bottom และปรับ line-height เพื่อเว้นที่ให้สระไทย -->
+               <div class="absolute top-[310px] left-[16px] right-[12px] flex flex-col ${txtMain} font-bold text-[14px] z-10">
+                   <!-- ขยาย leading เป็น relaxed และเพิ่ม padding -->
+                   <div class="text-[20px] font-black mb-1 leading-relaxed py-1.5 overflow-visible break-words">${card.firstName} ${card.lastName}</div>
                    
-                   <div class="grid grid-cols-[60px_1fr] gap-x-2 gap-y-1.5 mb-1.5">
-                       <div class="${txtLabel}">${tpl.lblPos}</div><div class="${txtSub} truncate text-[13px]">${card.position || '-'}</div>
+                   <div class="grid grid-cols-[60px_1fr] gap-x-2 gap-y-2 mb-1.5 items-center">
+                       <div class="${txtLabel}">${tpl.lblPos}</div>
+                       <!-- ลบ truncate ทิ้ง เปลี่ยนเป็น break-words และเพิ่ม line-height -->
+                       <div class="${txtSub} text-[13px] leading-snug overflow-visible break-words">${card.position || '-'}</div>
                    </div>
                    
-                   <div class="grid grid-cols-[60px_1fr] gap-x-2 gap-y-1.5 items-center">
+                   <div class="grid grid-cols-[60px_1fr] gap-x-2 gap-y-2 items-center">
                        <div class="${txtLabel}">${tpl.lblOrg}</div>
-                       <div class="${txtSub} truncate text-[13px] leading-none mb-1">${card.organization || '-'}</div>
+                       <!-- ลบ truncate ทิ้ง เปลี่ยนเป็น break-words และเพิ่ม line-height -->
+                       <div class="${txtSub} text-[13px] leading-snug overflow-visible break-words mb-1">${card.organization || '-'}</div>
                        
                        <div class="text-[12px] text-red-500 font-bold leading-none mt-1">${tpl.lblExp}</div>
-                       <div class="text-[16px] font-black text-red-600 leading-none mt-1 bg-white/50 px-1 rounded w-fit">${formatDateOnly(card.expiryDate)}</div>
+                       <div class="text-[16px] font-black text-red-600 leading-none mt-1 bg-white/50 px-1 py-0.5 rounded w-fit overflow-visible">${formatDateOnly(card.expiryDate)}</div>
                    </div>
                </div>
                ${frontCodeHtml}
@@ -10903,10 +10908,11 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
                <!-- ใช้ -mt-2 เพื่อดึงรหัสบัตรให้ชิดบาร์โค้ดมากขึ้น -->
                <div class="font-bold text-[12px] text-gray-800 -mt-2">${card.cardId}</div>
                <div class="w-[40%] h-[2px] bg-gray-300 my-1.5 rounded-full mx-auto shrink-0"></div>
-               <div class="flex flex-col items-center text-center text-[10px] font-bold text-gray-600 leading-tight gap-0.5 w-full">
-                   <span class="truncate w-full">${tpl.cardFooterLine1}</span>
-                   <span class="truncate w-full">${tpl.cardFooterLine2}</span>
-                   <span class="text-indigo-800 truncate w-full">${tpl.cardFooterLine3}</span>
+               <!-- แก้ไข: เปลี่ยนจาก truncate เป็น break-words overflow-visible และเพิ่ม padding -->
+               <div class="w-[65%] flex flex-col justify-center text-[9px] font-bold text-gray-600 leading-normal pl-1 h-full text-center">
+                   <div class="w-full break-words overflow-visible py-0.5">${tpl.cardFooterLine1}</div>
+                   <div class="w-full break-words overflow-visible py-0.5">${tpl.cardFooterLine2}</div>
+                   <div class="text-indigo-800 w-full mt-1 break-words overflow-visible py-0.5">${tpl.cardFooterLine3}</div>
                </div>
             </div>`;
         }
@@ -10999,17 +11005,31 @@ function generateVehicleCardHtml(v, tpl, isFront) {
                 <div class="absolute top-[100px] left-0 right-0 text-center text-red-600 font-black text-[20px] z-20" style="opacity:${isTemp?'1':'0'}">บัตรชั่วคราว</div>
                 <div class="absolute left-0 right-0 ${gridClass}">${areaHtml}</div>
                 
-                <div class="absolute top-[250px] left-[35px] text-left space-y-2 font-bold text-[14px] leading-tight z-20 pr-[85px]">
-                    <div class="${txtLabel} truncate">${tpl.lblOrgV}: <span class="font-black text-[15px] ${txtMain}">${v.organization || '-'}</span></div>
-                    <div class="${txtLabel} truncate">${tpl.lblRegV}: <span class="font-black text-[15px] text-red-600 drop-shadow-md bg-white/50 px-1 rounded">${v.vehicleReg || '-'}</span></div>
-                    <div class="${txtLabel} truncate">${tpl.lblIdV}: <span class="font-black text-[15px] ${txtMain}">${v.cardId || '-'}</span></div>
-                    <div class="${txtLabel} truncate">หมดอายุ: <span class="font-black text-[17px] text-red-600 drop-shadow-md bg-white/50 px-1 rounded">${formatDateOnly(v.expiryDate)}</span></div>
+                <!-- แก้ไข: ข้อมูลรถ (เว้นพื้นที่สระ) -->
+                <div class="absolute top-[245px] left-[35px] text-left space-y-2.5 font-bold text-[14px] z-20 pr-[85px]">
+                    <!-- ลบ truncate ทิ้ง เปลี่ยนเป็น break-words และปรับ leading -->
+                    <div class="flex items-start gap-2">
+                        <span class="${txtLabel} shrink-0">${tpl.lblOrgV}:</span> 
+                        <span class="font-black text-[15px] ${txtMain} leading-snug break-words overflow-visible">${v.organization || '-'}</span>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="${txtLabel} shrink-0">${tpl.lblRegV}:</span> 
+                        <span class="font-black text-[15px] text-red-600 drop-shadow-md bg-white/50 px-1 py-0.5 rounded leading-snug break-words overflow-visible">${v.vehicleReg || '-'}</span>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="${txtLabel} shrink-0">${tpl.lblIdV}:</span> 
+                        <span class="font-black text-[15px] ${txtMain} leading-snug break-words overflow-visible">${v.cardId || '-'}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="${txtLabel} shrink-0">หมดอายุ:</span> 
+                        <span class="font-black text-[17px] text-red-600 drop-shadow-md bg-white/50 px-1 py-0.5 rounded leading-none overflow-visible">${formatDateOnly(v.expiryDate)}</span>
+                    </div>
                 </div>
                 
-                <!-- ช่องทางเข้าออก (ตรึงซ้ายเหมือนเดิม) -->
-                <div class="absolute bottom-5 left-[35px] text-left z-20 w-[280px]">
-                    <div class="text-[11px] font-bold ${isLight ? 'text-orange-300 drop-shadow' : 'text-orange-600'}">ช่องทางเข้า - ออก</div>
-                    <div class="text-[14px] font-black ${txtMain} leading-tight drop-shadow-sm truncate">${gateNames || 'ทุกจุดเข้า-ออก'}</div>
+                <!-- ช่องทางเข้าออก (ขยายบรรทัด) -->
+                <div class="absolute bottom-5 ${gateTextPosition} z-20 pr-4">
+                    <div class="text-[11px] font-bold ${isLight ? 'text-orange-300 drop-shadow' : 'text-orange-600'} mb-1">ช่องทางเข้า - ออก</div>
+                    <div class="text-[14px] font-black ${txtMain} leading-snug drop-shadow-sm break-words overflow-visible">${gateNames || 'ทุกจุดเข้า-ออก'}</div>
                 </div>
             </div>
         </div>`;
@@ -11026,10 +11046,11 @@ function generateVehicleCardHtml(v, tpl, isFront) {
                    <img src="${qr}" class="w-[70px] h-[70px] rounded mb-1 bg-white p-0.5 border border-gray-200">
                    <div class="font-bold text-[10px] text-gray-800">${v.cardId}</div>
                </div>
-               <div class="flex-1 flex flex-col justify-center text-[7.7px] font-bold text-gray-700 leading-snug pl-1 h-full text-center">
-                   <div class="w-full">${tpl.cardFooterV1}</div>
-                   <div class="w-full">${tpl.cardFooterV2}</div>
-                   <div class="text-blue-800 w-full mt-0.5">${tpl.cardFooterV3}</div>
+               <!-- แก้ไข 1 (โหมด QR): เปลี่ยนเป็น div, ใช้ break-words, overflow-visible และเว้นบรรทัดให้สระ -->
+               <div class="flex-1 flex flex-col justify-center text-[7.7px] font-bold text-gray-700 leading-normal pl-1 h-full text-center">
+                   <div class="w-full break-words overflow-visible py-0.5">${tpl.cardFooterV1}</div>
+                   <div class="w-full break-words overflow-visible py-0.5">${tpl.cardFooterV2}</div>
+                   <div class="text-blue-800 w-full mt-0.5 break-words overflow-visible py-0.5">${tpl.cardFooterV3}</div>
                </div>
             </div>`;
         } else if (tpl.vehicleBackCode === 'barcode_center') {
@@ -11040,10 +11061,11 @@ function generateVehicleCardHtml(v, tpl, isFront) {
                <!-- ใช้ -mt-2 ดึงรหัสขึ้นไปให้แนบชิดบาร์โค้ด -->
                <div class="font-bold text-[12px] text-gray-800 -mt-2">${v.cardId}</div>
                <div class="w-[40%] h-[2px] bg-gray-300 my-1.5 rounded-full mx-auto shrink-0"></div>
-               <div class="flex flex-col items-center text-center text-[7.5px] font-bold text-gray-600 leading-tight gap-0.5 w-full">
-                   <span class="truncate w-full">${tpl.cardFooterV1}</span>
-                   <span class="truncate w-full">${tpl.cardFooterV2}</span>
-                   <span class="text-blue-800 truncate w-full">${tpl.cardFooterV3}</span>
+               <!-- แก้ไข 2 (โหมด Barcode): เปลี่ยนเป็น div, ใช้ break-words, overflow-visible และเว้นบรรทัดให้สระ -->
+               <div class="flex flex-col items-center text-center text-[7.5px] font-bold text-gray-600 leading-normal w-full">
+                   <div class="w-full break-words overflow-visible py-0.5">${tpl.cardFooterV1}</div>
+                   <div class="w-full break-words overflow-visible py-0.5">${tpl.cardFooterV2}</div>
+                   <div class="text-blue-800 w-full mt-0.5 break-words overflow-visible py-0.5">${tpl.cardFooterV3}</div>
                </div>
             </div>`;
         }
@@ -11057,9 +11079,10 @@ function generateVehicleCardHtml(v, tpl, isFront) {
             <div class="absolute inset-0 z-10 flex flex-col px-8 py-8">
                 
                 <div class="text-center mb-2 bg-white/90 p-2 rounded-xl shadow-sm border border-red-50 shrink-0">
-                    <div class="text-red-600 font-black text-[18px] leading-tight truncate">${tpl.rulesTitleV1}</div>
-                    <div class="text-red-600 font-bold text-[11px] leading-tight truncate mt-1">${tpl.rulesTitleV2}</div>
-                    <div class="text-red-600 font-bold text-[11px] leading-tight truncate">${tpl.rulesTitleV3}</div>
+                    <!-- แก้ไข 3: เผื่อสระให้หัวข้อกฎระเบียบด้วย ป้องกันไม้เอก ไม้โทโดนตัด -->
+                    <div class="text-red-600 font-black text-[18px] leading-relaxed break-words overflow-visible">${tpl.rulesTitleV1}</div>
+                    <div class="text-red-600 font-bold text-[11px] leading-relaxed mt-1 break-words overflow-visible">${tpl.rulesTitleV2}</div>
+                    <div class="text-red-600 font-bold text-[11px] leading-relaxed break-words overflow-visible">${tpl.rulesTitleV3}</div>
                 </div>
                 <!-- ขนาดฟ้อนท์กฎ -->
                 <div class="text-gray-800 text-[9px] leading-snug whitespace-pre-line flex-1 font-bold overflow-hidden bg-white/80 p-3 rounded-xl backdrop-blur-sm border border-gray-100">${rulesHtml}</div>
