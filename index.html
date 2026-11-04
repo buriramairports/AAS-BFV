@@ -9445,87 +9445,84 @@ function closeIdVehicleCardModal() {
 // ==========================================
 // ฟังก์ชันดาวน์โหลด PDF (Single Print - html2canvas)
 // ==========================================
+// ==========================================
+// ฟังก์ชันพิมพ์บัตรเดี่ยว (ผ่านระบบเบราว์เซอร์ + บังคับโหลดฟอนต์)
+// ==========================================
+function setDynamicPrintSize(sizeType) {
+    let style = document.getElementById('dynamic-print-size');
+    if (!style) { 
+        style = document.createElement('style'); 
+        style.id = 'dynamic-print-size'; 
+        document.head.appendChild(style); 
+    }
+    if (sizeType === 'A4') style.innerHTML = `@media print { @page { size: A4 portrait; margin: 0; } }`;
+    else if (sizeType === 'CR80') style.innerHTML = `@media print { @page { size: 54mm 86mm portrait; margin: 0; } }`;
+    else if (sizeType === 'VEHICLE') style.innerHTML = `@media print { @page { size: 85mm 103mm portrait; margin: 0; } }`;
+}
+
 async function downloadPdfCard() {
     const container = document.getElementById('printCardContainer');
-    const cardId = container.dataset.cardId || 'EmployeeCard';
+    const cardId = container.dataset.cardId;
+    const card = allCards.find(c => String(c.cardId) === String(cardId));
+    if (!card) return;
     
-    // ค้นหาเฉพาะกล่องบัตรเท่านั้น
-    const cards = container.querySelectorAll('.card-wrapper');
-    if (cards.length < 2) return showToast('ไม่พบข้อมูลบัตร', 'error');
+    showLoader('กำลังเตรียมหน้าพิมพ์...');
+    const tpl = getActiveTemplate();
+    setDynamicPrintSize('CR80'); 
 
-    showLoader('กำลังสร้างไฟล์ PDF...');
-    const pdfWrapper = document.createElement('div');
-    // ขนาดบัตรบุคคล 340px
-    pdfWrapper.style.width = '340px';
-    pdfWrapper.style.background = 'white';
+    // บังคับรอฟอนต์บาร์โค้ด (แก้ปัญหาสระลอย/ฟอนต์เพี้ยน)
+    try { await document.fonts.load('60px "Libre Barcode 39"'); } catch(e){}
 
-    const fClone = cards[0].cloneNode(true);
-    const bClone = cards[1].cloneNode(true);
-    fClone.style.boxShadow = 'none';
-    bClone.style.boxShadow = 'none';
-
-    pdfWrapper.appendChild(fClone);
-    pdfWrapper.appendChild(bClone);
-
-    const opt = {
-        margin: 0,
-        filename: `ID_Card_${cardId.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 3, useCORS: true },
-        // บังคับหน้ากระดาษ PDF ให้มีขนาดเท่าบัตรพนักงานเป๊ะ (340x540)
-        jsPDF: { unit: 'px', format: [340, 540], orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'] }
-    };
-
-    try {
-        await html2pdf().set(opt).from(pdfWrapper).save();
-        showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
-    } catch (e) {
-        showToast('เกิดข้อผิดพลาดในการสร้าง PDF', 'error');
-    } finally {
-        hideLoader();
-    }
+    document.fonts.ready.then(() => {
+        let html = `
+        <div class="a4-sheet" style="width: 54mm; height: 86mm;">
+            <div style="transform: scale(0.601); transform-origin: top left;">${generateEmployeeCardHtml(card, tpl, true)}</div>
+        </div>
+        <div class="a4-sheet" style="width: 54mm; height: 86mm;">
+            <div style="transform: scale(0.601); transform-origin: top left;">${generateEmployeeCardHtml(card, tpl, false)}</div>
+        </div>`;
+        
+        const printContainer = document.getElementById('printA4Area');
+        printContainer.innerHTML = html;
+        
+        setTimeout(() => {
+            hideLoader();
+            window.print();
+            setTimeout(() => { printContainer.innerHTML = ''; }, 1000);
+        }, 1000);
+    });
 }
 
 async function downloadVehiclePdfCard() {
     const container = document.getElementById('printVehicleCardContainer');
-    const cardId = container.dataset.cardId || 'VehicleCard';
-    
-    const cards = container.querySelectorAll('.card-wrapper');
-    if (cards.length < 2) return showToast('ไม่พบข้อมูลบัตร', 'error');
+    const cardId = container.dataset.cardId;
+    const v = allVehicles.find(x => String(x.cardId) === String(cardId));
+    if (!v) return;
 
-    showLoader('กำลังสร้างไฟล์ PDF...');
-    const pdfWrapper = document.createElement('div');
-    // ขนาดบัตรรถ 360px
-    pdfWrapper.style.width = '360px';
-    pdfWrapper.style.background = 'white';
+    showLoader('กำลังเตรียมหน้าพิมพ์...');
+    const tpl = getActiveTemplate();
+    setDynamicPrintSize('VEHICLE'); 
 
-    const fClone = cards[0].cloneNode(true);
-    const bClone = cards[1].cloneNode(true);
-    fClone.style.boxShadow = 'none';
-    bClone.style.boxShadow = 'none';
+    try { await document.fonts.load('60px "Libre Barcode 39"'); } catch(e){}
 
-    pdfWrapper.appendChild(fClone);
-    pdfWrapper.appendChild(bClone);
-
-    const opt = {
-        margin: 0,
-        filename: `Vehicle_Card_${cardId.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 3, useCORS: true },
-        // บังคับหน้ากระดาษ PDF ให้มีขนาดเท่าบัตรรถเป๊ะ (360x435)
-        jsPDF: { unit: 'px', format: [360, 435], orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'] }
-    };
-
-    try {
-        await html2pdf().set(opt).from(pdfWrapper).save();
-        showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
-    } catch (e) {
-        showToast('เกิดข้อผิดพลาดในการสร้าง PDF', 'error');
-    } finally {
-        hideLoader();
-    }
+    document.fonts.ready.then(() => {
+        let html = `
+        <div class="a4-sheet" style="width: 85mm; height: 103mm;">
+            <div style="transform: scale(0.89); transform-origin: top left;">${generateVehicleCardHtml(v, tpl, true)}</div>
+        </div>
+        <div class="a4-sheet" style="width: 85mm; height: 103mm;">
+            <div style="transform: scale(0.89); transform-origin: top left;">${generateVehicleCardHtml(v, tpl, false)}</div>
+        </div>`;
+        
+        const printContainer = document.getElementById('printA4Area');
+        printContainer.innerHTML = html;
+        
+        setTimeout(() => {
+            hideLoader();
+            window.print();
+            setTimeout(() => { printContainer.innerHTML = ''; }, 1000);
+        }, 1000);
+    });
 }
 
 
@@ -10889,7 +10886,8 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
         let bottomSectionHtml = '';
 
         if (tpl.personBackCode === 'qr_center') {
-            const qr = new QRious({value: card.cardId, size: 300}).toDataURL();
+            const qr = new QRious({value: card.cardId, size: 200}).toDataURL();
+            // ปรับกล่อง QR ให้มีลักษณะเดียวกับ Barcode คือกว้างเต็มใบและมีเส้นแบ่ง
             bottomSectionHtml = `
             <div class="mt-3 flex items-center justify-between p-2 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0 min-h-[90px] gap-2">
                <div class="w-[35%] shrink-0 flex flex-col items-center justify-center border-r border-gray-200 pr-2">
@@ -10903,7 +10901,6 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
                </div>
             </div>`;
         } else if (tpl.personBackCode === 'barcode_center') {
-            // เลย์เอาต์ Barcode: ลบความสูงตายตัวทิ้ง เปลี่ยนเป็น flex-1 ให้ขยายเต็มพื้นที่ที่เหลือ
             bottomSectionHtml = `
             <div class="mt-3 flex flex-col items-center justify-center p-3 pt-5 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0 flex-1">
                <div class="font-barcode text-[42px] text-black leading-none transform scale-x-[0.8] origin-center tracking-normal whitespace-nowrap overflow-visible">*${card.cardId}*</div>
@@ -10931,9 +10928,11 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
                    <p class="text-red-600 font-bold text-center text-[12px] w-full truncate">${tpl.cardRulesTitle3}</p>
                 </div>
                 
-                <div class="text-gray-800 text-[12px] leading-relaxed whitespace-pre-line font-medium bg-white/80 p-3 rounded-xl backdrop-blur-sm border border-gray-100 overflow-hidden h-[160px] shrink-0">${rulesHtml}</div>
+                <!-- อัปเกรด: ใส่ flex-1 ตรงนี้ เพื่อดันกล่องด้านล่างให้ติดขอบเสมอ! -->
+                <div class="text-gray-800 text-[12px] leading-relaxed whitespace-pre-line font-medium bg-white/80 p-3 rounded-xl backdrop-blur-sm border border-gray-100 flex-1 overflow-hidden">${rulesHtml}</div>
                 
                 ${bottomSectionHtml}
+
             </div>
         </div>`;
     }
@@ -11142,9 +11141,9 @@ function previewCurrentTemplate() {
 async function printBulkCardsA4() {
 	setDynamicPrintSize('A4'); // <--- เพิ่มบรรทัดนี้ เพื่อบอกเบราว์เซอร์ว่าเป็น A4
     if (selectedCardsArray.length === 0) return showToast('กรุณาเลือกบัตรอย่างน้อย 1 ใบ', 'warning');
-    showLoader('กำลังจัดเตรียมหน้ากระดาษ...');
+    showLoader('กำลังจัดเตรียมหน้ากระดาษ PDF (A4)...');
     
-    const tpl = getActiveTemplate(); // ใช้ Template จริงที่ Active อยู่
+   // const tpl = getActiveTemplate(); // ใช้ Template จริงที่ Active อยู่
     
     let fontPreloader = document.getElementById('barcode-font-preloader');
     if (!fontPreloader) {
