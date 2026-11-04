@@ -9445,83 +9445,75 @@ function closeIdVehicleCardModal() {
 // ==========================================
 // ฟังก์ชันดาวน์โหลด PDF (อัปเกรดแก้บั๊กไม่ดาวน์โหลด)
 // ==========================================
+// ==========================================
+// ฟังก์ชันพิมพ์บัตรเดี่ยว (ผ่านระบบเบราว์เซอร์ แก้บั๊กสระไทย 100%)
+// ==========================================
+function setDynamicPrintSize(sizeType) {
+    let style = document.getElementById('dynamic-print-size');
+    if (!style) { 
+        style = document.createElement('style'); 
+        style.id = 'dynamic-print-size'; 
+        document.head.appendChild(style); 
+    }
+    if (sizeType === 'A4') style.innerHTML = `@media print { @page { size: A4 portrait; margin: 0; } }`;
+    else if (sizeType === 'CR80') style.innerHTML = `@media print { @page { size: 54mm 86mm portrait; margin: 0; } }`;
+    else if (sizeType === 'VEHICLE') style.innerHTML = `@media print { @page { size: 85mm 103mm portrait; margin: 0; } }`;
+}
+
 async function downloadPdfCard() {
     const container = document.getElementById('printCardContainer');
-    const cardId = container.dataset.cardId || 'EmployeeCard';
+    const cardId = container.dataset.cardId;
+    const card = allCards.find(c => String(c.cardId) === String(cardId));
+    if (!card) return;
     
-    // ค้นหาเฉพาะกล่องบัตรเท่านั้น (ป้องกันโครงสร้างเพี้ยน)
-    const cards = container.querySelectorAll('.card-wrapper');
-    if (cards.length < 2) return showToast('ไม่พบข้อมูลบัตร', 'error');
+    showLoader('กำลังเตรียมหน้าพิมพ์...');
+    const tpl = getActiveTemplate();
+    setDynamicPrintSize('CR80'); // บังคับหน้ากระดาษเท่าบัตรแข็ง PVC
 
-    showLoader('กำลังสร้างไฟล์ PDF...');
-    const pdfWrapper = document.createElement('div');
-    pdfWrapper.style.width = '340px';
-    pdfWrapper.style.background = 'white';
-
-    const fClone = cards[0].cloneNode(true);
-    const bClone = cards[1].cloneNode(true);
-    fClone.style.boxShadow = 'none';
-    bClone.style.boxShadow = 'none';
-
-    pdfWrapper.appendChild(fClone);
-    pdfWrapper.appendChild(bClone);
-
-    const opt = {
-        margin: 0,
-        filename: `ID_Card_${cardId.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 3, useCORS: true },
-        jsPDF: { unit: 'px', format: [340, 540], orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'] }
-    };
-
-    try {
-        await html2pdf().set(opt).from(pdfWrapper).save();
-        showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
-    } catch (e) {
-        showToast('เกิดข้อผิดพลาดในการสร้าง PDF', 'error');
-    } finally {
+    let html = `
+    <div class="a4-sheet" style="width: 54mm; height: 86mm;">
+        <div style="transform: scale(0.601); transform-origin: top left;">${generateEmployeeCardHtml(card, tpl, true)}</div>
+    </div>
+    <div class="a4-sheet" style="width: 54mm; height: 86mm;">
+        <div style="transform: scale(0.601); transform-origin: top left;">${generateEmployeeCardHtml(card, tpl, false)}</div>
+    </div>`;
+    
+    const printContainer = document.getElementById('printA4Area');
+    printContainer.innerHTML = html;
+    
+    setTimeout(() => {
         hideLoader();
-    }
+        window.print();
+        setTimeout(() => { printContainer.innerHTML = ''; }, 1000);
+    }, 1500);
 }
 
 async function downloadVehiclePdfCard() {
     const container = document.getElementById('printVehicleCardContainer');
-    const cardId = container.dataset.cardId || 'VehicleCard';
+    const cardId = container.dataset.cardId;
+    const v = allVehicles.find(x => String(x.cardId) === String(cardId));
+    if (!v) return;
+
+    showLoader('กำลังเตรียมหน้าพิมพ์...');
+    const tpl = getActiveTemplate();
+    setDynamicPrintSize('VEHICLE'); // บังคับหน้ากระดาษเท่าบัตรรถ
+
+    let html = `
+    <div class="a4-sheet" style="width: 85mm; height: 103mm;">
+        <div style="transform: scale(0.89); transform-origin: top left;">${generateVehicleCardHtml(v, tpl, true)}</div>
+    </div>
+    <div class="a4-sheet" style="width: 85mm; height: 103mm;">
+        <div style="transform: scale(0.89); transform-origin: top left;">${generateVehicleCardHtml(v, tpl, false)}</div>
+    </div>`;
     
-    const cards = container.querySelectorAll('.card-wrapper');
-    if (cards.length < 2) return showToast('ไม่พบข้อมูลบัตร', 'error');
-
-    showLoader('กำลังสร้างไฟล์ PDF...');
-    const pdfWrapper = document.createElement('div');
-    pdfWrapper.style.width = '360px';
-    pdfWrapper.style.background = 'white';
-
-    const fClone = cards[0].cloneNode(true);
-    const bClone = cards[1].cloneNode(true);
-    fClone.style.boxShadow = 'none';
-    bClone.style.boxShadow = 'none';
-
-    pdfWrapper.appendChild(fClone);
-    pdfWrapper.appendChild(bClone);
-
-    const opt = {
-        margin: 0,
-        filename: `Vehicle_Card_${cardId.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 3, useCORS: true },
-        jsPDF: { unit: 'px', format: [360, 435], orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'] }
-    };
-
-    try {
-        await html2pdf().set(opt).from(pdfWrapper).save();
-        showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
-    } catch (e) {
-        showToast('เกิดข้อผิดพลาดในการสร้าง PDF', 'error');
-    } finally {
+    const printContainer = document.getElementById('printA4Area');
+    printContainer.innerHTML = html;
+    
+    setTimeout(() => {
         hideLoader();
-    }
+        window.print();
+        setTimeout(() => { printContainer.innerHTML = ''; }, 1000);
+    }, 1500);
 }
 
 	/**
@@ -10829,7 +10821,7 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
             // อัปเกรด: ขยายขนาด QR โค้ดให้ใหญ่ขึ้น (size 250) และขยายกล่องแสดงผล (w-16 h-16)
             const qr = new QRious({value: card.cardId, size: 250}).toDataURL();
             frontCodeHtml = `
-            <div class="absolute bottom-[15px] left-[15px] flex flex-col items-center">
+            <div class="absolute bottom-[6px] left-[15px] flex flex-col items-center">
                 <img src="${qr}" class="w-[70px] h-[70px] rounded border border-gray-200 shadow-sm bg-white p-0.5 mb-1">
                 <div class="text-[10px] font-black ${txtMain} leading-none tracking-wide bg-white/50 px-1 rounded backdrop-blur-sm">NO. ${card.cardId}</div>
             </div>`;
@@ -10859,7 +10851,7 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
                </div>
                
                <!-- แก้ไข: เพิ่ม padding-top/bottom และปรับ line-height เพื่อเว้นที่ให้สระไทย -->
-               <div class="absolute top-[310px] left-[16px] right-[12px] flex flex-col ${txtMain} font-bold text-[14px] z-10">
+               <div class="absolute top-[300px] left-[16px] right-[12px] flex flex-col ${txtMain} font-bold text-[14px] z-10">
                    <!-- ขยาย leading เป็น relaxed และเพิ่ม padding -->
                    <div class="text-[20px] font-black mb-1 leading-relaxed py-1.5 overflow-visible break-words">${card.firstName} ${card.lastName}</div>
                    
@@ -10890,29 +10882,29 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
             // เลย์เอาต์ QR: เปลี่ยน span เป็น div และกำหนดความกว้างฝั่งซ้ายเป็น px คงที่
             bottomSectionHtml = `
             <div class="mt-3 flex items-center justify-between p-2 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0 min-h-[90px] gap-2">
-               <div class="w-[90px] shrink-0 flex flex-col items-center justify-center border-r border-gray-200 pr-2">
-                   <img src="${qr}" class="w-[70px] h-[70px] rounded mb-1 bg-white p-0.5 border border-gray-200">
+               <div class="w-[35%] shrink-0 flex flex-col items-center justify-center border-r border-gray-200 pr-2">
+                   <img src="${qr}" class="w-[50px] h-[50px] rounded mb-1 bg-white p-0.5 border border-gray-200">
                    <div class="font-bold text-[10px] text-gray-800">${card.cardId}</div>
                </div>
-               <div class="flex-1 flex flex-col justify-center text-[8px] font-bold text-gray-600 leading-snug pl-1 h-full text-center">
-                   <div class="w-full">${tpl.cardFooterLine1}</div>
-                   <div class="w-full">${tpl.cardFooterLine2}</div>
-                   <div class="text-indigo-800 w-full mt-0.5">${tpl.cardFooterLine3}</div>
+               <div class="w-[65%] flex flex-col justify-center text-[8px] font-bold text-gray-600 leading-tight pl-1 h-full text-center">
+                   <div class="w-full whitespace-nowrap overflow-visible py-0.5">${tpl.cardFooterLine1}</div>
+                   <div class="w-full whitespace-nowrap overflow-visible py-0.5">${tpl.cardFooterLine2}</div>
+                   <div class="text-indigo-800 w-full whitespace-nowrap overflow-visible py-0.5 mt-0.5">${tpl.cardFooterLine3}</div>
                </div>
             </div>`;
         } else if (tpl.personBackCode === 'barcode_center') {
             // เลย์เอาต์ Barcode: ลบความสูงทิ้ง (h-[105px]) เปลี่ยนเป็น p-3 pt-4 เพื่อกดบาร์โค้ดลงมาไม่ให้ทะลุขอบ
+            else if (tpl.personBackCode === 'barcode_center') {
+            // โหมด Barcode
             bottomSectionHtml = `
-            <div class="mt-3 flex flex-col items-center justify-center p-3 pt-4 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0">
-               <div class="font-barcode text-[50px] text-black leading-none transform scale-x-[0.8] origin-center tracking-normal whitespace-nowrap overflow-visible">*${card.cardId}*</div>
-               <!-- ใช้ -mt-2 เพื่อดึงรหัสบัตรให้ชิดบาร์โค้ดมากขึ้น -->
-               <div class="font-bold text-[12px] text-gray-800 -mt-2">${card.cardId}</div>
+            <div class="mt-3 flex flex-col items-center justify-center p-3 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0 h-[105px]">
+               <div class="font-barcode text-[46px] text-black leading-none transform scale-x-[0.8] origin-center tracking-normal whitespace-nowrap overflow-visible">*${card.cardId}*</div>
+               <div class="font-bold text-[11px] text-gray-800 mt-1">${card.cardId}</div>
                <div class="w-[40%] h-[2px] bg-gray-300 my-1.5 rounded-full mx-auto shrink-0"></div>
-               <!-- แก้ไข: เปลี่ยนจาก truncate เป็น break-words overflow-visible และเพิ่ม padding -->
-               <div class="w-[65%] flex flex-col justify-center text-[9px] font-bold text-gray-600 leading-normal pl-1 h-full text-center">
-                   <div class="w-full break-words overflow-visible py-0.5">${tpl.cardFooterLine1}</div>
-                   <div class="w-full break-words overflow-visible py-0.5">${tpl.cardFooterLine2}</div>
-                   <div class="text-indigo-800 w-full mt-1 break-words overflow-visible py-0.5">${tpl.cardFooterLine3}</div>
+               <div class="flex flex-col items-center text-center text-[9px] font-bold text-gray-600 leading-tight gap-0.5 w-full">
+                   <span class="whitespace-nowrap overflow-visible w-full py-0.5">${tpl.cardFooterLine1}</span>
+                   <span class="whitespace-nowrap overflow-visible w-full py-0.5">${tpl.cardFooterLine2}</span>
+                   <span class="text-indigo-800 whitespace-nowrap overflow-visible w-full py-0.5">${tpl.cardFooterLine3}</span>
                </div>
             </div>`;
         }
@@ -11039,33 +11031,28 @@ function generateVehicleCardHtml(v, tpl, isFront) {
 
         if (tpl.vehicleBackCode === 'qr_center') {
             const qr = new QRious({value: v.cardId, size: 300}).toDataURL();
-            // เลย์เอาต์ QR รถ: เปลี่ยน span เป็น div 
             bottomSectionHtml = `
             <div class="mt-2 flex items-center justify-between p-2 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0 min-h-[90px] gap-2">
-               <div class="w-[90px] shrink-0 flex flex-col items-center justify-center border-r border-gray-200 pr-2">
-                   <img src="${qr}" class="w-[70px] h-[70px] rounded mb-1 bg-white p-0.5 border border-gray-200">
+               <div class="w-[35%] shrink-0 flex flex-col items-center justify-center border-r border-gray-200 pr-2">
+                   <img src="${qr}" class="w-[45px] h-[45px] rounded mb-1 bg-white p-0.5 border border-gray-200">
                    <div class="font-bold text-[10px] text-gray-800">${v.cardId}</div>
                </div>
-               <!-- แก้ไข 1 (โหมด QR): เปลี่ยนเป็น div, ใช้ break-words, overflow-visible และเว้นบรรทัดให้สระ -->
-               <div class="flex-1 flex flex-col justify-center text-[7.7px] font-bold text-gray-700 leading-normal pl-1 h-full text-center">
-                   <div class="w-full break-words overflow-visible py-0.5">${tpl.cardFooterV1}</div>
-                   <div class="w-full break-words overflow-visible py-0.5">${tpl.cardFooterV2}</div>
-                   <div class="text-blue-800 w-full mt-0.5 break-words overflow-visible py-0.5">${tpl.cardFooterV3}</div>
+               <div class="w-[65%] flex flex-col justify-center text-[7.7px] font-bold text-gray-700 leading-tight pl-1 h-full text-center">
+                   <span class="w-full whitespace-nowrap overflow-visible py-0.5">${tpl.cardFooterV1}</span>
+                   <span class="w-full whitespace-nowrap overflow-visible py-0.5">${tpl.cardFooterV2}</span>
+                   <span class="text-blue-800 w-full whitespace-nowrap overflow-visible py-0.5 mt-1">${tpl.cardFooterV3}</span>
                </div>
             </div>`;
         } else if (tpl.vehicleBackCode === 'barcode_center') {
-            // เลย์เอาต์ Barcode (รถ): ลบความสูงทิ้ง และใช้ p-3 pt-4 เหมือนของพนักงาน
             bottomSectionHtml = `
-            <div class="mt-2 flex flex-col items-center justify-center p-3 pt-4 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0">
-               <div class="font-barcode text-[50px] text-black leading-none transform scale-x-[0.8] origin-center tracking-normal whitespace-nowrap overflow-visible">*${v.cardId}*</div>
-               <!-- ใช้ -mt-2 ดึงรหัสขึ้นไปให้แนบชิดบาร์โค้ด -->
-               <div class="font-bold text-[12px] text-gray-800 -mt-2">${v.cardId}</div>
+            <div class="mt-2 flex flex-col items-center justify-center p-3 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0 h-[100px]">
+               <div class="font-barcode text-[42px] text-black leading-none transform scale-x-[0.7] origin-center tracking-normal whitespace-nowrap overflow-visible">*${v.cardId}*</div>
+               <div class="font-bold text-[11px] text-gray-800 mt-1">${v.cardId}</div>
                <div class="w-[40%] h-[2px] bg-gray-300 my-1.5 rounded-full mx-auto shrink-0"></div>
-               <!-- แก้ไข 2 (โหมด Barcode): เปลี่ยนเป็น div, ใช้ break-words, overflow-visible และเว้นบรรทัดให้สระ -->
-               <div class="flex flex-col items-center text-center text-[7.5px] font-bold text-gray-600 leading-normal w-full">
-                   <div class="w-full break-words overflow-visible py-0.5">${tpl.cardFooterV1}</div>
-                   <div class="w-full break-words overflow-visible py-0.5">${tpl.cardFooterV2}</div>
-                   <div class="text-blue-800 w-full mt-0.5 break-words overflow-visible py-0.5">${tpl.cardFooterV3}</div>
+               <div class="flex flex-col items-center text-center text-[7.5px] font-bold text-gray-600 leading-tight gap-0.5 w-full">
+                   <span class="whitespace-nowrap overflow-visible w-full py-0.5">${tpl.cardFooterV1}</span>
+                   <span class="whitespace-nowrap overflow-visible w-full py-0.5">${tpl.cardFooterV2}</span>
+                   <span class="text-blue-800 whitespace-nowrap overflow-visible w-full py-0.5">${tpl.cardFooterV3}</span>
                </div>
             </div>`;
         }
@@ -11154,6 +11141,7 @@ function previewCurrentTemplate() {
 
 // 7. พิมพ์บัตร A4 (3x3)
 async function printBulkCardsA4() {
+	setDynamicPrintSize('A4'); // <--- เพิ่มบรรทัดนี้ เพื่อบอกเบราว์เซอร์ว่าเป็น A4
     if (selectedCardsArray.length === 0) return showToast('กรุณาเลือกบัตรอย่างน้อย 1 ใบ', 'warning');
     showLoader('กำลังจัดเตรียมหน้ากระดาษ...');
     
@@ -11685,6 +11673,7 @@ function closeVehiclePrintOptionsModal() {
 
 // --- พิมพ์บัตรรถลง A4 ตามรูปแบบที่เลือก ---
 async function executePrintBulkVehicles(layoutType) {
+	setDynamicPrintSize('A4'); // <--- เพิ่มบรรทัดนี้ด้วย
     closeVehiclePrintOptionsModal();
     showLoader('กำลังจัดเตรียมหน้ากระดาษ PDF (A4)...');
     
