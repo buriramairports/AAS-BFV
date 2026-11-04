@@ -10774,10 +10774,11 @@ function getActiveTemplate(forceTplId = null) {
     return tpl;
 }
 
-// 2. ฟังก์ชันวาดบัตรพนักงาน 1 ใบ (รองรับ QR, Theme สี, Layout และแก้บั๊กพื้นหลัง)
-// 2. ฟังก์ชันวาดบัตรพนักงาน 1 ใบ (จัดเลย์เอาต์ใหม่ด้านหลังแบบ 2 คอลัมน์)
+// ==========================================
+// 2. ฟังก์ชันวาดบัตรพนักงาน 1 ใบ (จัดเลย์เอาต์ใหม่ + แก้สระลอย)
+// ==========================================
 function generateEmployeeCardHtml(card, tpl, isFront) {
-    if (!card) return `<div class="card-wrapper bg-white"></div>`;
+    if (!card) return `<div class="card-wrapper bg-white" style="width: 340px; height: 540px;"></div>`;
 
     const isLight = tpl.personTheme === 'light';
     const txtMain = isLight ? 'text-white drop-shadow-md' : 'text-indigo-900';
@@ -10849,20 +10850,17 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
                    </div>
                </div>
                
-               <!-- แก้ไข: เพิ่ม padding-top/bottom และปรับ line-height เพื่อเว้นที่ให้สระไทย -->
+               <!-- ป้องกันสระลอยโดนตัด -->
                <div class="absolute top-[300px] left-[16px] right-[12px] flex flex-col ${txtMain} font-bold text-[14px] z-10">
-                   <!-- ขยาย leading เป็น relaxed และเพิ่ม padding -->
                    <div class="text-[20px] font-black mb-1 leading-relaxed py-1.5 overflow-visible break-words">${card.firstName} ${card.lastName}</div>
                    
                    <div class="grid grid-cols-[60px_1fr] gap-x-2 gap-y-2 mb-1.5 items-center">
                        <div class="${txtLabel}">${tpl.lblPos}</div>
-                       <!-- ลบ truncate ทิ้ง เปลี่ยนเป็น break-words และเพิ่ม line-height -->
                        <div class="${txtSub} text-[13px] leading-snug overflow-visible break-words">${card.position || '-'}</div>
                    </div>
                    
                    <div class="grid grid-cols-[60px_1fr] gap-x-2 gap-y-2 items-center">
                        <div class="${txtLabel}">${tpl.lblOrg}</div>
-                       <!-- ลบ truncate ทิ้ง เปลี่ยนเป็น break-words และเพิ่ม line-height -->
                        <div class="${txtSub} text-[13px] leading-snug overflow-visible break-words mb-1">${card.organization || '-'}</div>
                        
                        <div class="text-[12px] text-red-500 font-bold leading-none mt-1">${tpl.lblExp}</div>
@@ -10873,13 +10871,11 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
             </div>
         </div>`;
     } else {
-        // ด้านหลังบัตรพนักงาน: แยกเลย์เอาต์ QR / Barcode อย่างชัดเจน
+        // ด้านหลังบัตรพนักงาน
         let bottomSectionHtml = '';
 
         if (tpl.personBackCode === 'qr_center') {
             const qr = new QRious({value: card.cardId, size: 300}).toDataURL();
-            // เลย์เอาต์ QR: เปลี่ยน span เป็น div และกำหนดความกว้างฝั่งซ้ายเป็น px คงที่
-            // โหมด QR
             bottomSectionHtml = `
             <div class="mt-3 flex items-center justify-between p-2 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0 min-h-[90px] gap-2">
                <div class="w-[35%] shrink-0 flex flex-col items-center justify-center border-r border-gray-200 pr-2">
@@ -10893,7 +10889,6 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
                </div>
             </div>`;
         } else if (tpl.personBackCode === 'barcode_center') {
-            // โหมด Barcode
             bottomSectionHtml = `
             <div class="mt-3 flex flex-col items-center justify-center p-3 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0 h-[105px]">
                <div class="font-barcode text-[46px] text-black leading-none transform scale-x-[0.8] origin-center tracking-normal whitespace-nowrap overflow-visible">*${card.cardId}*</div>
@@ -10920,20 +10915,20 @@ function generateEmployeeCardHtml(card, tpl, isFront) {
                    <p class="text-red-600 font-bold text-center text-[12px] mt-1 w-full truncate">${tpl.cardRulesTitle2}</p>
                    <p class="text-red-600 font-bold text-center text-[12px] w-full truncate">${tpl.cardRulesTitle3}</p>
                 </div>
-                <!-- ขนาดฟ้อนท์กฎ -->
+                
                 <div class="text-gray-800 text-[12px] leading-relaxed whitespace-pre-line font-medium bg-white/80 p-3 rounded-xl backdrop-blur-sm border border-gray-100 flex-1 overflow-hidden">${rulesHtml}</div>
                 
-                <!-- แปะกล่องบาร์โค้ด หรือ QR โค้ดตรงนี้ -->
                 ${bottomSectionHtml}
-
             </div>
         </div>`;
     }
 }
 
-// 3. ฟังก์ชันวาดบัตรรถ 1 ใบ (ย้าย QR ด้านหน้าขวา + จัดการเลย์เอาต์หลัง)
+// ==========================================
+// 3. ฟังก์ชันวาดบัตรรถ 1 ใบ (จัดเลย์เอาต์ใหม่ + แก้สระลอย)
+// ==========================================
 function generateVehicleCardHtml(v, tpl, isFront) {
-    if (!v) return `<div class="card-wrapper" style="width: 360px; height: 435px; background: white;"></div>`;
+    if (!v) return `<div class="card-wrapper bg-white" style="width: 360px; height: 435px;"></div>`;
     
     const isLight = tpl.vehicleTheme === 'light';
     const txtMain = isLight ? 'text-white drop-shadow-md' : 'text-black';
@@ -10960,20 +10955,17 @@ function generateVehicleCardHtml(v, tpl, isFront) {
             return `<div class="${bSize} border-2 border-black flex items-center justify-center font-black shadow-sm" style="background:${c}; color:${getContrastYIQ(c)}; padding-bottom:0.1em; line-height:1;">${num}</div>`;
         }).join('');
 
-        // แก้ไข: ดึงค่าจาก Settings มาเลือกว่าจะวาด Barcode หรือ QR Code
         let frontCodeHtml = '';
+        let gateTextPosition = 'left-[35px] text-left'; 
 
         if (tpl.vehicleFrontCode === 'qr_right') {
-            // ย้าย QR Code ไปอยู่ "ขวามือ" (right-[20px]) และดันลงมาให้อยู่ระดับเดียวกับข้อมูล (top-[185px])
-            const qr = new QRious({value: v.cardId, size: 250}).toDataURL();
+            const qr = new QRious({value: v.cardId, size: 200}).toDataURL();
             frontCodeHtml = `
-            <div class="absolute top-[150px] right-[16px] flex flex-col items-center z-20">
+            <div class="absolute top-[240px] right-[20px] flex flex-col items-center z-20">
                 <img src="${qr}" class="w-16 h-16 rounded border border-gray-200 shadow-sm bg-white p-0.5 mb-1">
-                <div class="text-[9px] font-black ${txtMain} leading-none tracking-wide bg-white/50 px-1 rounded backdrop-blur-sm">${v.cardId}</div>
+                <div class="text-[9px] font-black ${txtMain} leading-none tracking-wide bg-white/50 px-1 rounded backdrop-blur-sm">NO. ${v.cardId}</div>
             </div>`;
-            
         } else if (tpl.vehicleFrontCode === 'barcode_right') {
-            // บาร์โค้ดแนวตั้ง (ตำแหน่งเดิม)
             frontCodeHtml = `
             <div class="absolute top-[165px] right-[-65px] transform rotate-90 flex flex-col items-center w-[220px] z-20">
                 <div class="font-barcode text-[42px] text-black leading-none transform scale-x-[0.7] origin-center tracking-normal whitespace-nowrap bg-white/70 px-2 rounded-full">*${v.cardId}*</div>
@@ -10995,9 +10987,7 @@ function generateVehicleCardHtml(v, tpl, isFront) {
                 <div class="absolute top-[100px] left-0 right-0 text-center text-red-600 font-black text-[20px] z-20" style="opacity:${isTemp?'1':'0'}">บัตรชั่วคราว</div>
                 <div class="absolute left-0 right-0 ${gridClass}">${areaHtml}</div>
                 
-                <!-- แก้ไข: ข้อมูลรถ (เว้นพื้นที่สระ) -->
                 <div class="absolute top-[245px] left-[35px] text-left space-y-2.5 font-bold text-[14px] z-20 pr-[85px]">
-                    <!-- ลบ truncate ทิ้ง เปลี่ยนเป็น break-words และปรับ leading -->
                     <div class="flex items-start gap-2">
                         <span class="${txtLabel} shrink-0">${tpl.lblOrgV}:</span> 
                         <span class="font-black text-[15px] ${txtMain} leading-snug break-words overflow-visible">${v.organization || '-'}</span>
@@ -11016,8 +11006,7 @@ function generateVehicleCardHtml(v, tpl, isFront) {
                     </div>
                 </div>
                 
-                <!-- ช่องทางเข้าออก (ขยายบรรทัด) -->
-                <div class="absolute bottom-5 ${gateTextPosition} z-20 pr-4">
+                <div class="absolute bottom-5 ${gateTextPosition} z-20 w-[280px]">
                     <div class="text-[11px] font-bold ${isLight ? 'text-orange-300 drop-shadow' : 'text-orange-600'} mb-1">ช่องทางเข้า - ออก</div>
                     <div class="text-[14px] font-black ${txtMain} leading-snug drop-shadow-sm break-words overflow-visible">${gateNames || 'ทุกจุดเข้า-ออก'}</div>
                 </div>
@@ -11028,7 +11017,7 @@ function generateVehicleCardHtml(v, tpl, isFront) {
         let bottomSectionHtml = '';
 
         if (tpl.vehicleBackCode === 'qr_center') {
-            const qr = new QRious({value: v.cardId, size: 300}).toDataURL();
+            const qr = new QRious({value: v.cardId, size: 300}).toDataURL(); 
             bottomSectionHtml = `
             <div class="mt-2 flex items-center justify-between p-2 bg-white/95 rounded-xl shadow-sm border border-gray-200 w-full shrink-0 min-h-[90px] gap-2">
                <div class="w-[35%] shrink-0 flex flex-col items-center justify-center border-r border-gray-200 pr-2">
@@ -11064,17 +11053,14 @@ function generateVehicleCardHtml(v, tpl, isFront) {
             <div class="absolute inset-0 z-10 flex flex-col px-8 py-8">
                 
                 <div class="text-center mb-2 bg-white/90 p-2 rounded-xl shadow-sm border border-red-50 shrink-0">
-                    <!-- แก้ไข 3: เผื่อสระให้หัวข้อกฎระเบียบด้วย ป้องกันไม้เอก ไม้โทโดนตัด -->
                     <div class="text-red-600 font-black text-[18px] leading-relaxed break-words overflow-visible">${tpl.rulesTitleV1}</div>
                     <div class="text-red-600 font-bold text-[11px] leading-relaxed mt-1 break-words overflow-visible">${tpl.rulesTitleV2}</div>
                     <div class="text-red-600 font-bold text-[11px] leading-relaxed break-words overflow-visible">${tpl.rulesTitleV3}</div>
                 </div>
-                <!-- ขนาดฟ้อนท์กฎ -->
-                <div class="text-gray-800 text-[9px] leading-snug whitespace-pre-line flex-1 font-bold overflow-hidden bg-white/80 p-3 rounded-xl backdrop-blur-sm border border-gray-100">${rulesHtml}</div>
                 
-                <!-- แปะกล่องบาร์โค้ด หรือ QR โค้ดตรงนี้ -->
+                <div class="text-gray-800 text-[10px] leading-snug whitespace-pre-line flex-1 font-bold overflow-hidden bg-white/80 p-3 rounded-xl backdrop-blur-sm border border-gray-100">${rulesHtml}</div>
+                
                 ${bottomSectionHtml}
-
             </div>
         </div>`;
     }
