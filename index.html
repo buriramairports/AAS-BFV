@@ -2491,7 +2491,7 @@ gap: 1px !important;
             </button>
         </div>
 
-        <!-- ข้อมูลบัตรพนักงาน (รูป ชื่อ หน่วยงาน วันหมดอายุ) -->
+        <!-- ข้อมูลบัตรพนักงาน (รูป ชื่อ หน่วยงาน วันหมดอายุ + สิทธิพื้นที่) -->
         <div class="p-4 flex gap-4 items-center">
             <img id="intPhoto" src="" class="w-20 h-24 rounded-2xl object-cover border-2 border-gray-200 shadow-sm shrink-0 bg-gray-50" crossorigin="anonymous">
             <div class="flex-1 min-w-0 space-y-1">
@@ -2502,6 +2502,8 @@ gap: 1px !important;
                     <span class="text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100">หมดอายุ: <span id="intExpiry">-</span></span>
                     <span class="text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-100" id="intTime">-</span>
                 </div>
+                <!-- เพิ่มส่วนแสดงหมายเลขสิทธิเข้าพื้นที่ -->
+                <div id="intAreaBadges" class="flex items-center gap-1.5 pt-1 flex-wrap"></div>
             </div>
         </div>
 
@@ -4919,28 +4921,45 @@ async function processScanQueue() {
         const scanData = onlineScanQueue[0];
 
         try {
-            const res = await apiCall('processScan', {
-                gateId: scanData.gateId,
-                cardId: scanData.cardId,
-                companionCardId: scanData.companionCardId,
-                recordedBy: scanData.recordedBy,
-                offlineTimestamp: scanData.scanTime 
-            }, false);
+            if (scanData.isGroup) {
+                // --- กรณีเป็นคิวบันทึกกลุ่ม ---
+                const res = await apiCall('processBulkGroupScan', scanData.payload, false);
+                if (scanData.fakeProgress) clearInterval(scanData.fakeProgress);
 
-            if (res.success) {
-                // บันทึกสำเร็จ
-                onlineScanQueue.shift(); // เอาออกจากคิว
-                queueRetryCount = 0; // รีเซ็ตการนับ
+                if (res.success) {
+                    onlineScanQueue.shift();
+                    queueRetryCount = 0;
+                    updateBackgroundSaveWidget(scanData.taskId, true);
+                    if (onlineScanQueue.length === 0) refreshHomeData(true);
+                }
+            } else {
+                // --- กรณีเป็นคิวสแกนเดี่ยวปกติ ---
+                const res = await apiCall('processScan', {
+                    gateId: scanData.gateId,
+                    cardId: scanData.cardId,
+                    companionCardId: scanData.companionCardId,
+                    recordedBy: scanData.recordedBy,
+                    offlineTimestamp: scanData.scanTime 
+                }, false);
 
-                // ❌ ลบบรรทัด updateRecentLogsList ออกไปแล้ว 
-                // เพราะหน้าจอได้โชว์ข้อมูลไปตั้งแต่ตอนแสกนปุ๊บแรกแล้ว ไม่ต้องโชว์ซ้ำครับ
+                if (res.success) {
+                    onlineScanQueue.shift();
+                    queueRetryCount = 0;
+                    if (onlineScanQueue.length === 0) refreshHomeData(true);
+                }
             }
         } catch (err) {
             console.error("Queue Send Error:", err);
             queueRetryCount++;
             
             if (queueRetryCount >= 3) {
-                addToFailedQueue(scanData.cardId, scanData.fullName);
+                if (scanData.isGroup) {
+                    if (scanData.fakeProgress) clearInterval(scanData.fakeProgress);
+                    updateBackgroundSaveWidget(scanData.taskId, false);
+                    addToFailedQueue('GROUP', `กลุ่ม ${scanData.payload.members.length} คน`);
+                } else {
+                    addToFailedQueue(scanData.cardId, scanData.fullName);
+                }
                 onlineScanQueue.shift();
                 queueRetryCount = 0;
             } else {
@@ -5271,49 +5290,37 @@ let lastKnownState = { cardCount: 0, lastLogId: 0 };
 function startBackgroundSync() {
     setInterval(async () => {
         if (!currentUser || currentPage !== 'home' || !navigator.onLine) return;
+        // *** สำคัญมาก: ถ้ายังมีคิวกำลังส่งอยู่ ห้ามดึงข้อมูลเก่าจากเซิร์ฟเวอร์มาทับเด็ดขาด! ***
+        if (onlineScanQueue.length > 0 || isProcessingScanQueue || offlineQueue.length > 0) return;
 
         try {
-            // เช็คสถานะเบื้องต้น (กิน Data น้อยมาก)
             const serverState = await apiCall('getDatabaseState', {}, false);
-            
-            // 1. ตรวจสอบว่ามีบัตรใหม่เพิ่มเข้ามาหรือไม่
+            // เช็คอีกรอบหลังรอ API เผื่อระหว่างรอมีคนกดสแกนเข้ามา
+            if (onlineScanQueue.length > 0 || isProcessingScanQueue) return;
+
             if (serverState.cardCount !== lastKnownState.cardCount) {
-                console.log("Silent Sync: มีการเปลี่ยนแปลงจำนวนบัตร...");
                 const newData = await apiCall('getCards', {}, false);
-                allCards = newData;
-                lastKnownState.cardCount = serverState.cardCount;
-            }
-            
-            
-            // 2. ตรวจสอบว่ามีการแสกนใหม่หรือไม่ (เพื่ออัปเดต Dashboard และ Logs)
-if (serverState.lastLogId !== lastKnownState.lastLogId) {
-    console.log("Silent Sync: มีประวัติการแสกนใหม่...");
-    const data = await apiCall('getInitialData', {}, false);
-    recentLogs = data.recentLogs || [];
-    monthlyStats = data.monthlyStats || monthlyStats;
-    // --- เปลี่ยนจาก allCards = data.allCards มาเป็นการอัปเดตแบบระมัดระวัง ---
-    if (data.allCards) {
-        const queuedCardIds = onlineScanQueue.map(q => q.cardId); // ดูว่ามีใครกำลังต่อคิวส่งข้อมูลอยู่ไหม
-        data.allCards.forEach(serverCard => {
-            // อัปเดตข้อมูลเฉพาะ "คนที่ไม่ได้อยู่ในคิว" เพื่อป้องกันการเอาสถานะเก่าบนเซิร์ฟเวอร์มาทับ
-            if (!queuedCardIds.includes(serverCard.cardId)) {
-                const localIdx = allCards.findIndex(c => c.cardId === serverCard.cardId);
-                if (localIdx !== -1) {
-                    allCards[localIdx].currentStatus = serverCard.currentStatus;
-                    allCards[localIdx].lastLogTime = serverCard.lastLogTime;
+                if (onlineScanQueue.length === 0 && !isProcessingScanQueue) {
+                    smartMergeCards(newData);
+                    lastKnownState.cardCount = serverState.cardCount;
                 }
             }
-        });
-    }
-    // --------------------------------------------------------------
-    renderRecentLogsTable();
-    renderHomeDashboard();
-    lastKnownState.lastLogId = serverState.lastLogId;
-}
+            
+            if (serverState.lastLogId !== lastKnownState.lastLogId) {
+                const data = await apiCall('getInitialData', {}, false);
+                if (onlineScanQueue.length === 0 && !isProcessingScanQueue) {
+                    recentLogs = data.recentLogs || [];
+                    monthlyStats = data.monthlyStats || monthlyStats;
+                    smartMergeCards(data.allCards || []);
+                    renderRecentLogsTable();
+                    renderHomeDashboard();
+                    lastKnownState.lastLogId = serverState.lastLogId;
+                }
+            }
         } catch (e) {
             console.log("Background sync error ignored.");
         }
-    }, 15000); // เช็คทุก 15 วินาที
+    }, 15000);
 }
 	
     ////////////////////////////////////////
@@ -10456,17 +10463,14 @@ async function saveGroupSession() {
         }
     }, 500);
 
-    try {
-        const res = await apiCall('processBulkGroupScan', payload, false);
-        clearInterval(fakeProgress);
-        if (res.success) {
-            updateBackgroundSaveWidget(taskId, true);
-            refreshHomeData(true);
-        }
-    } catch(e) {
-        clearInterval(fakeProgress);
-        updateBackgroundSaveWidget(taskId, false);
-    }
+    // 4. ส่งเข้าคิวกลาง onlineScanQueue เพื่อให้ทำงานเรียงลำดับ ไม่ชนกับการสแกนถัดไป
+    onlineScanQueue.push({
+        isGroup: true,
+        payload: payload,
+        taskId: taskId,
+        fakeProgress: fakeProgress
+    });
+    processScanQueue();
 }
 
 // 8. ฟังก์ชันแสดงสรุปผลแบบย่อ (มีปุ่มกดกางออกได้)
@@ -11437,6 +11441,18 @@ function showInterruptPopup(card, typeInfo, predictedStatus, logTimeStr) {
     document.getElementById('intOrg').textContent = `${card.organization || '-'} ${card.position ? `(${card.position})` : ''}`;
     document.getElementById('intExpiry').textContent = formatDateOnly(card.expiryDate);
     document.getElementById('intTime').textContent = formatDateTime(logTimeStr).split(' | ')[1] || '';
+
+    // วาดป้ายหมายเลขสิทธิเข้าพื้นที่ (ZONE)
+    const areaIds = String(card.areaAccessIds || '').split(',').map(s => s.trim()).filter(s => s !== '');
+    areaIds.sort((a, b) => Number(a) - Number(b));
+    let areaHtml = areaIds.map(num => {
+        const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
+        const color = areaSetting ? areaSetting.colorCode : '#4f46e5';
+        const textColor = getContrastYIQ(color);
+        return `<div style="background-color: ${color}; color: ${textColor};" class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-black shadow-sm border border-black/10" title="${areaSetting ? areaSetting.areaName : ''}">${num}</div>`;
+    }).join('');
+    if (!areaHtml) areaHtml = '<span class="text-[10px] text-gray-400 italic">ไม่มีสิทธิพื้นที่</span>';
+    document.getElementById('intAreaBadges').innerHTML = `<span class="text-[10px] font-black text-sky-700 mr-0.5">พื้นที่:</span> ${areaHtml}`;
 
     modal.classList.remove('hidden');
 
