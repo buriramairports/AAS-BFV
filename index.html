@@ -2505,9 +2505,9 @@ gap: 1px !important;
             </div>
         </div>
 
-        <!-- หลอดนับถอยหลังปิดตัวเอง 5 วินาที -->
+        <!-- หลอดนับถอยหลังปิดตัวเอง 10 วินาที -->
         <div class="w-full bg-gray-100 h-1.5 overflow-hidden">
-            <div id="intProgressBar" class="bg-sky-500 h-full transition-all ease-linear" style="width: 100%; transition-duration: 5000ms;"></div>
+            <div id="intProgressBar" class="bg-sky-500 h-full transition-all ease-linear" style="width: 100%; transition-duration: 10000ms;"></div>
         </div>
     </div>
 </div>
@@ -11440,15 +11440,15 @@ function showInterruptPopup(card, typeInfo, predictedStatus, logTimeStr) {
 
     modal.classList.remove('hidden');
 
-    // รีเซ็ตและเริ่มหลอดนับถอยหลัง 5 วินาที
+    // รีเซ็ตและเริ่มหลอดนับถอยหลัง 10 วินาที
     bar.style.transition = 'none';
     bar.style.width = '100%';
     void bar.offsetWidth;
-    bar.style.transition = 'width 5000ms linear';
+    bar.style.transition = 'width 10000ms linear';
     bar.style.width = '0%';
 
     if (interruptPopupTimer) clearTimeout(interruptPopupTimer);
-    interruptPopupTimer = setTimeout(() => closeInterruptPopup(), 5000);
+    interruptPopupTimer = setTimeout(() => closeInterruptPopup(), 10000);
 
     if (window.lucide) lucide.createIcons();
 }
