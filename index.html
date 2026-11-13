@@ -2786,8 +2786,12 @@ function setScanMode(mode) {
     const input = document.getElementById('scanInput');
 
     // 1. ซ่อนกล่องแจ้งเตือนยืนยันต่างๆ และเคลียร์สถานะรอการยืนยัน
-    document.getElementById('actionConfirmBox').classList.add('hidden');
+	document.getElementById('pausedGroupBanner').classList.add('hidden');
+    document.getElementById('pausedGroupBanner').classList.remove('flex');
+	document.getElementById('actionConfirmBox').classList.add('hidden');
     document.getElementById('actionConfirmBox').classList.remove('flex');
+    groupSession = { active: false, paused: false, gateId: '', typeInfo: null, members: [], companions: [], state: 'members' };
+
     if (faceConfirmTimer) clearInterval(faceConfirmTimer);
     window.removeEventListener('keydown', handleConfirmKeydown);
     pendingFaceData = null;
@@ -2869,38 +2873,7 @@ saveGateToLocal = function() {
     }
 };
 
-// 3. ปรับปรุงฟังก์ชัน processMainScan หลัก
-const originalProcessMainScan = processMainScan;
-processMainScan = function() {
-    if (currentScanTarget === 'person') {
-        return originalProcessMainScan();
-    }
-    
-    const input = document.getElementById('scanInput');
-    const code = input.value.trim().toUpperCase();
-    if (!code) return;
 
-    // --- [Logic ใหม่เพื่อให้แสกนต่อเนื่องได้] ---
-    
-    // 1. ตรวจสอบก่อนว่ารหัสที่แสกนมา "เป็นบัตรรถ" หรือไม่
-    const isVehicleCard = allVehicles.some(x => String(x.cardId).toUpperCase() === code);
-
-    if (isVehicleCard) {
-        // ถ้าเป็นบัตรรถ -> ให้เริ่มกระบวนการจัดการรถคันใหม่ทันที (จะยกเลิกคันเก่าอัตโนมัติ)
-        handleVehicleScan(code);
-    } else {
-        // ถ้าไม่ใช่บัตรรถ -> ให้ถือว่าเป็นพนักงาน (คนขับ/ผู้โดยสาร)
-        if (vehicleSession.vehicle) {
-            handlePersonForVehicle(code);
-        } else {
-            // ถ้าแสกนบัตรคนแต่ยังไม่ได้แสกนรถคันไหนเลย
-            showAlert('กรุณาแสกนรถก่อน', 'กรุณาแสกนบัตรรถก่อนที่จะแสกนบัตรพนักงาน', 'warning');
-        }
-    }
-    
-    input.value = '';
-    input.focus();
-};
 
 /**
  * ฟังก์ชันจัดการเมื่อแสกนบัตรรถสำเร็จ
@@ -3269,7 +3242,19 @@ async function saveVehicleSession() {
             // อัปเดตสถานะพนักงานทุกคนที่อยู่ในทริปนี้
             peopleToSave.forEach(p => {
                 const pIdx = allCards.findIndex(c => c.cardId === p.cardId);
-                if(pIdx !== -1) allCards[pIdx].currentStatus = vehicleSession.mode;
+                if(pIdx !== -1) {
+                    allCards[pIdx].currentStatus = vehicleSession.mode;
+                    allCards[pIdx].lastLogTime = new Date().toISOString();
+                    allCards[pIdx].currentCompanionId = (vehicleSession.mode === 'IN' && p.companionCardId) ? p.companionCardId : '';
+                }
+                if (vehicleSession.mode === 'IN' && p.companionCardId) {
+                    const cIdx = allCards.findIndex(c => c.cardId === p.companionCardId);
+                    if (cIdx !== -1 && String(allCards[cIdx].currentStatus || 'OUT').toUpperCase() !== 'IN') {
+                        allCards[cIdx].currentStatus = 'IN';
+                        allCards[cIdx].lastLogTime = new Date().toISOString();
+                        allCards[cIdx].currentCompanionId = '';
+                    }
+                }
             });
 
             // แสดงหน้าจอสรุปผลสำเร็จ (Compact Summary)
@@ -4856,119 +4841,7 @@ let currentDisplayCardId = "";
 // คิวเก็บรายการที่แสกนล้มเหลว
 let failedScansQueue = [];
 
-/**
- * ฟังก์ชันประมวลผลการแสกนหลัก (ฝั่งหน้าเว็บ)
- * อัปเกรด: เพิ่มระบบดักจับการแสกนรัว (Anti-Spam 5 วินาที) ให้ตรงกับฝั่งเซิร์ฟเวอร์
- */
-function processMainScan() {
-    if (currentScanTarget === 'person') {
-        const gateId = document.getElementById('scanGateSelect').value;
-        const mainInput = document.getElementById('scanInput');
-        const cardId = String(mainInput.value).trim().toUpperCase();
 
-        if (!gateId) return showAlert('ข้อมูลไม่ครบ', 'กรุณาเลือกจุดเข้าออกพื้นที่ก่อน', 'warning');
-        if (!cardId) return mainInput.focus();
-
-        // =========================================================
-        // >>> ระบบป้องกันแสกนรัว (Frontend Debounce) 5 วินาที <<<
-        // =========================================================
-        const nowTime = Date.now();
-        if (globalScanTracker[cardId]) {
-            const timeDiff = nowTime - globalScanTracker[cardId];
-            if (timeDiff < 5000) { // ถ้าแสกนซ้ำภายใน 5 วินาที (5000ms)
-                mainInput.value = ''; 
-                mainInput.focus();
-                
-                // เล่นเสียง Error แจ้งเตือนเจ้าหน้าที่ว่าแสกนไวไป
-                try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
-                
-                // โชว์แจ้งเตือน และ ตัดการทำงานทิ้งทันที (ไม่เปลี่ยนหน้าจอ ไม่ส่ง Server)
-                showToast(`รหัส ${cardId} เพิ่งทำรายการไป (รอ 5 วินาที)`, 'warning');
-                return; 
-            }
-        }
-        // บันทึกเวลาล่าสุดที่คนนี้แสกนผ่าน เพื่อเอาไว้ดักในรอบหน้า
-        globalScanTracker[cardId] = nowTime;
-        // =========================================================
-
-        const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
-        if (!card) {
-            mainInput.value = ''; mainInput.focus();
-            return showAlert('ไม่พบข้อมูลบัตร', `บัตรหมายเลข ${cardId} ไม่พบในระบบ`, 'error');
-        }
-
-        if (card.status !== 'active') {
-            mainInput.value = ''; mainInput.focus();
-            return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error');
-        }
-      
-        if (systemSettings.ttsTimingMode === 'immediate') {
-            speakImmediateGreeting(card.firstName, card.lastName);
-        }
-
-        const now = new Date();
-        const expiryDate = new Date(card.expiryDate);
-        expiryDate.setHours(23, 59, 59, 999);
-        if (now > expiryDate) {
-            mainInput.value = ''; mainInput.focus();
-            return showAlert('บัตรหมดอายุ', `บัตรหมายเลข ${cardId} หมดอายุเมื่อ ${formatDateOnly(card.expiryDate)}`, 'error');
-        }
-
-        const typeInfo = typeCards.find(t => String(t.id) === String(card.typeId));
-        let predictedStatus = (card.currentStatus === 'IN') ? 'OUT' : 'IN';
-
-        if (typeInfo.requireCompanion && predictedStatus === 'IN') {
-            // --- เพิ่มการตรวจสอบว่าเป็นกลุ่มหรือไม่ ---
-            if (checkGroupTrigger(card, typeInfo, predictedStatus, gateId)) {
-                return; // ถ้าเป็นกลุ่ม ฟังก์ชันจะดักไปเปิดหน้าต่าง Staging ให้เลย แล้วจบการทำงานตรงนี้
-            }
-            // ----------------------------------------
-            
-            // ถ้าเป็น 1-1 ก็ทำตามเดิม
-            document.getElementById('companionModalMainCardId').value = card.cardId;
-            document.getElementById('compBarcode').value = '';
-            document.getElementById('companionModal').classList.remove('hidden');
-            setTimeout(() => document.getElementById('compBarcode').focus(), 100);
-            return;
-        }
-
-        currentDisplayCardId = card.cardId;
-        mainInput.value = ''; mainInput.focus();
-
-        showInstantUI(card, typeInfo, predictedStatus);
-        executeScanFinal(gateId, card.cardId, null, predictedStatus, `${card.firstName} ${card.lastName}`);
-
-    } else {
-        // --- ส่วนของโหมดรถ (Vehicle) ---
-        const input = document.getElementById('scanInput');
-        const code = input.value.trim().toUpperCase();
-        if (!code) return;
-
-        const isVehicleCard = allVehicles.some(x => String(x.cardId).toUpperCase() === code);
-
-        if (isVehicleCard) {
-            handleVehicleScan(code);
-        } else {
-            if (vehicleSession.vehicle) {
-                // เพิ่มการป้องกันแสกนคนรัวๆ ในรถ
-                const nowTime = Date.now();
-                if (globalScanTracker[code] && (nowTime - globalScanTracker[code]) < 5000) {
-                    input.value = ''; input.focus();
-                    try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
-                    showToast(`รหัส ${code} เพิ่งทำรายการไป (รอ 5 วินาที)`, 'warning');
-                    return; 
-                }
-                globalScanTracker[code] = nowTime;
-                
-                handlePersonForVehicle(code);
-            } else {
-                showAlert('กรุณาแสกนรถก่อน', 'กรุณาแสกนบัตรรถก่อนที่จะแสกนบัตรพนักงาน', 'warning');
-            }
-        }
-        input.value = '';
-        input.focus();
-    }
-}
 
 /**
  * 4. ปรับปรุงการแสดงผล: สีเข้มชัดเจน + ไอคอนกำลังประมวลผล
@@ -5085,48 +4958,7 @@ async function processScanQueue() {
 /**
  * 5. ปรับปรุงการจัดการ Error: ระบบคิวแจ้งเตือน
  */
-async function executeScanFinal(gateId, cardId, companionCardId, predictedStatus, fullName) {
-    const recordedBy = `${currentUser.firstName} ${currentUser.lastName}`;
-    const logTimeStr = new Date().toISOString(); // จำลองเวลาแสกน ณ วินาทีนั้นเลย
 
-    // 1. นำข้อมูลเตรียมเข้าคิว (เพิ่ม scanTime: logTimeStr เข้าไป)
-    const scanData = { gateId, cardId, companionCardId, recordedBy, fullName, predictedStatus, scanTime: logTimeStr };
-
-    // 2. ปรับปรุงสถานะในความจำ (Cache) ของเครื่องทันที (Optimistic UI)
-    const cardIdx = allCards.findIndex(c => String(c.cardId).toUpperCase() === String(cardId).toUpperCase());
-    let cardInfo = { cardId: cardId, firstName: fullName.split(' ')[0], lastName: fullName.split(' ')[1] || '' };
-    let typeInfo = { typeName: 'พนักงาน' };
-    
-    if (cardIdx !== -1) {
-        allCards[cardIdx].currentStatus = predictedStatus;
-        allCards[cardIdx].lastLogTime = logTimeStr;
-        cardInfo = allCards[cardIdx];
-        typeInfo = typeCards.find(t => String(t.id) === String(cardInfo.typeId)) || typeInfo;
-    }
-
-    // 3. แสดงผล UI ความสำเร็จ และเล่นเสียงทันที!
-    confirmStatusUI(predictedStatus, logTimeStr, {
-        cardInfo: cardInfo,
-        typeInfo: typeInfo,
-        gateName: allGates.find(g => String(g.id) === String(gateId))?.name || 'System',
-        recordedBy: recordedBy,
-        ioType: predictedStatus
-    });
-    handleScanSounds(predictedStatus, cardInfo.firstName, cardInfo.lastName);
-
-    // 4. จัดการส่งข้อมูล
-    if (!navigator.onLine) {
-        // ถ้าเน็ตหลุด โยนลงคิว Offline
-        offlineQueue.push({ ...scanData, offlineTimestamp: logTimeStr });
-        localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
-        updateOfflineUI();
-        showToast('บันทึกออฟไลน์แล้ว', 'warning');
-    } else {
-        // ถ้าเน็ตปกติ โยนลงคิว Online แล้วสั่งให้คิวเริ่มทำงาน
-        onlineScanQueue.push(scanData);
-        processScanQueue();
-    }
-}
 
 /**
  * ระบบจัดการคิวการแสกนที่ล้มเหลว
@@ -5538,76 +5370,7 @@ if (serverState.lastLogId !== lastKnownState.lastLogId) {
         const mainInput = document.getElementById('scanInput'); mainInput.value = ''; mainInput.focus();
     }
 
-   function processCompanionScan() {
-    const gateId = document.getElementById('scanGateSelect').value;
-    const mainCardId = document.getElementById('companionModalMainCardId').value.toUpperCase();
-    const compBarcodeInp = document.getElementById('compBarcode');
-    const compCardId = compBarcodeInp.value.trim().toUpperCase();
-
-    // 1. ตรวจสอบว่ากรอกรหัสผู้ติดตามหรือยัง
-    if (!compCardId) {
-        compBarcodeInp.focus();
-        return;
-    }
-
-    // 2. ค้นหาข้อมูลบัตรผู้ติดตามในฐานข้อมูล
-    const compCard = allCards.find(c => String(c.cardId).toUpperCase() === compCardId);
-    
-    // 3. ตรวจสอบความถูกต้องของบัตรผู้ติดตาม
-    if (!compCard) {
-        return showAlert('ไม่พบข้อมูล', `ไม่พบบัตรผู้ติดตามหมายเลข ${compCardId}`, 'error');
-    }
-    if (compCard.status !== 'active') {
-        return showAlert('ถูกระงับ', `บัตรผู้ติดตามถูกระงับการใช้งาน`, 'error');
-    }
-    if (compCardId === mainCardId) {
-        return showAlert('ข้อมูลไม่ถูกต้อง', 'บัตรหลักและบัตรผู้ติดตามต้องไม่เป็นใบเดียวกัน', 'warning');
-    }
-
-    // 4. ตรวจสอบวันหมดอายุของบัตรผู้ติดตาม
-    const now = new Date();
-    const compExpiry = new Date(compCard.expiryDate);
-    compExpiry.setHours(23, 59, 59);
-    if (now > compExpiry) {
-        return showAlert('บัตรผู้ติดตามหมดอายุ', `บัตรผู้ติดตามคุณ ${compCard.firstName} หมดอายุแล้วเมื่อ ${formatDateOnly(compCard.expiryDate)}`, 'error');
-    }
-
-    // 5. แยกการทำงานตามโหมดการแสกน
-    if (currentScanTarget === 'vehicle') {
-        // --- กรณีโหมดแสกนรถ (Vehicle Mode) ---
-        closeCompanionModal();
-        
-        // นำพนักงานที่รออยู่ (Pending) พร้อมข้อมูลผู้ติดตาม แอดลงรายการในรถ
-        if (window.pendingVehiclePerson) {
-            addPersonToVehicle(window.pendingVehiclePerson, compCard);
-            window.pendingVehiclePerson = null; // ล้างค่าตัวแปรพักข้อมูล
-        } else {
-            showToast('เกิดข้อผิดพลาด: ไม่พบข้อมูลพนักงานหลัก', 'error');
-        }
-        
-    } else {
-        // --- กรณีโหมดบุคคลปกติ (Standard Person Mode) ---
-        const mainCard = allCards.find(c => String(c.cardId).toUpperCase() === mainCardId);
-        const typeInfo = typeCards.find(t => String(t.id) === String(mainCard.typeId));
-
-        closeCompanionModal();
-
-        // กำหนด ID ที่กำลังแสดงผลเพื่อให้ UI อัปเดตถูกคน
-        currentDisplayCardId = mainCard.cardId;
-
-        // แสดงผลข้อมูลที่หน้าจอทันที (Optimistic UI)
-        showInstantUI(mainCard, typeInfo, 'IN', compCard);
-
-        // ส่งข้อมูลไปบันทึกลง Server/Log
-        executeScanFinal(
-            gateId, 
-            mainCard.cardId, 
-            compCard.cardId, 
-            'IN', 
-            `${mainCard.firstName} ${mainCard.lastName}`
-        );
-    }
-}
+   
 
     function handleScanSuccess(res) {
 	const mode = systemSettings.announcementMode;
@@ -8668,94 +8431,7 @@ function toggleTtsFields() {
         window.speechSynthesis.speak(msg);
     }, 50);
 }
-function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
-    const isAlertOpen = !document.getElementById('customAlertModal').classList.contains('hidden');
-    const isCompModalOpen = !document.getElementById('companionModal').classList.contains('hidden');
-    const isCaptureModalOpen = !document.getElementById('captureModal').classList.contains('hidden');
-    
-    if (isAlertOpen || isCompModalOpen || isCaptureModalOpen || isSystemBusy) return;
 
-    // ระบบป้องกันการแสกนซ้ำ
-    if (lastScannedFaceId === cardId) return;
-    lastScannedFaceId = cardId;
-    setTimeout(() => { lastScannedFaceId = null; }, (systemSettings.aiCooldown || 10) * 1000);
-
-    // เช็คว่าแหล่งที่มาคือ บาร์โค้ด(Quagga) หรือ หน้าคน(AI)
-    // ถ้ายิงจากบาร์โค้ด ตัวแปร descriptor จะถูกส่งมาเป็น null
-    const isBarcode = !descriptor;
-
-    // =========================================================
-    // --- 1. จัดการแยกการทำงานสำหรับ โหมดรถ (Vehicle Mode) ---
-    // =========================================================
-    if (currentScanTarget === 'vehicle') {
-        if (!isBarcode) {
-            // กรณีเป็น AI จับใบหน้า
-            if (!vehicleSession.vehicle) {
-                // 1.1 ถ้ายังไม่ได้แสกนบัตรรถ -> ให้เมินหน้าคนไปเลย (กล้องจะได้ไม่เด้งกวนใจ)
-                return; 
-            } else {
-                // 1.2 ถ้ามีรถจอดรอในจอแล้ว -> โยนชื่อเข้าตะกร้ารถเลย (ไม่ต้องผ่านจอ Manual Confirm)
-                try {
-                    // เล่นเสียงติ๊ดให้เจ้าหน้าที่รู้ว่า ดึงหน้าลงรถเรียบร้อย
-                    const beep = new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3');
-                    beep.volume = parseFloat(systemSettings.beepVolume || 0.5);
-                    beep.play();
-                } catch(e) {}
-                
-                handlePersonForVehicle(cardId);
-                return; // จบการทำงานสำหรับโหมดรถ
-            }
-        }
-        // *ถ้าเป็นบาร์โค้ด (เช่นยิงบาร์โค้ดรถ หรือยิงบาร์โค้ดคน) จะปล่อยให้รันต่อลงไปข้างล่าง
-    }
-
-    // =========================================================
-    // --- 2. การทำงานสำหรับ โหมดบุคคลปกติ (Person Mode) ---
-    // =========================================================
-
-    // แสดง % ความแม่นยำ (ถ้ามี Element มารับ)
-    const scoreValEl = document.getElementById('lowScoreVal');
-    if (scoreValEl && matchPercent) {
-        scoreValEl.textContent = matchPercent; 
-    }
-
-    // เก็บข้อมูลสำหรับการกด Improve AI
-    lastMatchData = {
-        cardId: cardId,
-        descriptor: descriptor ? JSON.stringify(Array.from(descriptor)) : null,
-        score: matchPercent || 0
-    };
-
-    const gateId = document.getElementById('scanGateSelect').value;
-    const card = allCards.find(c => String(c.cardId) === String(cardId));
-    
-    // ตรวจสอบว่าเข้าเงื่อนไขโหมด "มนุษย์ยืนยัน" หรือไม่ (และต้องเป็น AI เท่านั้น บาร์โค้ดไม่ต้องรอ)
-    if (systemSettings.aiManualConfirm && !isBarcode && card && gateId) {
-        
-        const typeInfo = typeCards.find(t => String(t.id) === String(card.typeId));
-        let predictedStatus = (card.currentStatus === 'IN') ? 'OUT' : 'IN';
-        
-        // เช็คผู้ติดตามก่อน ถ้าต้องมีผู้ติดตาม ให้เด้ง Modal ผู้ติดตามไปเลย
-        if (typeInfo.requireCompanion && predictedStatus === 'IN') {
-             document.getElementById('companionModalMainCardId').value = card.cardId;
-             document.getElementById('compBarcode').value = '';
-             document.getElementById('companionModal').classList.remove('hidden');
-             setTimeout(() => document.getElementById('compBarcode').focus(), 100);
-             return;
-        }
-
-        // เรียกระบบรอยืนยันขึ้นมาทำงาน (กล้องหยุดชั่วคราวและโชว์ปุ่มให้กดยืนยัน)
-        promptFaceConfirmation(card, typeInfo, predictedStatus);
-
-    } else {
-        // กรณี ปิดโหมดรอยืนยันไว้ หรือ ยิงด้วยบาร์โค้ด ให้ส่งไปบันทึกทันที
-        const mainInput = document.getElementById('scanInput');
-        if (mainInput) {
-            mainInput.value = cardId;
-            processMainScan(); 
-        }
-    }
-}
 
 /**
  * ดักจับ Keyboard Shortcut ตอนที่เปิดโหมดรอการยืนยัน
@@ -10279,73 +9955,28 @@ async function processBulkSuspend() {
 }
 
 // ==========================================
-// ระบบตะกร้ากลุ่ม (Group Staging System)
+// ระบบตะกร้ากลุ่ม V2 (Step Wizard + พักกลุ่ม + นับโควต้า Real-time)
 // ==========================================
 let groupSession = {
     active: false,
+    paused: false,
     gateId: '',
     typeInfo: null,
     members: [],
     companions: [],
-    requiredCompanions: 0,
     state: 'members' // 'members' หรือ 'companions'
 };
 
-// 1. ดักจับที่ processMainScan
-const origProcessMainScanV3 = processMainScan;
-processMainScan = function() {
-    const mainInput = document.getElementById('scanInput');
-    const cardId = String(mainInput.value).trim().toUpperCase();
 
-    // ถ้าระบบ Group ทำงานอยู่ ให้ดักจับการแสกนทั้งหมดมาลงตะกร้า
-        if (groupSession.active && currentScanTarget === 'person' && cardId !== "") {
-            
-            const nowTime = Date.now();
-            if (globalScanTracker[cardId] && (nowTime - globalScanTracker[cardId]) < 5000) {
-                mainInput.value = ''; mainInput.focus();
-                try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
-                return showToast(`รหัส ${cardId} เพิ่งทำรายการไป (รอ 5 วิ)`, 'warning');
-            }
-            globalScanTracker[cardId] = nowTime;
-
-            const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
-            if (!card) {
-                mainInput.value = ''; mainInput.focus(); // <--- ล้างช่องกรอก
-                return showAlert('ไม่พบบัตร', `ไม่พบบัตร ${cardId}`, 'error');
-            }
-            if (card.status !== 'active') {
-                mainInput.value = ''; mainInput.focus(); // <--- ล้างช่องกรอก
-                return showAlert('ถูกระงับ', `บัตรถูกระงับ`, 'error');
-            }
-            if (new Date() > new Date(card.expiryDate).setHours(23, 59, 59)) {
-                mainInput.value = ''; mainInput.focus(); // <--- ล้างช่องกรอก
-                return showAlert('บัตรหมดอายุ', 'บัตรหมดอายุแล้ว', 'error');
-            }
-            if (card.currentStatus === 'IN') {
-                mainInput.value = ''; mainInput.focus(); // <--- จุดสำคัญที่แก้บั๊ก! ต้องล้างช่องกรอกตรงนี้ด้วย
-                try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
-                return showToast('บุคคลนี้อยู่ในพื้นที่แล้ว', 'warning');
-            }
-
-            handleGroupSessionScan(card);
-            mainInput.value = ''; mainInput.focus();
-            return;
-        }
-
-    // ถ้าไม่ ก็รันการแสกนปกติต่อไป
-    origProcessMainScanV3();
-}
 
 // 2. ดักจับการตัดสินใจ (ตอนเริ่มสร้างกลุ่มใหม่)
 // ต้องแก้โค้ดในฟังก์ชัน processMainScan ตรงส่วนที่เช็ค requireCompanion ด้วย
 // เพื่อให้มันแยกไปที่ initGroupSession() ถ้าเป็น isGroup
 // (เนื่องจากโค้ดมันอยู่ในฟังก์ชันเดิม เราจะใช้วิธีฝัง Logic เล็กๆ เข้าไปอัปเดต)
 function checkGroupTrigger(card, typeInfo, predictedStatus, gateId) {
-    if (typeInfo.requireCompanion && predictedStatus === 'IN') {
-        if (isTrue(typeInfo.isGroup)) {
-            initGroupSession(card, typeInfo, gateId);
-            return true; // บอกว่าดักไว้แล้ว
-        }
+    if (isTrue(typeInfo.requireCompanion) && predictedStatus === 'IN' && isTrue(typeInfo.isGroup)) {
+        initGroupSession(card, typeInfo, gateId);
+        return true;
     }
     return false;
 }
@@ -10353,86 +9984,135 @@ function checkGroupTrigger(card, typeInfo, predictedStatus, gateId) {
 // 3. เริ่มต้นเปิดตะกร้า
 function initGroupSession(firstCard, typeInfo, gateId) {
     const area = document.getElementById('groupStagingArea');
-    
-    // --- จุดที่แก้ไข: ถ่ายสำเนาฟอร์ม "ก่อน" ที่จะมีการเปลี่ยนแปลงใดๆ ---
     if (!originalGroupStagingHTML) {
-        // ถ้าเพิ่งเปิดครั้งแรก ให้จำหน้าตาฟอร์มเปล่าๆ ที่สมบูรณ์ไว้
         originalGroupStagingHTML = area.innerHTML;
     } else {
-        // ถ้าเป็นกรุ๊ปที่ 2 ขึ้นไป ให้เอาฟอร์มสมบูรณ์ที่จำไว้มาแปะคืน
         area.innerHTML = originalGroupStagingHTML;
     }
 
-    groupSession = { active: true, gateId: gateId, typeInfo: typeInfo, members: [firstCard], companions: [], requiredCompanions: 0, state: 'members' };
+    groupSession = { active: true, paused: false, gateId: gateId, typeInfo: typeInfo, members: [firstCard], companions: [], state: 'members' };
     
+    document.getElementById('pausedGroupBanner').classList.add('hidden');
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.add('hidden');
     document.getElementById('vehicleStagingArea').classList.add('hidden');
-    area.classList.remove('hidden'); // แสดงหน้าตะกร้า
+    area.classList.remove('hidden');
     
     document.getElementById('grpTypeName').textContent = typeInfo.typeName;
     const ratio = parseInt(typeInfo.escortRatio) || 0;
-    document.getElementById('grpRatioText').textContent = ratio === 0 ? '1 : ไม่จำกัด' : `1 : ${ratio}`;
+    document.getElementById('grpRatioText').textContent = ratio === 0 ? 'สัดส่วน 1 : ไม่จำกัด' : `สัดส่วน 1 : ${ratio} คน`;
     
     const mainInput = document.getElementById('scanInput');
     mainInput.value = ''; 
-    mainInput.placeholder = "แสกนบัตรลูกทัวร์คนต่อไป...";
-    mainInput.classList.replace('border-green-400', 'border-purple-500');
+    mainInput.placeholder = "แสกนบัตรผู้เข้าพื้นที่คนต่อไป...";
+    mainInput.classList.remove('border-green-400', 'border-orange-500', 'border-indigo-500');
+    mainInput.classList.add('border-purple-500');
     
     renderGroupStagingUI();
     try { new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3').play(); } catch(e){}
 }
 
+// พักกลุ่มชั่วคราวเพื่อสแกนเจ้าหน้าที่แทรก
+function pauseGroupSession() {
+    if (!groupSession.active) return;
+    groupSession.paused = true;
+
+    document.getElementById('groupStagingArea').classList.add('hidden');
+    const banner = document.getElementById('pausedGroupBanner');
+    banner.classList.remove('hidden');
+    banner.classList.add('flex');
+    document.getElementById('pausedGroupInfo').textContent = `${groupSession.typeInfo.typeName} (ค้างในตะกร้า ${groupSession.members.length} คน) — กำลังเปิดโหมดแทรกคิว`;
+
+    if (cachedPersonHTML) {
+        document.getElementById('scanResultData').innerHTML = cachedPersonHTML;
+        document.getElementById('scanResultData').classList.remove('hidden');
+        document.getElementById('scanResultEmpty').classList.add('hidden');
+    } else {
+        document.getElementById('scanResultEmpty').classList.remove('hidden');
+    }
+
+    const input = document.getElementById('scanInput');
+    input.placeholder = "โหมดแทรกคิว: แสกนบัตรเจ้าหน้าที่/ลูกเรือ...";
+    input.classList.remove('border-purple-500', 'border-indigo-500', 'border-green-400');
+    input.classList.add('border-orange-500');
+    input.focus();
+    if (window.lucide) lucide.createIcons();
+}
+
+// กลับมาสแกนกลุ่มต่อ
+function resumeGroupSession() {
+    if (!groupSession.active) return;
+    groupSession.paused = false;
+
+    document.getElementById('pausedGroupBanner').classList.add('hidden');
+    document.getElementById('pausedGroupBanner').classList.remove('flex');
+    document.getElementById('scanResultEmpty').classList.add('hidden');
+    document.getElementById('scanResultData').classList.add('hidden');
+    document.getElementById('vehicleStagingArea').classList.add('hidden');
+    document.getElementById('groupStagingArea').classList.remove('hidden');
+
+    const input = document.getElementById('scanInput');
+    input.classList.remove('border-orange-500', 'border-green-400');
+    if (groupSession.state === 'members') {
+        input.placeholder = "แสกนบัตรผู้เข้าพื้นที่คนต่อไป...";
+        input.classList.add('border-purple-500');
+    } else {
+        input.placeholder = "แสกนบัตรผู้ติดตาม...";
+        input.classList.add('border-indigo-500');
+    }
+    input.focus();
+    renderGroupStagingUI();
+}
+
 // 4. จัดการเวลาคนแสกนเข้าตะกร้า
 function handleGroupSessionScan(card) {
     if (groupSession.members.some(m => m.cardId === card.cardId) || groupSession.companions.some(c => c.cardId === card.cardId)) {
+        delete globalScanTracker[card.cardId];
         return showToast('บุคคลนี้อยู่ในรายการแล้ว', 'warning');
     }
 
     if (groupSession.state === 'members') {
-        if (String(card.typeId) !== String(groupSession.typeInfo.id)) {
-            try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
-            return showAlert('ประเภทบัตรไม่ตรงกัน', `กรุณาแสกนเฉพาะบัตร "${groupSession.typeInfo.typeName}" เท่านั้น`, 'error');
-        }
         groupSession.members.push(card);
         try { new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3').play(); } catch(e){}
         renderGroupStagingUI();
 
     } else if (groupSession.state === 'companions') {
-        // <--- แก้ข้อ 2: ล็อคไม่ให้แสกนเกินจำนวนที่ต้องการ
-        if (groupSession.companions.length >= groupSession.requiredCompanions) {
+        // คำนวณว่ายังขาดผู้ติดตามสำหรับอีกกี่คน
+        let coveredSoFar = 0;
+        groupSession.companions.forEach(c => {
+            const q = getEscortQuotaStatus(c.cardId, groupSession.typeInfo);
+            coveredSoFar = (coveredSoFar === Infinity || q.remaining === Infinity) ? Infinity : coveredSoFar + q.remaining;
+        });
+
+        if (coveredSoFar >= groupSession.members.length) {
+            delete globalScanTracker[card.cardId];
             try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
-            return showToast('แสกนผู้ติดตามครบตามจำนวนแล้ว!', 'warning');
+            return showToast('ผู้ติดตามครบครอบคลุมทุกคนแล้ว! สามารถกดบันทึกได้เลย', 'success');
+        }
+
+        // เช็คโควตาคงเหลือของผู้ติดตามคนนี้
+        const quota = getEscortQuotaStatus(card.cardId, groupSession.typeInfo);
+        if (!quota.allowed) {
+            delete globalScanTracker[card.cardId];
+            try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
+            return showAlert('ผู้ติดตามโควตาเต็มแล้ว!', `คุณ ${card.firstName} ${card.lastName}\nปัจจุบันดูแลอยู่แล้ว ${quota.currentLoad} คน (เพดานสูงสุด ${quota.limit} คน)\nไม่สามารถรับเพิ่มได้ กรุณาใช้รหัสผู้ติดตามท่านอื่น`, 'error');
         }
 
         groupSession.companions.push(card);
         try { new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3').play(); } catch(e){}
         renderGroupStagingUI();
-        
-        if (groupSession.companions.length >= groupSession.requiredCompanions) {
-            showToast('ผู้ติดตามครบแล้ว! สามารถกดบันทึกได้เลย', 'success');
-        }
     }
 }
 
 // 5. เปลี่ยนโหมดจากลูกทัวร์ -> แสกนผู้ติดตาม
 function transitionToCompanions() {
-    if (groupSession.members.length === 0) return;
-    
-    const ratio = parseInt(groupSession.typeInfo.escortRatio) || 0;
-    groupSession.requiredCompanions = ratio === 0 ? 1 : Math.ceil(groupSession.members.length / ratio);
-    
+    if (groupSession.members.length === 0) return showToast('กรุณาสแกนผู้เข้าพื้นที่อย่างน้อย 1 คน', 'warning');
     groupSession.state = 'companions';
-    document.getElementById('scanInput').placeholder = `แสกนผู้ติดตาม (${groupSession.requiredCompanions} คน)...`;
+
+    document.getElementById('scanInput').placeholder = "แสกนบัตรผู้ติดตาม (Escort)...";
     document.getElementById('scanInput').classList.replace('border-purple-500', 'border-indigo-500');
-    
-    // เปิดแสงให้กล่องขวามือ
-    document.getElementById('grpCompanionSection').classList.remove('opacity-40', 'pointer-events-none');
-    document.getElementById('grpCompanionSection').classList.add('bg-indigo-50');
-    document.getElementById('grpBtnContainerStep1').classList.add('hidden');
-    
-    renderGroupStagingUI();
     document.getElementById('scanInput').focus();
+    renderGroupStagingUI();
 }
 
 // 6. วาด UI รายชื่อ
@@ -10441,13 +10121,26 @@ function renderGroupStagingUI() {
     const compList = document.getElementById('grpCompanionsList');
     const btnSave = document.getElementById('btnSaveGroup');
 
-    // 1. วาดลูกทัวร์ (เพิ่มรูปภาพจริง)
+    const step1Badge = document.getElementById('grpStepBadge1');
+    const step2Badge = document.getElementById('grpStepBadge2');
+    const step3Badge = document.getElementById('grpStepBadge3');
+    const banner = document.getElementById('grpInstructionBanner');
+    const memSec = document.getElementById('grpMemberSection');
+    const compSec = document.getElementById('grpCompanionSection');
+    const compHeader = document.getElementById('grpCompanionHeader');
+    const btnStep1Box = document.getElementById('grpBtnContainerStep1');
+    const btnBackBox = document.getElementById('grpBtnBackStep1');
+    const quotaAlert = document.getElementById('grpQuotaAlert');
+
+    const ratio = parseInt(groupSession.typeInfo.escortRatio) || 0;
+    const minNeededEst = ratio === 0 ? 1 : Math.ceil(groupSession.members.length / ratio);
+
+    // 1. วาดรายชื่อผู้เข้าพื้นที่
     memList.innerHTML = groupSession.members.map((m, i) => {
         const areaIds = String(m.areaAccessIds || '').split(',').map(s=>s.trim()).filter(x=>x);
         const isExp = new Date(m.expiryDate).setHours(23,59,59) < new Date();
         const imgUrl = getFastImageUrl(m.imageUrl);
-        
-        // วาดป้ายโซนพื้นที่
+
         let areaHtml = areaIds.map(num => {
             const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
             const color = areaSetting ? areaSetting.colorCode : '#4f46e5';
@@ -10458,9 +10151,7 @@ function renderGroupStagingUI() {
         return `
         <div class="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-100 shadow-sm animate-fadeIn">
             <div class="w-5 text-center font-black text-gray-300 text-xs mt-2 shrink-0">${i+1}</div>
-            
             <img src="${imgUrl}" class="w-10 h-10 rounded-lg object-cover border border-gray-200 shrink-0" crossorigin="anonymous">
-            
             <div class="flex-1 overflow-hidden">
                 <div class="flex flex-col sm:flex-row sm:justify-between gap-1 mb-1">
                     <div class="truncate">
@@ -10472,25 +10163,27 @@ function renderGroupStagingUI() {
                         <p class="text-[9px] font-bold ${isExp ? 'text-red-500' : 'text-gray-500'}"><i data-lucide="calendar" class="w-3 h-3 inline"></i> หมดอายุ: ${formatDateOnly(m.expiryDate)}</p>
                     </div>
                 </div>
-                <!-- แถบแสดง ZONE พื้นที่ -->
-                <div class="flex items-center gap-1.5 mt-1.5 bg-gray-50 p-1 rounded-md border border-gray-100 w-fit">
+                <div class="flex items-center gap-1.5 mt-1 bg-gray-50 p-1 rounded-md border border-gray-100 w-fit">
                     <span class="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">ZONE</span>
                     <div class="flex gap-1">${areaHtml}</div>
                 </div>
             </div>
-            
             ${groupSession.state === 'members' ? `<button onclick="groupSession.members.splice(${i},1); renderGroupStagingUI();" class="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition shrink-0"><i data-lucide="x" class="w-4 h-4"></i></button>` : ''}
         </div>`;
     }).join('');
-    
     document.getElementById('grpMemberCount').textContent = `${groupSession.members.length} คน`;
 
-    // 2. วาดผู้ติดตาม (เพิ่มรูปภาพจริง)
+    // 2. คำนวณการกระจายโควต้าทีละคนแบบ Real-time
+    let remainingMembersToCover = groupSession.members.length;
     compList.innerHTML = groupSession.companions.map((c, i) => {
         const imgUrl = getFastImageUrl(c.imageUrl);
         const isExp = new Date(c.expiryDate).setHours(23,59,59) < new Date();
+        const quota = getEscortQuotaStatus(c.cardId, groupSession.typeInfo);
+
+        const canTake = (quota.remaining === Infinity) ? remainingMembersToCover : Math.min(remainingMembersToCover, quota.remaining);
+        remainingMembersToCover = Math.max(0, remainingMembersToCover - canTake);
+
         const areaIds = String(c.areaAccessIds || '').split(',').map(s=>s.trim()).filter(x=>x);
-        
         let areaHtml = areaIds.map(num => {
             const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
             const color = areaSetting ? areaSetting.colorCode : '#4f46e5';
@@ -10498,10 +10191,13 @@ function renderGroupStagingUI() {
         }).join('');
         if (!areaHtml) areaHtml = '<span class="text-[9px] text-indigo-300">ไม่มีสิทธิ์</span>';
 
+        const quotaBadgeText = (quota.limit === Infinity)
+            ? `ดูแลอยู่ ${quota.currentLoad} คน | รอบนี้รับ ${canTake} คน (ไม่จำกัด)`
+            : `เดิม ${quota.currentLoad}/${quota.limit} ➔ รอบนี้รับ ${canTake} (ใหม่ ${quota.currentLoad + canTake}/${quota.limit})`;
+
         return `
         <div class="flex items-start gap-3 p-2.5 bg-white rounded-xl border-2 border-indigo-200 shadow-sm animate-fadeIn">
             <img src="${imgUrl}" class="w-10 h-10 rounded-lg object-cover border border-indigo-100 shrink-0" crossorigin="anonymous">
-            
             <div class="flex-1 overflow-hidden">
                 <div class="flex flex-col xl:flex-row xl:justify-between gap-1 mb-1">
                     <div class="truncate">
@@ -10509,88 +10205,125 @@ function renderGroupStagingUI() {
                         <p class="text-[10px] font-bold text-indigo-500">${c.cardId}</p>
                     </div>
                     <div class="flex flex-col gap-0.5 shrink-0 text-left xl:text-right">
-                        <p class="text-[9px] font-bold text-indigo-400 truncate"><i data-lucide="briefcase" class="w-3 h-3 inline"></i> ${c.organization || '-'} ${c.position ? `(${c.position})` : ''}</p>
-                        <p class="text-[9px] font-bold ${isExp ? 'text-red-500' : 'text-indigo-400'}"><i data-lucide="calendar" class="w-3 h-3 inline"></i> หมดอายุ: ${formatDateOnly(c.expiryDate)}</p>
+                        <p class="text-[9px] font-bold text-indigo-400 truncate">${c.organization || '-'} ${c.position ? `(${c.position})` : ''}</p>
+                        <p class="text-[9px] font-bold ${isExp ? 'text-red-500' : 'text-indigo-400'}">หมดอายุ: ${formatDateOnly(c.expiryDate)}</p>
                     </div>
                 </div>
-                <!-- แถบแสดง ZONE พื้นที่ของผู้ติดตาม -->
-                <div class="flex items-center gap-1.5 mt-1 bg-indigo-50 p-1 rounded-md border border-indigo-100 w-fit">
-                    <span class="text-[8px] font-black text-indigo-300 uppercase tracking-widest ml-1">ZONE</span>
-                    <div class="flex gap-1">${areaHtml}</div>
+                <div class="flex flex-wrap items-center justify-between gap-1 mt-1">
+                    <div class="flex items-center gap-1 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
+                        <span class="text-[8px] font-black text-indigo-300">ZONE</span>
+                        <div class="flex gap-1">${areaHtml}</div>
+                    </div>
+                    <span class="text-[9px] font-black px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">${quotaBadgeText}</span>
                 </div>
             </div>
-            
             <button onclick="groupSession.companions.splice(${i},1); renderGroupStagingUI();" class="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition shrink-0"><i data-lucide="x" class="w-4 h-4"></i></button>
         </div>`;
     }).join('');
-    
-    // 3. เพิ่มปุ่ม "ย้อนกลับไปเพิ่มคน" ที่หัวตารางผู้ติดตาม
-    if (groupSession.state === 'companions') {
-        const compHeader = document.querySelector('#grpCompanionSection .bg-indigo-100');
-        compHeader.innerHTML = `
-            <button onclick="backToGroupMembers()" class="text-[10px] bg-white text-indigo-600 px-2 py-1 rounded shadow-sm font-bold hover:bg-indigo-50 transition border border-indigo-200">
-                <i data-lucide="arrow-left" class="w-3 h-3 inline"></i> กลับไปเพิ่มลูกทัวร์
-            </button>
-            <span id="grpCompanionCount" class="bg-indigo-600 px-3 py-1 rounded-full text-xs font-black text-white shadow-sm">${groupSession.companions.length} / ${groupSession.requiredCompanions} คน</span>
-        `;
-        btnSave.disabled = groupSession.companions.length < groupSession.requiredCompanions;
+
+    // 3. อัปเดต UI ตาม Step 1 หรือ Step 2
+    const coveredCount = groupSession.members.length - remainingMembersToCover;
+
+    if (groupSession.state === 'members') {
+        step1Badge.className = 'py-2 px-2 rounded-xl font-black text-xs bg-purple-600 text-white shadow-sm transition-all';
+        step2Badge.className = 'py-2 px-2 rounded-xl font-bold text-xs text-gray-400 transition-all';
+        step3Badge.className = 'py-2 px-2 rounded-xl font-bold text-xs text-gray-400 transition-all';
+
+        banner.className = 'mb-4 p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-bold flex items-center gap-2';
+        banner.innerHTML = `<i data-lucide="scan-line" class="w-4 h-4 text-purple-600 shrink-0"></i><span>ขั้นตอนที่ 1: ยิงบาร์โค้ดผู้เข้าพื้นที่เรื่อยๆ (หากมีลูกเรือเข้าด่วนยิงแทรกได้ทันที!) เมื่อครบแล้วกดปุ่มสีม่วงด้านล่าง</span>`;
+
+        memSec.className = 'flex flex-col border-2 border-purple-400 rounded-2xl bg-purple-50/20 overflow-hidden h-[380px] transition-all shadow-sm';
+        compSec.className = 'flex flex-col border-2 border-gray-200 rounded-2xl bg-gray-50 overflow-hidden h-[380px] opacity-50 pointer-events-none transition-all';
+        compHeader.className = 'bg-gray-200 p-3 flex justify-between items-center border-b border-gray-200';
+        compHeader.innerHTML = `<span class="font-black text-gray-600 text-sm">2. ผู้ติดตาม (Escort)</span><span class="bg-gray-500 px-3 py-1 rounded-full text-xs font-black text-white">รอขั้นที่ 2</span>`;
+
+        btnStep1Box.classList.remove('hidden');
+        document.getElementById('btnToStep2').innerHTML = `<span>เสร็จสิ้นขั้นที่ 1 ➔ ไปสแกนผู้ติดตาม (อย่างน้อย ${minNeededEst} คน)</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+        btnBackBox.classList.add('hidden');
+        quotaAlert.classList.add('hidden');
+
+        btnSave.disabled = true;
+        btnSave.className = 'flex-[2] py-3.5 bg-gray-300 text-white font-black rounded-2xl shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2';
+    } else {
+        const isReadyToSave = (remainingMembersToCover === 0 && groupSession.companions.length > 0);
+
+        step1Badge.className = 'py-2 px-2 rounded-xl font-bold text-xs bg-emerald-100 text-emerald-700 transition-all';
+        step1Badge.innerHTML = '✓ 1. ผู้เข้าพื้นที่ครบแล้ว';
+
+        if (isReadyToSave) {
+            step2Badge.className = 'py-2 px-2 rounded-xl font-bold text-xs bg-emerald-100 text-emerald-700 transition-all';
+            step2Badge.innerHTML = '✓ 2. ผู้ติดตามครบแล้ว';
+            step3Badge.className = 'py-2 px-2 rounded-xl font-black text-xs bg-emerald-600 text-white shadow-sm animate-pulse transition-all';
+            banner.className = 'mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-2';
+            banner.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-600 shrink-0"></i><span>ขั้นตอนที่ 3: โควตาผู้ติดตามครบทุกคนแล้ว! กดปุ่มสีเขียว "บันทึกข้อมูลเข้าพื้นที่" ด้านล่างได้เลยครับ</span>`;
+        } else {
+            step2Badge.className = 'py-2 px-2 rounded-xl font-black text-xs bg-indigo-600 text-white shadow-sm transition-all';
+            step2Badge.innerHTML = '2. แสกนผู้ติดตาม';
+            step3Badge.className = 'py-2 px-2 rounded-xl font-bold text-xs text-gray-400 transition-all';
+            banner.className = 'mb-4 p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs font-bold flex items-center gap-2';
+            banner.innerHTML = `<i data-lucide="user-check" class="w-4 h-4 text-indigo-600 shrink-0"></i><span>ขั้นตอนที่ 2: ยิงบัตรผู้ติดตาม (ต้องดูแลผู้เข้าพื้นที่อีก ${remainingMembersToCover} คน) หรือกดปุ่มย้อนกลับเพื่อเพิ่มคน</span>`;
+        }
+
+        memSec.className = 'flex flex-col border-2 border-gray-200 rounded-2xl bg-gray-50/50 overflow-hidden h-[380px] transition-all';
+        compSec.className = 'flex flex-col border-2 border-indigo-400 rounded-2xl bg-indigo-50/40 overflow-hidden h-[380px] transition-all shadow-sm';
+        compHeader.className = 'bg-indigo-100 p-3 flex justify-between items-center border-b border-indigo-200';
+        compHeader.innerHTML = `<span class="font-black text-indigo-900 text-sm">2. ผู้ติดตาม (Escort)</span><span class="bg-indigo-600 px-3 py-1 rounded-full text-xs font-black text-white">รับดูแล ${coveredCount} / ${groupSession.members.length} คน</span>`;
+
+        quotaAlert.classList.remove('hidden');
+        if (isReadyToSave) {
+            quotaAlert.className = 'px-3 py-2 text-[11px] font-black text-center border-b bg-emerald-100 text-emerald-800 border-emerald-200';
+            quotaAlert.textContent = `✅ โควตาผู้ติดตามเพียงพอสำหรับทุกคนแล้ว (${coveredCount}/${groupSession.members.length} คน)`;
+        } else {
+            quotaAlert.className = 'px-3 py-2 text-[11px] font-black text-center border-b bg-amber-50 text-amber-800 border-amber-200';
+            quotaAlert.textContent = `⚠️ ยังขาดโควตาผู้ติดตามสำหรับอีก ${remainingMembersToCover} คน (สแกนบัตรผู้ติดตามเพิ่ม)`;
+        }
+
+        btnStep1Box.classList.add('hidden');
+        btnBackBox.classList.remove('hidden');
+
+        btnSave.disabled = !isReadyToSave;
+        if (isReadyToSave) {
+            btnSave.className = 'flex-[2] py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-lg shadow-emerald-200 transition animate-pulse flex items-center justify-center gap-2';
+        } else {
+            btnSave.className = 'flex-[2] py-3.5 bg-gray-300 text-white font-black rounded-2xl shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2';
+        }
     }
-    if(window.lucide) lucide.createIcons();
+
+    if (window.lucide) lucide.createIcons();
 }
 
 // ฟังก์ชันย้อนกลับไปเพิ่มคน
 function backToGroupMembers() {
     groupSession.state = 'members';
-    document.getElementById('scanInput').placeholder = "แสกนบัตรลูกทัวร์คนต่อไป...";
+    document.getElementById('scanInput').placeholder = "แสกนบัตรผู้เข้าพื้นที่คนต่อไป...";
     document.getElementById('scanInput').classList.replace('border-indigo-500', 'border-purple-500');
-    
-    // ปิดแสงกล่องขวา เปิดปุ่มซ้ายคืน
-    document.getElementById('grpCompanionSection').classList.add('opacity-40', 'pointer-events-none');
-    document.getElementById('grpCompanionSection').classList.remove('bg-indigo-50');
-    document.getElementById('grpBtnContainerStep1').classList.remove('hidden');
-    
-    // คืนค่าหัวตาราง
-    document.querySelector('#grpCompanionSection .bg-indigo-100').innerHTML = `
-        <span class="font-black text-indigo-700 text-sm uppercase tracking-widest">2. ผู้ติดตาม (Escort)</span>
-        <span id="grpCompanionCount" class="bg-indigo-600 px-3 py-1 rounded-full text-xs font-black text-white shadow-sm">${groupSession.companions.length} / ${groupSession.requiredCompanions} คน</span>
-    `;
-    
-    renderGroupStagingUI();
     document.getElementById('scanInput').focus();
+    renderGroupStagingUI();
 }
 
 function cancelGroupSession() {
-    // 1. เคลียร์ข้อมูล Session ในตะกร้า
-    groupSession = { active: false, gateId: '', typeInfo: null, members: [], companions: [], requiredCompanions: 0, state: 'members' };
-    
-    // ---> วางตรงนี้ครับ: เคลียร์ Cache หน้าจอสรุปผลกลุ่มทิ้ง <---
+    groupSession = { active: false, paused: false, gateId: '', typeInfo: null, members: [], companions: [], state: 'members' };
     cachedGroupHTML = null;
 
-    // 2. รีเซ็ต UI และซ่อนหน้าต่างตะกร้ากลุ่ม
+    document.getElementById('pausedGroupBanner').classList.add('hidden');
+    document.getElementById('pausedGroupBanner').classList.remove('flex');
     document.getElementById('groupStagingArea').classList.add('hidden');
-    document.getElementById('grpCompanionSection').classList.add('opacity-40', 'pointer-events-none');
-    document.getElementById('grpCompanionSection').classList.remove('bg-indigo-50');
-    document.getElementById('grpBtnContainerStep1').classList.remove('hidden');
     
-    // 3. รีเซ็ตช่องกรอกข้อความกลับเป็นสีเขียวปกติ
     const input = document.getElementById('scanInput');
     input.placeholder = "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
-    input.classList.remove('border-purple-500', 'border-indigo-500');
+    input.classList.remove('border-purple-500', 'border-indigo-500', 'border-orange-500');
     input.classList.add('border-green-400');
     
-    // 4. คืนค่าหน้าจอเดิม (โชว์ข้อมูลบัตรบุคคลคนล่าสุด)
     if (cachedPersonHTML) {
         document.getElementById('scanResultData').innerHTML = cachedPersonHTML;
         document.getElementById('scanResultData').classList.remove('hidden');
         document.getElementById('scanResultEmpty').classList.add('hidden');
-        if (window.lucide) lucide.createIcons(); // สั่งวาดไอคอนใหม่ให้สมบูรณ์
+        if (window.lucide) lucide.createIcons();
     } else {
         document.getElementById('scanResultData').classList.add('hidden');
         document.getElementById('scanResultEmpty').classList.remove('hidden');
     }
-    
-    input.value = ''; 
-    input.focus();
+    input.value = ''; input.focus();
 }
 
 // 7. บันทึกเข้า Server แบบเบื้องหลัง (Background Batch Process)
@@ -10643,23 +10376,30 @@ function updateBackgroundSaveWidget(id, isSuccess) {
 }
 
 // 7. บันทึกเข้า Server แบบเบื้องหลัง (Background Batch Process)
+// 7. บันทึกเข้า Server (กระจายผู้ติดตามตามโควตาคงเหลือจริงทีละคน!)
 async function saveGroupSession() {
     const btnSave = document.getElementById('btnSaveGroup');
     btnSave.disabled = true;
-    
+
     const membersToSave = [];
-    const compCount = groupSession.companions.length;
-    const memCount = groupSession.members.length;
-    
-    for (let i = 0; i < memCount; i++) {
-        const compIndex = Math.min(Math.floor(i / (memCount / compCount)), compCount - 1);
-        const companion = groupSession.companions[compIndex];
-        membersToSave.push({
-            cardId: groupSession.members[i].cardId,
-            companionCardId: companion.cardId,
-            companionName: `${companion.firstName} ${companion.lastName}`,
-            companionOrg: companion.organization
-        });
+    let memberIndex = 0;
+
+    // เติมเต็มโควตาผู้ติดตามทีละคน (Sequential Remaining Quota Fill)
+    for (let c = 0; c < groupSession.companions.length; c++) {
+        const companion = groupSession.companions[c];
+        const quota = getEscortQuotaStatus(companion.cardId, groupSession.typeInfo);
+        let capacity = quota.remaining;
+
+        while (capacity > 0 && memberIndex < groupSession.members.length) {
+            membersToSave.push({
+                cardId: groupSession.members[memberIndex].cardId,
+                companionCardId: companion.cardId,
+                companionName: `${companion.firstName} ${companion.lastName}`,
+                companionOrg: companion.organization || ''
+            });
+            memberIndex++;
+            if (capacity !== Infinity) capacity--;
+        }
     }
 
     const companionsToSave = groupSession.companions.map(c => ({
@@ -10674,23 +10414,33 @@ async function saveGroupSession() {
         companions: companionsToSave
     };
 
-    const totalCount = payload.members.length + payload.companions.length;
+    // นับจำนวน Log ที่จะบันทึกจริง (ผู้ติดตามที่ IN อยู่แล้วไม่ต้องนับซ้ำ)
+    const newCompanions = groupSession.companions.filter(c => String(c.currentStatus || 'OUT').trim().toUpperCase() !== 'IN');
+    const totalCount = payload.members.length + newCompanions.length;
     const timestampStr = new Date().toISOString();
 
-    // 1. ອัปเดตข้อมูลในความจำเครื่องให้เป็น IN ทันที (Optimistic UI)
+    // 1. Optimistic UI: อัปเดตความจำในเครื่องทันที (รวมทั้ง currentCompanionId)
     payload.members.forEach(m => {
         const idx = allCards.findIndex(c => c.cardId === m.cardId);
-        if (idx !== -1) { allCards[idx].currentStatus = 'IN'; allCards[idx].lastLogTime = timestampStr; }
+        if (idx !== -1) {
+            allCards[idx].currentStatus = 'IN';
+            allCards[idx].lastLogTime = timestampStr;
+            allCards[idx].currentCompanionId = m.companionCardId;
+        }
     });
-    payload.companions.forEach(c => {
+    groupSession.companions.forEach(c => {
         const idx = allCards.findIndex(x => x.cardId === c.cardId);
-        if (idx !== -1) { allCards[idx].currentStatus = 'IN'; allCards[idx].lastLogTime = timestampStr; }
+        if (idx !== -1 && String(allCards[idx].currentStatus || 'OUT').trim().toUpperCase() !== 'IN') {
+            allCards[idx].currentStatus = 'IN';
+            allCards[idx].lastLogTime = timestampStr;
+            allCards[idx].currentCompanionId = '';
+        }
     });
 
-    // 2. แสดงหน้าจอเขียว "บันทึกสำเร็จ" ทันที 0 วินาที! (เคลียร์ตะกร้าทิ้งเลย)
-    showGroupSuccessSummary(groupSession, totalCount); 
+    // 2. แสดงหน้าจอเขียว "บันทึกสำเร็จ" ทันที!
+    showGroupSuccessSummary(groupSession, totalCount);
 
-    // 3. สร้าง Widget จำลองหลอดโหลดมุมขวาล่าง
+    // 3. โชว์ Widget เบื้องหลังมุมขวาล่าง
     const taskId = 'bgTask_' + Date.now();
     showBackgroundSaveWidget(taskId, totalCount);
     
@@ -10706,14 +10456,12 @@ async function saveGroupSession() {
         }
     }, 500);
 
-    // 4. ส่งข้อมูลไปเซิร์ฟเวอร์เงียบๆ เบื้องหลัง (ใส่ false เพื่อปิดจอโหลดสีดำ)
     try {
         const res = await apiCall('processBulkGroupScan', payload, false);
         clearInterval(fakeProgress);
-        
         if (res.success) {
             updateBackgroundSaveWidget(taskId, true);
-            refreshHomeData(true); // รีเฟรชตารางประวัติด้านล่างแบบเงียบๆ
+            refreshHomeData(true);
         }
     } catch(e) {
         clearInterval(fakeProgress);
@@ -10723,21 +10471,22 @@ async function saveGroupSession() {
 
 // 8. ฟังก์ชันแสดงสรุปผลแบบย่อ (มีปุ่มกดกางออกได้)
 function showGroupSuccessSummary(session, totalCount) {
-    // 1. เคลียร์ข้อมูล Session เก่าทิ้งทันที! ป้องกันบั๊กค้าง
     const mainOrg = session.members[0].organization || 'ไม่ระบุหน่วยงาน';
     const tempMembers = [...session.members];
     const tempCompanions = [...session.companions];
     const tempTypeName = session.typeInfo.typeName;
     
-    groupSession = { active: false, gateId: '', typeInfo: null, members: [], companions: [], requiredCompanions: 0, state: 'members' };
+    groupSession = { active: false, paused: false, gateId: '', typeInfo: null, members: [], companions: [], state: 'members' };
 
-    // 2. วาด UI (โค้ดเดิม)
+    document.getElementById('pausedGroupBanner').classList.add('hidden');
+    document.getElementById('pausedGroupBanner').classList.remove('flex');
+
     const area = document.getElementById('groupStagingArea');
     const input = document.getElementById('scanInput');
     
     input.value = '';
     input.placeholder = "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
-    input.classList.remove('border-purple-500', 'border-indigo-500');
+    input.classList.remove('border-purple-500', 'border-indigo-500', 'border-orange-500');
     input.classList.add('border-green-400');
     input.focus();
 
@@ -10750,76 +10499,54 @@ function showGroupSuccessSummary(session, totalCount) {
     let summaryHtml = `
     <div class="bg-white rounded-[2.5rem] border border-purple-50 shadow-2xl overflow-hidden flex flex-col animate-fadeIn">
         <div class="w-full text-center py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.1em] bg-green-600 uppercase">IN</div>
-        
         <div class="p-6">
             <div class="flex items-center gap-4 mb-4 bg-green-50 p-4 rounded-2xl border border-green-100">
                 <div class="w-14 h-14 bg-green-500 text-white rounded-full flex items-center justify-center shrink-0 shadow-md"><i data-lucide="check-circle" class="w-8 h-8"></i></div>
                 <div class="flex-1">
                     <h3 class="font-black text-green-700 text-xl">บันทึกเข้าพื้นที่สำเร็จ</h3>
-                    <p class="text-sm font-bold text-gray-600">กลุ่ม: ${tempTypeName}</p>
+                    <p class="text-sm font-bold text-gray-600">กลุ่ม: ${tempTypeName} | ${mainOrg}</p>
                 </div>
                 <div class="text-right">
-                    <p class="text-3xl font-black text-green-600">${totalCount}</p>
-                    <p class="text-[10px] font-black text-green-800 uppercase tracking-widest">รายการ</p>
+                    <p class="text-3xl font-black text-green-600">${tempMembers.length}</p>
+                    <p class="text-[10px] font-black text-green-800 uppercase tracking-widest">ผู้เข้าพื้นที่</p>
                 </div>
             </div>
 
-            <!-- ปุ่มกางรายละเอียด (อัปเดตให้กดผู้ติดตามได้) -->
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
+                <p class="text-[10px] font-black text-slate-400 uppercase mb-1">ผู้ติดตาม (Escort)</p>
+                <div>${compsHtml}</div>
+            </div>
+
             <details class="group bg-white border border-gray-200 rounded-xl overflow-hidden cursor-pointer shadow-sm">
                 <summary class="p-3 bg-gray-50 text-xs font-bold text-gray-600 flex justify-between items-center list-none outline-none">
-                    <span>ดูรายชื่อทั้งหมด (${totalCount} คน)</span>
+                    <span>ดูรายชื่อทั้งหมด (${tempMembers.length + tempCompanions.length} คน)</span>
                     <i data-lucide="chevron-down" class="w-4 h-4 transition-transform group-open:rotate-180"></i>
                 </summary>
                 <div class="p-3 max-h-[250px] overflow-y-auto bg-white custom-scrollbar border-t border-gray-100 text-xs text-gray-700 space-y-1.5">
-                    
-                    <!-- ส่วนของผู้ติดตาม -->
                     ${tempCompanions.map(c => `
                         <div onclick="openPersonDetailModal('${c.cardId}')" class="font-bold text-indigo-700 p-2 bg-indigo-50 rounded hover:bg-indigo-100 transition cursor-pointer flex flex-col sm:flex-row sm:justify-between sm:items-center border border-indigo-100 gap-1 sm:gap-0">
-                            <span class="flex items-center gap-1.5">
-                                <i data-lucide="user-check" class="w-3.5 h-3.5 shrink-0"></i> 
-                                <span class="truncate">ผู้ติดตาม: ${c.firstName} ${c.lastName}</span>
-                                <span class="text-[9px] text-indigo-400 shrink-0">(${c.cardId})</span>
-                            </span>
-                            <span class="text-[9px] font-black ${new Date(c.expiryDate).setHours(23,59,59) < new Date() ? 'text-red-500' : 'text-indigo-400'} bg-white px-2 py-0.5 rounded border border-indigo-100 shrink-0 w-fit">
-                                หมดอายุ: ${formatDateOnly(c.expiryDate)}
-                            </span>
+                            <span class="flex items-center gap-1.5"><i data-lucide="user-check" class="w-3.5 h-3.5 shrink-0"></i> <span class="truncate">ผู้ติดตาม: ${c.firstName} ${c.lastName}</span> <span class="text-[9px] text-indigo-400 shrink-0">(${c.cardId})</span></span>
+                            <span class="text-[9px] font-black ${new Date(c.expiryDate).setHours(23,59,59) < new Date() ? 'text-red-500' : 'text-indigo-400'} bg-white px-2 py-0.5 rounded border border-indigo-100 shrink-0 w-fit">หมดอายุ: ${formatDateOnly(c.expiryDate)}</span>
                         </div>
                     `).join('')}
-                    
-                    <!-- ส่วนของลูกทัวร์ -->
                     ${tempMembers.map((m, i) => `
                         <div onclick="openPersonDetailModal('${m.cardId}')" class="p-2 border-b border-gray-50 hover:bg-gray-50 cursor-pointer rounded transition flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-0">
-                            <span class="flex items-center gap-1 truncate">
-                                <span class="shrink-0 w-4 text-gray-400">${i+1}.</span> 
-                                <span class="truncate">${m.firstName} ${m.lastName}</span>
-                                <span class="text-[9px] text-gray-400 shrink-0 ml-1">(${m.cardId})</span>
-                            </span>
-                            <span class="text-[9px] font-black ${new Date(m.expiryDate).setHours(23,59,59) < new Date() ? 'text-red-500' : 'text-gray-400'} bg-white px-2 py-0.5 rounded border border-gray-100 shrink-0 w-fit">
-                                หมดอายุ: ${formatDateOnly(m.expiryDate)}
-                            </span>
+                            <span class="flex items-center gap-1 truncate"><span class="shrink-0 w-4 text-gray-400">${i+1}.</span> <span class="truncate">${m.firstName} ${m.lastName}</span> <span class="text-[9px] text-gray-400 shrink-0 ml-1">(${m.cardId})</span></span>
+                            <span class="text-[9px] font-black ${new Date(m.expiryDate).setHours(23,59,59) < new Date() ? 'text-red-500' : 'text-gray-400'} bg-white px-2 py-0.5 rounded border border-gray-100 shrink-0 w-fit">หมดอายุ: ${formatDateOnly(m.expiryDate)}</span>
                         </div>
                     `).join('')}
                 </div>
             </details>
 
-            <div class="mt-5 py-2 bg-green-50 text-green-700 rounded-xl text-center text-[10px] font-bold animate-pulse">
+            <div class="mt-4 py-2 bg-green-50 text-green-700 rounded-xl text-center text-[10px] font-bold animate-pulse">
                 พร้อมสำหรับการแสกนคนต่อไป...
             </div>
         </div>
-    </div>
-    `;
+    </div>`;
 
-    // --- เก็บสำเนาฟอร์มตะกร้าเปล่าไว้ ก่อนที่จะโดนหน้าสรุปผลเขียนทับ ---
-   // if (!originalGroupStagingHTML) {
-   //     originalGroupStagingHTML = area.innerHTML;
-   // }
-    
     area.innerHTML = summaryHtml;
     cachedGroupHTML = summaryHtml;
-    if(window.lucide) lucide.createIcons();
-    
-    // เคลียร์ข้อมูล Session เก่าทิ้ง
-    groupSession = { active: false, gateId: '', typeInfo: null, members: [], companions: [], requiredCompanions: 0, state: 'members' };
+    if (window.lucide) lucide.createIcons();
 }
 
 
@@ -11624,6 +11351,490 @@ function scrollToSection(elementId) {
     }, 2500);
 }
 
+
+// ==========================================
+// เครื่องยนต์คำนวณโควต้าผู้ติดตามแบบ Real-time
+// ==========================================
+function getEscortQuotaStatus(escortCardId, incomingTypeInfo, extraPendingMembers = []) {
+    const cleanEscortId = String(escortCardId || '').trim().toUpperCase();
+    const quotaMode = systemSettings.escortQuotaMode || 'flexible';
+    const incomingRatio = parseInt(incomingTypeInfo ? incomingTypeInfo.escortRatio : 0) || 0; // 0 = ไม่จำกัด
+
+    // 1. หาผู้เข้าพื้นที่ทั้งหมดที่กำลัง IN และอยู่ภายใต้ผู้ติดตามรหัสนี้
+    const activeInCards = allCards.filter(c =>
+        String(c.currentStatus || '').trim().toUpperCase() === 'IN' &&
+        String(c.currentCompanionId || '').trim().toUpperCase() === cleanEscortId
+    );
+
+    // รวมกับคนที่รออยู่ในตะกร้าเดียวกัน (เช่น ในโหมดรถ)
+    const allSupervised = [...activeInCards, ...extraPendingMembers];
+    const totalActiveSupervised = allSupervised.length;
+
+    if (quotaMode === 'flexible') {
+        // --- โมเดลแบบผ่อนปรน: แยก "ไม่จำกัด (0)" ออกจากกลุ่มจำกัด (>0) ---
+        if (incomingRatio === 0) {
+            return { currentLoad: totalActiveSupervised, limit: Infinity, remaining: Infinity, allowed: true, mode: 'flexible' };
+        }
+        // กรองนับเฉพาะคนที่อยู่ในประเภทบัตรที่มีสัดส่วนจำกัด (>0)
+        const limitedSupervised = allSupervised.filter(c => {
+            const t = typeCards.find(tc => String(tc.id) === String(c.typeId));
+            return t && (parseInt(t.escortRatio) || 0) > 0;
+        });
+
+        let effectiveLimit = incomingRatio;
+        limitedSupervised.forEach(c => {
+            const t = typeCards.find(tc => String(tc.id) === String(c.typeId));
+            const r = t ? (parseInt(t.escortRatio) || 0) : 0;
+            if (r > 0 && r < effectiveLimit) effectiveLimit = r;
+        });
+
+        const currentLoad = limitedSupervised.length;
+        const remaining = Math.max(0, effectiveLimit - currentLoad);
+        return { currentLoad, limit: effectiveLimit, remaining, allowed: remaining > 0, mode: 'flexible' };
+
+    } else {
+        // --- โมเดลแบบเข้มงวดสูงสุด: นับรวมทุกบัตร และยึดสัดส่วนที่ต่ำที่สุด ---
+        const positiveRatios = [];
+        if (incomingRatio > 0) positiveRatios.push(incomingRatio);
+
+        allSupervised.forEach(c => {
+            const t = typeCards.find(tc => String(tc.id) === String(c.typeId));
+            const r = t ? (parseInt(t.escortRatio) || 0) : 0;
+            if (r > 0) positiveRatios.push(r);
+        });
+
+        if (positiveRatios.length === 0) {
+            return { currentLoad: totalActiveSupervised, limit: Infinity, remaining: Infinity, allowed: true, mode: 'strict' };
+        }
+
+        const effectiveLimit = Math.min(...positiveRatios);
+        const remaining = Math.max(0, effectiveLimit - totalActiveSupervised);
+        return { currentLoad: totalActiveSupervised, limit: effectiveLimit, remaining, allowed: remaining > 0, mode: 'strict' };
+    }
+}
+
+// ==========================================
+// ป๊อปอัปการ์ดแทรกคิว (Non-blocking Interrupt Popup)
+// ==========================================
+let interruptPopupTimer = null;
+
+function showInterruptPopup(card, typeInfo, predictedStatus, logTimeStr) {
+    const modal = document.getElementById('interruptScanModal');
+    const header = document.getElementById('intIoHeader');
+    const badge = document.getElementById('intIoBadge');
+    const bar = document.getElementById('intProgressBar');
+
+    badge.textContent = predictedStatus;
+    if (predictedStatus === 'IN') {
+        header.className = 'px-5 py-3 flex items-center justify-between text-white font-black bg-green-600';
+    } else {
+        header.className = 'px-5 py-3 flex items-center justify-between text-white font-black bg-orange-600';
+    }
+
+    document.getElementById('intPhoto').src = getFastImageUrl(card.imageUrl);
+    document.getElementById('intCardId').textContent = card.cardId;
+    document.getElementById('intFullName').textContent = `${card.firstName} ${card.lastName}`;
+    document.getElementById('intOrg').textContent = `${card.organization || '-'} ${card.position ? `(${card.position})` : ''}`;
+    document.getElementById('intExpiry').textContent = formatDateOnly(card.expiryDate);
+    document.getElementById('intTime').textContent = formatDateTime(logTimeStr).split(' | ')[1] || '';
+
+    modal.classList.remove('hidden');
+
+    // รีเซ็ตและเริ่มหลอดนับถอยหลัง 5 วินาที
+    bar.style.transition = 'none';
+    bar.style.width = '100%';
+    void bar.offsetWidth;
+    bar.style.transition = 'width 5000ms linear';
+    bar.style.width = '0%';
+
+    if (interruptPopupTimer) clearTimeout(interruptPopupTimer);
+    interruptPopupTimer = setTimeout(() => closeInterruptPopup(), 5000);
+
+    if (window.lucide) lucide.createIcons();
+}
+
+function closeInterruptPopup() {
+    if (interruptPopupTimer) clearTimeout(interruptPopupTimer);
+    document.getElementById('interruptScanModal').classList.add('hidden');
+}
+
+// บันทึกแทรกคิวโดยไม่รบกวนตะกร้ากลุ่ม
+function executeInterruptScan(gateId, card, typeInfo, predictedStatus) {
+    const recordedBy = `${currentUser.firstName} ${currentUser.lastName}`;
+    const logTimeStr = new Date().toISOString();
+    const fullName = `${card.firstName} ${card.lastName}`;
+    const scanData = { gateId, cardId: card.cardId, companionCardId: null, recordedBy, fullName, predictedStatus, scanTime: logTimeStr };
+
+    // อัปเดตความจำทันที
+    const cardIdx = allCards.findIndex(c => String(c.cardId).toUpperCase() === String(card.cardId).toUpperCase());
+    if (cardIdx !== -1) {
+        allCards[cardIdx].currentStatus = predictedStatus;
+        allCards[cardIdx].lastLogTime = logTimeStr;
+        allCards[cardIdx].currentCompanionId = '';
+    }
+
+    // อัปเดตตารางบันทึกล่าสุดด้านล่าง
+    updateRecentLogsList({
+        cardInfo: card,
+        typeInfo: typeInfo,
+        gateName: allGates.find(g => String(g.id) === String(gateId))?.name || 'System',
+        recordedBy: recordedBy,
+        companionName: '', companionCardId: '', companionOrg: ''
+    }, logTimeStr, predictedStatus);
+
+    // แสดงป๊อปอัปการ์ดแทรกคิว + เล่นเสียง
+    showInterruptPopup(card, typeInfo, predictedStatus, logTimeStr);
+    handleScanSounds(predictedStatus, card.firstName, card.lastName);
+
+    // ส่งคิวไปบันทึกเบื้องหลัง
+    if (!navigator.onLine) {
+        offlineQueue.push({ ...scanData, offlineTimestamp: logTimeStr });
+        localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
+        updateOfflineUI();
+    } else {
+        onlineScanQueue.push(scanData);
+        processScanQueue();
+    }
+}
+
+// ==========================================
+// ฟังก์ชันสแกนหลักฉบับรวมศูนย์ (Unified processMainScan)
+// ==========================================
+function processMainScan() {
+    const gateId = document.getElementById('scanGateSelect').value;
+    const mainInput = document.getElementById('scanInput');
+    const cardId = String(mainInput.value).trim().toUpperCase();
+
+    if (!gateId) return showAlert('ข้อมูลไม่ครบ', 'กรุณาเลือกจุดเข้าออกพื้นที่ก่อน', 'warning');
+    if (!cardId) return mainInput.focus();
+
+    // --- 1. โหมดยานพาหนะ ---
+    if (currentScanTarget === 'vehicle') {
+        const isVehicleCard = allVehicles.some(x => String(x.cardId).toUpperCase() === cardId);
+        if (isVehicleCard) {
+            handleVehicleScan(cardId);
+        } else {
+            if (vehicleSession.vehicle) {
+                const nowTime = Date.now();
+                if (globalScanTracker[cardId] && (nowTime - globalScanTracker[cardId]) < 5000) {
+                    mainInput.value = ''; mainInput.focus();
+                    try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
+                    return showToast(`รหัส ${cardId} เพิ่งทำรายการไป (รอ 5 วินาที)`, 'warning');
+                }
+                globalScanTracker[cardId] = nowTime;
+                handlePersonForVehicle(cardId);
+            } else {
+                showAlert('กรุณาแสกนรถก่อน', 'กรุณาแสกนบัตรรถก่อนที่จะแสกนบัตรพนักงาน', 'warning');
+            }
+        }
+        mainInput.value = ''; mainInput.focus();
+        return;
+    }
+
+    // --- 2. โหมดบุคคล ---
+    // ป้องกันแสกนรัว 5 วินาที
+    const nowTime = Date.now();
+    if (globalScanTracker[cardId] && (nowTime - globalScanTracker[cardId]) < 5000) {
+        mainInput.value = ''; mainInput.focus();
+        try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
+        return showToast(`รหัส ${cardId} เพิ่งทำรายการไป (รอ 5 วินาที)`, 'warning');
+    }
+
+    const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
+    if (!card) {
+        mainInput.value = ''; mainInput.focus();
+        return showAlert('ไม่พบข้อมูลบัตร', `บัตรหมายเลข ${cardId} ไม่พบในระบบ`, 'error');
+    }
+    if (card.status !== 'active') {
+        mainInput.value = ''; mainInput.focus();
+        return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error');
+    }
+
+    const now = new Date();
+    const expiryDate = new Date(card.expiryDate);
+    expiryDate.setHours(23, 59, 59, 999);
+    if (now > expiryDate) {
+        mainInput.value = ''; mainInput.focus();
+        return showAlert('บัตรหมดอายุ', `บัตรหมายเลข ${cardId} หมดอายุเมื่อ ${formatDateOnly(card.expiryDate)}`, 'error');
+    }
+
+    const gate = allGates.find(g => String(g.id) === String(gateId));
+    const typeInfo = typeCards.find(t => String(t.id) === String(card.typeId));
+    const predictedStatus = (String(card.currentStatus || 'OUT').trim().toUpperCase() === 'IN') ? 'OUT' : 'IN';
+
+    // ตรวจสอบสิทธิ์พื้นที่ของประตู (เฉพาะขาเข้า)
+    if (gate && gate.status === 'active' && gate.allowedAreas && predictedStatus === 'IN') {
+        const allowedStr = String(gate.allowedAreas || "");
+        if (allowedStr.trim() !== "") {
+            const requiredAreas = allowedStr.split(',').map(s => s.trim());
+            const userAreas = String(card.areaAccessIds || "").split(',').map(s => s.trim());
+            if (!requiredAreas.some(ra => userAreas.includes(ra))) {
+                mainInput.value = ''; mainInput.focus();
+                try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
+                return showAlert('ไม่อนุญาตให้เข้าพื้นที่', `บัตรหมายเลข ${cardId} ไม่มีสิทธิ์เข้าจุดนี้\n(พื้นที่ที่อนุญาต: ${allowedStr})`, 'error');
+            }
+        }
+    }
+
+    // บันทึกเวลาสแกนผ่านเกณฑ์
+    globalScanTracker[cardId] = nowTime;
+
+    // --- 3. กรณีกำลังเปิดตะกร้ากลุ่ม (และไม่ได้กดพัก) ---
+    if (groupSession.active && !groupSession.paused) {
+        mainInput.value = ''; mainInput.focus();
+
+        if (groupSession.state === 'members') {
+            // ถ้าเป็นบัตรประเภทเดียวกันกับกลุ่ม
+            if (String(card.typeId) === String(groupSession.typeInfo.id)) {
+                if (String(card.currentStatus).toUpperCase() === 'IN') {
+                    delete globalScanTracker[cardId];
+                    return showToast('บุคคลนี้อยู่ในพื้นที่แล้ว', 'warning');
+                }
+                handleGroupSessionScan(card);
+                return;
+            } else {
+                // ถ้าเป็นบัตรประเภทอื่น: เช็คว่าเป็นบัตรพนักงานปกติ (ไม่ต้องมีผู้ติดตาม) หรือไม่
+                if (!isTrue(typeInfo.requireCompanion) && !isTrue(typeInfo.isGroup)) {
+                    // ยิงแทรกคิวลูกเรือ/พนักงานอัตโนมัติ พร้อมเด้ง Pop-up การ์ด!
+                    if (systemSettings.ttsTimingMode === 'immediate') {
+                        speakImmediateGreeting(card.firstName, card.lastName);
+                    }
+                    executeInterruptScan(gateId, card, typeInfo, predictedStatus);
+                    return;
+                } else {
+                    delete globalScanTracker[cardId];
+                    try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
+                    return showAlert('ประเภทบัตรไม่ตรงกัน', `ขณะนี้กำลังสแกนกลุ่ม "${groupSession.typeInfo.typeName}"\nหากต้องการสแกนบัตรอื่นที่ต้องมีผู้ติดตาม กรุณากดปุ่ม "พักกลุ่มชั่วคราว" ด้านบนก่อนครับ`, 'warning');
+                }
+            }
+        } else if (groupSession.state === 'companions') {
+            // ขั้นที่ 2: สแกนบัตรผู้ติดตาม (อนุญาตให้ผู้ติดตามที่ IN อยู่แล้วใช้ได้ แต่ต้องผ่านเช็คโควต้า!)
+            handleGroupSessionScan(card);
+            return;
+        }
+    }
+
+    // --- 4. โหมดสแกนปกติ (หรือขณะกำลังพักกลุ่มชั่วคราว) ---
+    if (systemSettings.ttsTimingMode === 'immediate') {
+        speakImmediateGreeting(card.firstName, card.lastName);
+    }
+
+    if (isTrue(typeInfo.requireCompanion) && predictedStatus === 'IN') {
+        if (isTrue(typeInfo.isGroup)) {
+            if (groupSession.paused) {
+                delete globalScanTracker[cardId];
+                mainInput.value = ''; mainInput.focus();
+                return showAlert('มีตะกร้ากลุ่มพักค้างอยู่', 'กรุณากด "กลับไปสแกนกลุ่มต่อ" เพื่อทำรายการกลุ่มเดิมให้เสร็จก่อนครับ', 'warning');
+            }
+            initGroupSession(card, typeInfo, gateId);
+            return;
+        } else {
+            // สแกนแบบเดี่ยว 1-1 ที่ต้องมีผู้ติดตาม
+            delete globalScanTracker[cardId]; // ปลดล็อคเผื่อกดยกเลิกแล้วสแกนใหม่
+            document.getElementById('companionModalMainCardId').value = card.cardId;
+            document.getElementById('compBarcode').value = '';
+            document.getElementById('companionModal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('compBarcode').focus(), 100);
+            return;
+        }
+    }
+
+    currentDisplayCardId = card.cardId;
+    mainInput.value = ''; mainInput.focus();
+
+    showInstantUI(card, typeInfo, predictedStatus);
+    executeScanFinal(gateId, card.cardId, null, predictedStatus, `${card.firstName} ${card.lastName}`);
+}
+
+// ==========================================
+// ตรวจสอบผู้ติดตามแบบเดี่ยว / รถ (พร้อมเช็คโควต้า)
+// ==========================================
+function processCompanionScan() {
+    const gateId = document.getElementById('scanGateSelect').value;
+    const mainCardId = document.getElementById('companionModalMainCardId').value.toUpperCase();
+    const compBarcodeInp = document.getElementById('compBarcode');
+    const compCardId = compBarcodeInp.value.trim().toUpperCase();
+
+    if (!compCardId) { compBarcodeInp.focus(); return; }
+
+    const compCard = allCards.find(c => String(c.cardId).toUpperCase() === compCardId);
+    if (!compCard) { compBarcodeInp.value = ''; return showAlert('ไม่พบข้อมูล', `ไม่พบบัตรผู้ติดตามหมายเลข ${compCardId}`, 'error'); }
+    if (compCard.status !== 'active') { compBarcodeInp.value = ''; return showAlert('ถูกระงับ', `บัตรผู้ติดตามถูกระงับการใช้งาน`, 'error'); }
+    if (compCardId === mainCardId) { compBarcodeInp.value = ''; return showAlert('ข้อมูลไม่ถูกต้อง', 'บัตรหลักและบัตรผู้ติดตามต้องไม่เป็นใบเดียวกัน', 'warning'); }
+
+    const now = new Date();
+    const compExpiry = new Date(compCard.expiryDate);
+    compExpiry.setHours(23, 59, 59);
+    if (now > compExpiry) {
+        compBarcodeInp.value = '';
+        return showAlert('บัตรผู้ติดตามหมดอายุ', `บัตรผู้ติดตามคุณ ${compCard.firstName} หมดอายุแล้วเมื่อ ${formatDateOnly(compCard.expiryDate)}`, 'error');
+    }
+
+    // --- เช็คโควต้าผู้ติดตาม ---
+    let targetCard = (currentScanTarget === 'vehicle' && window.pendingVehiclePerson)
+        ? window.pendingVehiclePerson
+        : allCards.find(c => String(c.cardId).toUpperCase() === mainCardId);
+
+    const targetTypeInfo = typeCards.find(t => String(t.id) === String(targetCard.typeId)) || {};
+
+    let extraPending = [];
+    if (currentScanTarget === 'vehicle') {
+        const allInCar = [];
+        if (vehicleSession.driver) allInCar.push(vehicleSession.driver);
+        vehicleSession.passengers.forEach(p => allInCar.push(p));
+        extraPending = allInCar.filter(p => String(p.companionCardId || '').toUpperCase() === compCardId);
+    }
+
+    const quota = getEscortQuotaStatus(compCard.cardId, targetTypeInfo, extraPending);
+    if (!quota.allowed) {
+        compBarcodeInp.value = '';
+        setTimeout(() => compBarcodeInp.focus(), 100);
+        return showAlert('ผู้ติดตามโควตาเต็มแล้ว!', `คุณ ${compCard.firstName} ${compCard.lastName}\nปัจจุบันดูแลผู้เข้าพื้นที่อยู่แล้ว ${quota.currentLoad} คน (เพดานสูงสุด ${quota.limit} คน)\n\nไม่สามารถรับดูแลเพิ่มได้ กรุณาใช้บัตรผู้ติดตามท่านอื่น`, 'error');
+    }
+
+    if (currentScanTarget === 'vehicle') {
+        closeCompanionModal();
+        if (window.pendingVehiclePerson) {
+            addPersonToVehicle(window.pendingVehiclePerson, compCard);
+            window.pendingVehiclePerson = null;
+        } else {
+            showToast('เกิดข้อผิดพลาด: ไม่พบข้อมูลพนักงานหลัก', 'error');
+        }
+    } else {
+        closeCompanionModal();
+        currentDisplayCardId = targetCard.cardId;
+        globalScanTracker[targetCard.cardId] = Date.now();
+        showInstantUI(targetCard, targetTypeInfo, 'IN', compCard);
+        executeScanFinal(gateId, targetCard.cardId, compCard.cardId, 'IN', `${targetCard.firstName} ${targetCard.lastName}`);
+    }
+}
+
+// ==========================================
+// บันทึกเข้า-ออกเดี่ยว (อัปเดตสถานะผู้ติดตาม + currentCompanionId)
+// ==========================================
+async function executeScanFinal(gateId, cardId, companionCardId, predictedStatus, fullName) {
+    const recordedBy = `${currentUser.firstName} ${currentUser.lastName}`;
+    const logTimeStr = new Date().toISOString();
+    const scanData = { gateId, cardId, companionCardId, recordedBy, fullName, predictedStatus, scanTime: logTimeStr };
+
+    const cardIdx = allCards.findIndex(c => String(c.cardId).toUpperCase() === String(cardId).toUpperCase());
+    let cardInfo = { cardId: cardId, firstName: fullName.split(' ')[0], lastName: fullName.split(' ')[1] || '' };
+    let typeInfo = { typeName: 'พนักงาน' };
+    
+    if (cardIdx !== -1) {
+        allCards[cardIdx].currentStatus = predictedStatus;
+        allCards[cardIdx].lastLogTime = logTimeStr;
+        allCards[cardIdx].currentCompanionId = (predictedStatus === 'IN' && companionCardId) ? companionCardId : '';
+        cardInfo = allCards[cardIdx];
+        typeInfo = typeCards.find(t => String(t.id) === String(cardInfo.typeId)) || typeInfo;
+    }
+
+    // Smart Escort Check-in (ฝั่งหน้าเว็บ): ถ้าผู้ติดตามยัง OUT ให้อัปเดตเป็น IN พร้อมลง Log ด้านล่าง
+    let compInfoObj = null;
+    if (predictedStatus === 'IN' && companionCardId) {
+        const compIdx = allCards.findIndex(c => String(c.cardId).toUpperCase() === String(companionCardId).toUpperCase());
+        if (compIdx !== -1) {
+            compInfoObj = allCards[compIdx];
+            if (String(allCards[compIdx].currentStatus || 'OUT').trim().toUpperCase() !== 'IN') {
+                allCards[compIdx].currentStatus = 'IN';
+                allCards[compIdx].lastLogTime = logTimeStr;
+                allCards[compIdx].currentCompanionId = '';
+
+                const compType = typeCards.find(t => String(t.id) === String(compInfoObj.typeId)) || { typeName: 'พนักงาน' };
+                updateRecentLogsList({
+                    cardInfo: compInfoObj,
+                    typeInfo: compType,
+                    gateName: allGates.find(g => String(g.id) === String(gateId))?.name || 'System',
+                    recordedBy: recordedBy,
+                    companionName: '', companionCardId: '', companionOrg: ''
+                }, logTimeStr, 'IN');
+            }
+        }
+    }
+
+    confirmStatusUI(predictedStatus, logTimeStr, {
+        cardInfo: cardInfo,
+        typeInfo: typeInfo,
+        gateName: allGates.find(g => String(g.id) === String(gateId))?.name || 'System',
+        recordedBy: recordedBy,
+        ioType: predictedStatus,
+        companionCardId: compInfoObj ? compInfoObj.cardId : (companionCardId || ''),
+        companionName: compInfoObj ? `${compInfoObj.firstName} ${compInfoObj.lastName}` : '',
+        companionOrg: compInfoObj ? (compInfoObj.organization || '') : ''
+    });
+    handleScanSounds(predictedStatus, cardInfo.firstName, cardInfo.lastName);
+
+    if (!navigator.onLine) {
+        offlineQueue.push({ ...scanData, offlineTimestamp: logTimeStr });
+        localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
+        updateOfflineUI();
+        showToast('บันทึกออฟไลน์แล้ว', 'warning');
+    } else {
+        onlineScanQueue.push(scanData);
+        processScanQueue();
+    }
+}
+
+// อัปเดต triggerFaceScanSuccess (ข้าม Manual Confirm เมื่อกำลังสแกนเข้ากลุ่ม)
+function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
+    const isAlertOpen = !document.getElementById('customAlertModal').classList.contains('hidden');
+    const isCompModalOpen = !document.getElementById('companionModal').classList.contains('hidden');
+    const isCaptureModalOpen = !document.getElementById('captureModal').classList.contains('hidden');
+    
+    if (isAlertOpen || isCompModalOpen || isCaptureModalOpen || isSystemBusy) return;
+
+    if (lastScannedFaceId === cardId) return;
+    lastScannedFaceId = cardId;
+    setTimeout(() => { lastScannedFaceId = null; }, (systemSettings.aiCooldown || 10) * 1000);
+
+    const isBarcode = !descriptor;
+
+    if (currentScanTarget === 'vehicle') {
+        if (!isBarcode) {
+            if (!vehicleSession.vehicle) return;
+            try {
+                const beep = new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3');
+                beep.volume = parseFloat(systemSettings.beepVolume || 0.5);
+                beep.play();
+            } catch(e) {}
+            handlePersonForVehicle(cardId);
+            return;
+        }
+    }
+
+    const scoreValEl = document.getElementById('lowScoreVal');
+    if (scoreValEl && matchPercent) scoreValEl.textContent = matchPercent;
+
+    lastMatchData = {
+        cardId: cardId,
+        descriptor: descriptor ? JSON.stringify(Array.from(descriptor)) : null,
+        score: matchPercent || 0
+    };
+
+    const gateId = document.getElementById('scanGateSelect').value;
+    const card = allCards.find(c => String(c.cardId) === String(cardId));
+    const isGroupFlow = (groupSession.active && !groupSession.paused);
+
+    if (systemSettings.aiManualConfirm && !isBarcode && !isGroupFlow && card && gateId) {
+        const typeInfo = typeCards.find(t => String(t.id) === String(card.typeId));
+        let predictedStatus = (card.currentStatus === 'IN') ? 'OUT' : 'IN';
+        
+        if (isTrue(typeInfo.requireCompanion) && predictedStatus === 'IN' && !isTrue(typeInfo.isGroup)) {
+             document.getElementById('companionModalMainCardId').value = card.cardId;
+             document.getElementById('compBarcode').value = '';
+             document.getElementById('companionModal').classList.remove('hidden');
+             setTimeout(() => document.getElementById('compBarcode').focus(), 100);
+             return;
+        }
+        promptFaceConfirmation(card, typeInfo, predictedStatus);
+    } else {
+        const mainInput = document.getElementById('scanInput');
+        if (mainInput) {
+            mainInput.value = cardId;
+            processMainScan(); 
+        }
+    }
+}
 
 // ==========================================
 // ระบบจัดการบัตรรถหลายรายการ และ Print A4 (2x2)
