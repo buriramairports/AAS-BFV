@@ -2262,6 +2262,25 @@ gap: 1px !important;
    <!-- Modal Alert -->
    <div id="customAlertModal" class="fixed inset-0 z-[10005] hidden flex items-center justify-center p-4"><div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeAlert()"></div><div class="relative bg-white rounded-3xl w-full max-w-sm flex flex-col shadow-2xl animate-fadeIn p-8 text-center"><div id="alertIconContainer" class="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-5 shadow-inner"></div><h3 id="alertTitle" class="text-2xl font-black text-gray-800 mb-2">แจ้งเตือน</h3><p id="alertMessage" class="text-gray-600 mb-8 text-sm font-medium leading-relaxed whitespace-pre-line"></p><button onclick="closeAlert()" class="w-full py-4 rounded-xl font-bold text-lg text-white transition shadow-lg" id="alertBtn">ตกลง</button></div></div>
 
+	<!-- Modal Confirm (ดีไซน์เดียวกับหน้าต่างผู้ติดตาม ใช้แทน confirm() ของเบราว์เซอร์) -->
+<div id="customConfirmModal" class="fixed inset-0 z-[10010] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="resolveCustomConfirm(false)"></div>
+    <div id="customConfirmBox" class="relative bg-white rounded-3xl w-full max-w-sm flex flex-col shadow-2xl animate-fadeIn border-t-8 border-purple-500 p-7 text-center">
+        <div id="confirmModalIcon" class="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+            <i data-lucide="layers" class="w-8 h-8"></i>
+        </div>
+        <h3 id="confirmModalTitle" class="text-xl font-black text-gray-800 mb-2">ยืนยันการทำรายการ</h3>
+        <p id="confirmModalMessage" class="text-sm text-gray-600 mb-6 leading-relaxed"></p>
+        <div class="flex gap-3">
+            <button onclick="resolveCustomConfirm(false)" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">
+                <span id="btnCustomConfirmCancelText">ยกเลิก</span> <span class="text-[10px] opacity-60 font-normal">(ESC)</span>
+            </button>
+            <button id="btnCustomConfirmOk" onclick="resolveCustomConfirm(true)" class="flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg transition flex items-center justify-center gap-1">
+                <span id="btnCustomConfirmOkText">ยืนยัน</span> <span class="text-[10px] opacity-80 font-normal">(Enter)</span>
+            </button>
+        </div>
+    </div>
+</div>
 	<!-- ========================================================================= -->
 <!-- Modal: นำเข้าข้อมูลจำนวนมาก (Bulk Import) -->
 <div id="bulkImportModal" class="fixed inset-0 z-[100] hidden flex flex-col items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm">
@@ -4338,7 +4357,74 @@ function toggleHybridCamera() {
         lucide.createIcons();
     }
     function closeAlert() { document.getElementById('customAlertModal').classList.add('hidden'); }
-    function hideInitialSplash() { const s = document.getElementById('initialSplash'); if(s) { s.style.opacity = '0'; setTimeout(()=>s.style.display='none', 700); } }
+
+	// ==========================================
+// ระบบ Custom Confirm Modal (แทนที่ confirm() ของเบราว์เซอร์)
+// ==========================================
+let customConfirmResolver = null;
+
+function handleCustomConfirmKeydown(e) {
+    if (!customConfirmResolver) return;
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        resolveCustomConfirm(true);
+    } else if (e.key === 'Escape') {
+        e.preventDefault();
+        resolveCustomConfirm(false);
+    }
+}
+
+function showCustomConfirm({ title = 'ยืนยันการทำรายการ', message = '', confirmText = 'ยืนยัน', cancelText = 'ยกเลิก', theme = 'purple', icon = 'layers' }) {
+    return new Promise((resolve) => {
+        customConfirmResolver = resolve;
+
+        const modal = document.getElementById('customConfirmModal');
+        const box = document.getElementById('customConfirmBox');
+        const iconBox = document.getElementById('confirmModalIcon');
+        const btnOk = document.getElementById('btnCustomConfirmOk');
+
+        document.getElementById('confirmModalTitle').textContent = title;
+        document.getElementById('confirmModalMessage').innerHTML = message;
+        document.getElementById('btnCustomConfirmOkText').textContent = confirmText;
+        document.getElementById('btnCustomConfirmCancelText').textContent = cancelText;
+
+        if (theme === 'red') {
+            box.className = 'relative bg-white rounded-3xl w-full max-w-sm flex flex-col shadow-2xl animate-fadeIn border-t-8 border-red-500 p-7 text-center';
+            iconBox.className = 'w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner';
+            btnOk.className = 'flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg transition flex items-center justify-center gap-1';
+        } else {
+            box.className = 'relative bg-white rounded-3xl w-full max-w-sm flex flex-col shadow-2xl animate-fadeIn border-t-8 border-purple-500 p-7 text-center';
+            iconBox.className = 'w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner';
+            btnOk.className = 'flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg transition flex items-center justify-center gap-1';
+        }
+
+        iconBox.innerHTML = `<i data-lucide="${icon}" class="w-8 h-8"></i>`;
+        modal.classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+
+        // หน่วง 80ms กันปุ่ม Enter จากตอนยิงบาร์โค้ดมากดซ้ำเอง และโฟกัสปุ่มยืนยัน
+        setTimeout(() => {
+            window.addEventListener('keydown', handleCustomConfirmKeydown);
+            btnOk.focus();
+        }, 80);
+    });
+}
+
+function resolveCustomConfirm(result) {
+    window.removeEventListener('keydown', handleCustomConfirmKeydown);
+    document.getElementById('customConfirmModal').classList.add('hidden');
+    if (customConfirmResolver) {
+        const res = customConfirmResolver;
+        customConfirmResolver = null;
+        res(result);
+    }
+    setTimeout(() => {
+        const scanInp = document.getElementById('scanInput');
+        if (scanInp && currentPage === 'home') scanInp.focus();
+    }, 50);
+}
+	  
+	function hideInitialSplash() { const s = document.getElementById('initialSplash'); if(s) { s.style.opacity = '0'; setTimeout(()=>s.style.display='none', 700); } }
    /* function formatDateTime(dStr) {
         if(!dStr) return '-'; const d = new Date(dStr);
         // เอา .substring(0,3) ออกเพื่อให้แสดงเดือนเต็ม และเติมคำว่า "เวลา " เข้าไป
@@ -4358,6 +4444,9 @@ function toggleHybridCamera() {
     setInterval(() => {
         if(currentPage === 'home') {
             const isCompOpen = !document.getElementById('companionModal').classList.contains('hidden');
+			const isCustomConfirmOpen = !document.getElementById('customConfirmModal').classList.contains('hidden');
+            if (isCustomConfirmOpen) return; // ถ้าป๊อปอัปยืนยันเปิดอยู่ ห้ามแย่ง Focus
+			
             const activeEl = document.activeElement;
             // ถ้ากำลังกรอกอะไรอย่างอื่นอยู่ (เช่น dropdown เลือกประตู) ให้ข้ามไปก่อน
             if(activeEl.tagName === 'SELECT' || activeEl.tagName === 'BUTTON') return;
@@ -10144,8 +10233,17 @@ function resumePausedGroup(basketId) {
     renderGroupStagingUI();
 }
 
-function cancelPausedGroup(basketId) {
-    if (!confirm('ยืนยันยกเลิกและลบกลุ่มที่พักไว้นี้ทิ้ง?')) return;
+async function cancelPausedGroup(basketId) {
+    const ok = await showCustomConfirm({
+        title: 'ยกเลิกกลุ่มที่พักไว้',
+        message: 'ยืนยันยกเลิกและลบข้อมูลกลุ่มที่พักไว้นี้ทิ้งหรือไม่?',
+        confirmText: 'ลบทิ้ง',
+        cancelText: 'เก็บไว้',
+        theme: 'red',
+        icon: 'trash-2'
+    });
+    if (!ok) return;
+
     pausedGroupSessions = pausedGroupSessions.filter(b => b.basketId !== basketId);
     renderPausedBasketsBar();
     if (!groupSession.active && pausedGroupSessions.length === 0) {
@@ -11666,7 +11764,7 @@ function executeInterruptScan(gateId, card, typeInfo, predictedStatus, compCard 
 // ==========================================
 // 3. ฟังก์ชันสแกนหลัก (รองรับแทรกคิวช่างแบบเดี่ยว + ขาออกทุกประเภท + Multi-Basket)
 // ==========================================
-function processMainScan() {
+async function processMainScan() {
     const gateId = document.getElementById('scanGateSelect').value;
     const mainInput = document.getElementById('scanInput');
     const cardId = String(mainInput.value).trim().toUpperCase();
@@ -11783,13 +11881,22 @@ function processMainScan() {
                 setTimeout(() => document.getElementById('compBarcode').focus(), 100);
                 return;
             } else {
-                // บัตรแบบกลุ่มอีกประเภทหนึ่ง! ถามว่าต้องการพักตะกร้าปัจจุบันแล้วเปิดตะกร้าใหม่เลยไหม
+                // บัตรแบบกลุ่มอีกประเภทหนึ่ง! แสดง Custom Confirm Modal สวยๆ
                 delete globalScanTracker[cardId];
-                if (confirm(`พบบัตรกลุ่มประเภท "${typeInfo.typeName}"\nต้องการพักตะกร้าปัจจุบัน (${groupSession.typeInfo.typeName}) ไว้ชั่วคราว เพื่อเปิดตะกร้ากลุ่มใหม่เลยหรือไม่?`)) {
+                const ok = await showCustomConfirm({
+                    title: 'พบกลุ่มประเภทใหม่',
+                    message: `บัตรของ <b class="text-gray-900">${card.firstName} ${card.lastName}</b> (${card.cardId})<br>อยู่ในกลุ่ม <span class="inline-block bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-lg font-bold mt-1.5 mb-2">${typeInfo.typeName}</span><br>ต้องการพักตะกร้าปัจจุบัน (<span class="text-orange-600 font-bold">${groupSession.typeInfo.typeName}</span>) ไว้ชั่วคราว เพื่อเปิดตะกร้ากลุ่มใหม่เลยหรือไม่?`,
+                    confirmText: 'เปิดกลุ่มใหม่',
+                    cancelText: 'ยกเลิก',
+                    theme: 'purple',
+                    icon: 'layers'
+                });
+
+                if (ok) {
                     if (pausedGroupSessions.length >= 3) {
                         return showAlert('พักตะกร้าเต็มโควตาแล้ว', 'สามารถพักกลุ่มค้างไว้ได้สูงสุด 3 กลุ่ม กรุณาบันทึกหรือยกเลิกกลุ่มที่พักไว้ก่อนครับ', 'warning');
                     }
-                    pauseGroupSession(true); // พักเงียบๆ แล้วเปิดกลุ่มใหม่ทับทันที
+                    pauseGroupSession(true);
                     initGroupSession(card, typeInfo, gateId);
                 }
                 return;
@@ -11977,8 +12084,9 @@ function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
     const isAlertOpen = !document.getElementById('customAlertModal').classList.contains('hidden');
     const isCompModalOpen = !document.getElementById('companionModal').classList.contains('hidden');
     const isCaptureModalOpen = !document.getElementById('captureModal').classList.contains('hidden');
-    
-    if (isAlertOpen || isCompModalOpen || isCaptureModalOpen || isSystemBusy) return;
+	const isCustomConfirmModal = !document.getElementById('customConfirmModal').classList.contains('hidden');
+	
+    if (isAlertOpen || isCompModalOpen || isCaptureModalOpen || isSystemBusy || isCustomConfirmModal) return;
 
     if (lastScannedFaceId === cardId) return;
     lastScannedFaceId = cardId;
