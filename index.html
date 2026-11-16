@@ -2750,6 +2750,7 @@ let cachedPersonHTML = null;
 let cachedVehicleHTML = null;
 let cachedGroupHTML = null;
 let originalGroupStagingHTML = null; // <--- เพิ่มบรรทัดนี้ สำหรับเก็บสำเนาฟอร์มตะกร้า
+let originalVehicleStagingHTML = null;
 	  
     let allVehicles = [], typeVehicles = [], currentFilteredVehicles = [];
     // Data Caches
@@ -3188,110 +3189,9 @@ async function cancelPausedVehicle() {
     renderPausedVehicleBar();
 }
 
-function drawVehicleStagingHeader(v, mode) {
-    document.getElementById('scanResultEmpty').classList.add('hidden');
-    document.getElementById('scanResultData').classList.add('hidden');
-    const groupArea = document.getElementById('groupStagingArea');
-    if (groupArea) groupArea.classList.add('hidden');
-    document.getElementById('vehicleStagingArea').classList.remove('hidden');
 
-    document.getElementById('stgVehicleReg').textContent = v.vehicleReg;
-    document.getElementById('stgVehicleId').textContent = v.cardId;
 
-    const areaIds = String(v.areaAccessIds || '').split(',').filter(x => x !== "");
-    const gateIds = String(v.allowedGateIds || '').split(',').filter(x => x !== "");
-    const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
 
-    document.getElementById('stgVehicleDetails').innerHTML = `
-        <div class="bg-white border-2 border-slate-100 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
-            <div class="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center mb-2"><i data-lucide="building-2" class="w-5 h-5"></i></div>
-            <span class="text-[9px] font-black text-slate-400 uppercase mb-1">หน่วยงาน / สังกัด</span>
-            <p class="text-base font-black text-slate-700 leading-tight">${v.organization || 'ไม่ระบุ'}</p>
-        </div>
-        <div class="bg-white border-2 border-blue-50 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
-            <div class="w-10 h-10 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-2"><i data-lucide="map-pin" class="w-5 h-5"></i></div>
-            <span class="text-[9px] font-black text-blue-400 uppercase mb-1">จุดเข้าออกที่อนุญาต</span>
-            <p class="text-sm font-bold text-blue-800 leading-tight">${gateNames || 'ทุกจุดเข้า-ออก'}</p>
-        </div>
-        <div class="bg-white border-2 border-indigo-50 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
-            <div class="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mb-2"><i data-lucide="shield-check" class="w-5 h-5"></i></div>
-            <span class="text-[9px] font-black text-indigo-400 uppercase mb-2">พื้นที่ (Zone Access)</span>
-            <div class="flex flex-wrap justify-center gap-1.5">
-                ${areaIds.length > 0 ? areaIds.map(num => {
-                    const area = allAreas.find(a => String(a.areaNumber) === String(num));
-                    const color = area ? area.colorCode : '#4f46e5';
-                    return `<span style="background-color: ${color}; color: ${getContrastYIQ(color)}" class="w-8 h-8 rounded-lg flex items-center justify-center text-lg font-black shadow-sm">${num}</span>`;
-                }).join('') : '<span class="text-xs font-bold text-slate-300 italic">ไม่มีสิทธิ์</span>'}
-            </div>
-        </div>
-        <div class="bg-red-50 border-2 border-red-100 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center relative overflow-hidden">
-            <div class="absolute -right-2 -bottom-2 opacity-10 rotate-12 text-red-600"><i data-lucide="calendar-off" class="w-16 h-16"></i></div>
-            <div class="w-10 h-10 bg-white text-red-500 rounded-full flex items-center justify-center mb-2 shadow-sm"><i data-lucide="calendar" class="w-5 h-5"></i></div>
-            <span class="text-[9px] font-black text-red-400 uppercase mb-1">วันหมดอายุบัตรรถ</span>
-            <p class="text-lg font-black text-red-600 leading-none">${formatDateOnly(v.expiryDate)}</p>
-        </div>
-    `;
-
-    const badge = document.getElementById('stgIoBadge');
-    badge.textContent = mode;
-    badge.className = `w-full text-center py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.15em] transition-colors duration-500 uppercase ${mode === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
-}
-
-async function handleVehicleScan(cardId) {
-    vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
-    vehicleInterruptNext = false;
-    pausedVehicleSession = null;
-    renderPausedVehicleBar();
-
-    const btnSave = document.getElementById('btnSaveVehicle');
-    const mainInput = document.getElementById('scanInput');
-
-    if (btnSave) { 
-        btnSave.disabled = true; 
-        btnSave.textContent = "บันทึกข้อมูล";
-        btnSave.classList.remove('bg-gray-400', 'bg-emerald-600');
-        btnSave.classList.add('bg-blue-600');
-        btnSave.onclick = saveVehicleSession;
-    }
-
-    const v = allVehicles.find(x => String(x.cardId).toUpperCase() === cardId.toUpperCase());
-    if (!v) return showAlert('ไม่พบข้อมูลรถ', `ไม่พบรหัสรถ ${cardId} ในระบบ`, 'error');
-    if (v.status !== 'active') return showAlert('รถถูกระงับ', `รถคันนี้ถูกระงับการใช้งาน`, 'error');
-    if (new Date() > new Date(v.expiryDate).setHours(23, 59, 59)) {
-        return showAlert('รถหมดอายุ', `บัตรรถหมดอายุแล้วเมื่อ ${formatDateOnly(v.expiryDate)}`, 'error');
-    }
-
-    const gateId = document.getElementById('scanGateSelect').value;
-    const gate = allGates.find(g => String(g.id) === String(gateId));
-    if (v.currentStatus !== 'IN' && gate && gate.allowedAreas) {
-        const gateAreas = String(gate.allowedAreas).split(',').map(s => s.trim());
-        const vehicleAreas = String(v.areaAccessIds || "").split(',').map(s => s.trim());
-        if (!gateAreas.some(area => vehicleAreas.includes(area))) {
-            mainInput.value = ''; mainInput.focus();
-            try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
-            return showAlert('รถไม่มีสิทธิ์เข้าพื้นที่', `บัตรรถรหัส ${v.cardId} ไม่มีสิทธิ์ผ่านจุดนี้\n(พื้นที่ที่อนุญาต: ${gate.allowedAreas})`, 'error');
-        }
-    }
-
-    vehicleSession.vehicle = v;
-    vehicleSession.mode = (v.currentStatus === 'IN') ? 'OUT' : 'IN';
-    drawVehicleStagingHeader(v, vehicleSession.mode);
-
-    if (vehicleSession.mode === 'OUT') {
-        showLoader('กำลังตรวจสอบพนักงานในรถ...');
-        try {
-            const peopleIn = await apiCall('getPeopleInVehicle', { vehicleCardId: v.cardId }, false);
-            vehicleSession.driver = peopleIn.find(p => p.isDriver === true) || null;
-            vehicleSession.passengers = peopleIn.filter(p => p.isDriver !== true) || [];
-            if(peopleIn.length > 0) showToast('ดึงข้อมูลรายชื่อพนักงานสำเร็จ', 'success');
-        } catch(e) { console.error(e); }
-        hideLoader();
-    }
-
-    updateVehicleInterruptBtnUI();
-    renderStagingList();
-    if(window.lucide) lucide.createIcons();
-}
 
 // สแกนคนขึ้นรถแบบกลุ่ม (ไม่เด้ง Modal 1-1 ระหว่างสแกนแล้ว!)
 async function handlePersonForVehicle(cardId) {
@@ -3309,104 +3209,9 @@ async function handlePersonForVehicle(cardId) {
     addPersonToVehicle(person);
 }
 
-function renderStagingList() {
-    const list = document.getElementById('stgPeopleList');
-    const btnSave = document.getElementById('btnSaveVehicle');
-    let html = '';
 
-    const drawItem = (p, isDriver, index) => {
-        const areaIds = String(p.areaAccessIds || '').split(',').filter(x=>x);
-        const expDate = new Date(p.expiryDate);
-        const isExp = expDate.setHours(23,59,59) < new Date();
-        const imgUrl = getFastImageUrl(p.imageUrl);
-        const tInfo = typeCards.find(t => String(t.id) === String(p.typeId)) || {};
-        const needsEscort = (vehicleSession.mode === 'IN' && isTrue(tInfo.requireCompanion));
-        const ratio = parseInt(tInfo.escortRatio) || 0;
 
-        return `
-        <div class="p-4 ${isDriver?'bg-amber-50/50 border-amber-300':'bg-white border-slate-100'} border-2 rounded-[2rem] shadow-sm animate-fadeIn mb-3 transition-all">
-            <div class="grid grid-cols-[80px_1fr_200px_100px_150px_110px] items-center gap-4">
-                <div class="relative shrink-0">
-                    <img src="${imgUrl}" crossorigin="anonymous" class="w-16 h-16 rounded-2xl object-cover border-4 border-white shadow-md">
-                    <span class="absolute -bottom-2 -right-1 text-[8px] font-black ${isDriver?'bg-amber-500':'bg-slate-500'} text-white px-2 py-0.5 rounded-full uppercase border-2 border-white shadow-sm">${isDriver?'Driver':'Pax'}</span>
-                </div>
 
-                <div class="overflow-hidden">
-                    <p class="text-xl font-black text-gray-800 leading-tight truncate">${p.firstName} ${p.lastName}</p>
-                    <div class="flex flex-wrap items-center gap-2 mt-0.5">
-                        <p class="text-base font-bold text-blue-600">${p.cardId}</p>
-                        ${needsEscort ? `<span class="text-[10px] font-black bg-orange-100 text-orange-700 px-2 py-0.5 rounded-lg border border-orange-200">⚠️ ต้องมีผู้ติดตาม (1:${ratio===0?'ไม่จำกัด':ratio})</span>` : ''}
-                    </div>
-                </div>
-
-                <div class="shrink-0 overflow-hidden pr-2">
-                    <span class="text-[9px] font-black text-gray-400 uppercase block mb-1">หน่วยงาน / ตำแหน่ง</span>
-                    <p class="text-base font-bold text-gray-700 truncate leading-tight">${p.organization || '-'}</p>
-                    <p class="text-xs font-medium text-gray-500 truncate">${p.position || '-'}</p>
-                </div>
-
-                <div class="shrink-0 text-center">
-                    <span class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Zone</span>
-                    <div class="flex gap-1 justify-center">
-                        ${areaIds.map(num => {
-                            const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
-                            const color = areaSetting ? areaSetting.colorCode : '#4f46e5';
-                            const textColor = getContrastYIQ(color);
-                            return `<div style="background-color: ${color}; color: ${textColor}; border-color: ${color}" class="w-10 h-10 rounded-xl flex flex-col items-center justify-center shadow-md border-2 filter brightness-95"><span class="text-lg font-black leading-none">${num}</span></div>`;
-                        }).join('')}
-                    </div>
-                </div>
-
-                <div class="shrink-0 text-right pr-4">
-                    <span class="text-[9px] font-black text-gray-400 uppercase block mb-1">วันหมดอายุ</span>
-                    <p class="text-base font-black ${isExp?'text-red-600':'text-slate-800'}">${formatDateOnly(p.expiryDate)}</p>
-                </div>
-
-                <div class="flex gap-1 justify-end shrink-0">
-                    ${(isDriver === false && vehicleSession.mode === 'IN') ? `
-                        <button onclick="swapToDriver(${index})" class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-50" title="สลับเป็นคนขับ">
-                            <i data-lucide="refresh-cw" class="w-5 h-5"></i>
-                        </button>` : ''}
-                    <button onclick="${isDriver?'removeDriver()':'removePassenger('+index+')'}" class="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition shadow-sm border border-red-50" title="ลบออก">
-                        <i data-lucide="trash-2" class="w-5 h-5"></i>
-                    </button>
-                </div>
-            </div>
-        </div>`;
-    };
-
-    if (vehicleSession.driver) html += drawItem(vehicleSession.driver, true);
-    vehicleSession.passengers.forEach((p, i) => html += drawItem(p, false, i));
-
-    list.innerHTML = html || '<div class="py-20 text-center text-gray-300 italic flex flex-col items-center gap-2"><i data-lucide="scan-line" class="w-16 h-16 opacity-10"></i><p class="font-bold">รอการแสกนบัตรพนักงาน...</p></div>';
-    document.getElementById('stgCount').textContent = (vehicleSession.driver ? 1 : 0) + vehicleSession.passengers.length + ' คน';
-    
-    btnSave.disabled = (vehicleSession.mode === 'IN' && !vehicleSession.driver);
-    updateVehicleInterruptBtnUI();
-    lucide.createIcons();
-}
-
-function cancelVehicleSession() {
-    vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
-    vehicleInterruptNext = false;
-    updateVehicleInterruptBtnUI();
-
-    document.getElementById('scanResultData').classList.add('hidden');
-    if (cachedVehicleHTML) {
-        const staging = document.getElementById('vehicleStagingArea');
-        staging.innerHTML = cachedVehicleHTML;
-        staging.classList.remove('hidden');
-        document.getElementById('scanResultEmpty').classList.add('hidden');
-    } else {
-        document.getElementById('vehicleStagingArea').classList.add('hidden');
-        document.getElementById('scanResultEmpty').classList.remove('hidden');
-    }
-
-    const input = document.getElementById('scanInput');
-    input.placeholder = currentScanTarget === 'vehicle' ? "แสกนรหัสบัตรรถ..." : "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
-    input.value = ''; input.focus();
-    if (window.lucide) lucide.createIcons();
-}
 
 // ==========================================
 // หน้าต่างจัดการผู้ติดตามของรถ (เลือกคนในรถ + สแกนเพิ่ม + โควต้า)
@@ -3644,96 +3449,399 @@ function confirmVehicleCompanionsAndSave() {
     executeSaveVehicleToServer(peopleToSave);
 }
 
+function drawVehicleStagingHeader(v, mode) {
+    const area = document.getElementById('vehicleStagingArea');
+    if (!originalVehicleStagingHTML) {
+        originalVehicleStagingHTML = area.innerHTML;
+    } else {
+        area.innerHTML = originalVehicleStagingHTML;
+    }
+
+    document.getElementById('scanResultEmpty').classList.add('hidden');
+    document.getElementById('scanResultData').classList.add('hidden');
+    const groupArea = document.getElementById('groupStagingArea');
+    if (groupArea) groupArea.classList.add('hidden');
+    area.classList.remove('hidden');
+
+    const toolbar = document.getElementById('vehicleActionToolbar');
+    if (toolbar) toolbar.classList.remove('hidden');
+
+    document.getElementById('stgVehicleReg').textContent = v.vehicleReg;
+    document.getElementById('stgVehicleId').textContent = v.cardId;
+
+    const areaIds = String(v.areaAccessIds || '').split(',').filter(x => x !== "");
+    const gateIds = String(v.allowedGateIds || '').split(',').filter(x => x !== "");
+    const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
+
+    document.getElementById('stgVehicleDetails').innerHTML = `
+        <div class="bg-white border-2 border-slate-100 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
+            <div class="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center mb-2"><i data-lucide="building-2" class="w-5 h-5"></i></div>
+            <span class="text-[9px] font-black text-slate-400 uppercase mb-1">หน่วยงาน / สังกัด</span>
+            <p class="text-base font-black text-slate-700 leading-tight">${v.organization || 'ไม่ระบุ'}</p>
+        </div>
+        <div class="bg-white border-2 border-blue-50 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
+            <div class="w-10 h-10 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-2"><i data-lucide="map-pin" class="w-5 h-5"></i></div>
+            <span class="text-[9px] font-black text-blue-400 uppercase mb-1">จุดเข้าออกที่อนุญาต</span>
+            <p class="text-sm font-bold text-blue-800 leading-tight">${gateNames || 'ทุกจุดเข้า-ออก'}</p>
+        </div>
+        <div class="bg-white border-2 border-indigo-50 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
+            <div class="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mb-2"><i data-lucide="shield-check" class="w-5 h-5"></i></div>
+            <span class="text-[9px] font-black text-indigo-400 uppercase mb-2">พื้นที่ (Zone Access)</span>
+            <div class="flex flex-wrap justify-center gap-1.5">
+                ${areaIds.length > 0 ? areaIds.map(num => {
+                    const area = allAreas.find(a => String(a.areaNumber) === String(num));
+                    const color = area ? area.colorCode : '#4f46e5';
+                    return `<span style="background-color: ${color}; color: ${getContrastYIQ(color)}" class="w-8 h-8 rounded-lg flex items-center justify-center text-lg font-black shadow-sm">${num}</span>`;
+                }).join('') : '<span class="text-xs font-bold text-slate-300 italic">ไม่มีสิทธิ์</span>'}
+            </div>
+        </div>
+        <div class="bg-red-50 border-2 border-red-100 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center relative overflow-hidden">
+            <div class="absolute -right-2 -bottom-2 opacity-10 rotate-12 text-red-600"><i data-lucide="calendar-off" class="w-16 h-16"></i></div>
+            <div class="w-10 h-10 bg-white text-red-500 rounded-full flex items-center justify-center mb-2 shadow-sm"><i data-lucide="calendar" class="w-5 h-5"></i></div>
+            <span class="text-[9px] font-black text-red-400 uppercase mb-1">วันหมดอายุบัตรรถ</span>
+            <p class="text-lg font-black text-red-600 leading-none">${formatDateOnly(v.expiryDate)}</p>
+        </div>
+    `;
+
+    const badge = document.getElementById('stgIoBadge');
+    badge.textContent = mode;
+    badge.className = `w-full text-center py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.15em] transition-colors duration-500 uppercase ${mode === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+}
+
+async function handleVehicleScan(cardId) {
+    vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
+    vehicleInterruptNext = false;
+    pausedVehicleSession = null;
+    renderPausedVehicleBar();
+
+    const mainInput = document.getElementById('scanInput');
+    const v = allVehicles.find(x => String(x.cardId).toUpperCase() === cardId.toUpperCase());
+    if (!v) return showAlert('ไม่พบข้อมูลรถ', `ไม่พบรหัสรถ ${cardId} ในระบบ`, 'error');
+    if (v.status !== 'active') return showAlert('รถถูกระงับ', `รถคันนี้ถูกระงับการใช้งาน`, 'error');
+    if (new Date() > new Date(v.expiryDate).setHours(23, 59, 59)) {
+        return showAlert('รถหมดอายุ', `บัตรรถหมดอายุแล้วเมื่อ ${formatDateOnly(v.expiryDate)}`, 'error');
+    }
+
+    const gateId = document.getElementById('scanGateSelect').value;
+    const gate = allGates.find(g => String(g.id) === String(gateId));
+    if (v.currentStatus !== 'IN' && gate && gate.allowedAreas) {
+        const gateAreas = String(gate.allowedAreas).split(',').map(s => s.trim());
+        const vehicleAreas = String(v.areaAccessIds || "").split(',').map(s => s.trim());
+        if (!gateAreas.some(area => vehicleAreas.includes(area))) {
+            mainInput.value = ''; mainInput.focus();
+            try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
+            return showAlert('รถไม่มีสิทธิ์เข้าพื้นที่', `บัตรรถรหัส ${v.cardId} ไม่มีสิทธิ์ผ่านจุดนี้\n(พื้นที่ที่อนุญาต: ${gate.allowedAreas})`, 'error');
+        }
+    }
+
+    vehicleSession.vehicle = v;
+    vehicleSession.mode = (v.currentStatus === 'IN') ? 'OUT' : 'IN';
+    drawVehicleStagingHeader(v, vehicleSession.mode);
+
+    if (vehicleSession.mode === 'OUT') {
+        // 1. ค้นหาจากความจำในเครื่องทันที (0 วินาที ไม่ต้องรอ Loader!)
+        const peopleInMemory = allCards.filter(c =>
+            String(c.currentStatus || '').trim().toUpperCase() === 'IN' &&
+            String(c.currentVehicleId || '').trim().toUpperCase() === String(v.cardId).trim().toUpperCase()
+        ).map(c => ({ ...c, isDriver: isTrue(c.currentIsDriver) }));
+
+        if (peopleInMemory.length > 0) {
+            vehicleSession.driver = peopleInMemory.find(p => p.isDriver === true) || null;
+            vehicleSession.passengers = peopleInMemory.filter(p => p.isDriver !== true) || [];
+            showToast(`พบพนักงานในรถ ${peopleInMemory.length} คน`, 'success');
+        } else {
+            // 2. Fallback (เฉพาะกรณีรถเข้ามาก่อนอัปเกรด): ดึงจาก Server (แบบความเร็วสูงแล้ว)
+            try {
+                const peopleIn = await apiCall('getPeopleInVehicle', { vehicleCardId: v.cardId }, false);
+                vehicleSession.driver = peopleIn.find(p => p.isDriver === true) || null;
+                vehicleSession.passengers = peopleIn.filter(p => p.isDriver !== true) || [];
+            } catch(e) { console.error(e); }
+        }
+    }
+
+    updateVehicleInterruptBtnUI();
+    renderStagingList();
+    if(window.lucide) lucide.createIcons();
+}
+
+function renderStagingList() {
+    const list = document.getElementById('stgPeopleList');
+    const btnSave = document.getElementById('btnSaveVehicle');
+    let html = '';
+
+    const drawItem = (p, isDriver, index) => {
+        const areaIds = String(p.areaAccessIds || '').split(',').filter(x=>x);
+        const expDate = new Date(p.expiryDate);
+        const isExp = expDate.setHours(23,59,59) < new Date();
+        const imgUrl = getFastImageUrl(p.imageUrl);
+        const tInfo = typeCards.find(t => String(t.id) === String(p.typeId)) || {};
+        const needsEscort = (vehicleSession.mode === 'IN' && isTrue(tInfo.requireCompanion));
+        const ratio = parseInt(tInfo.escortRatio) || 0;
+        const alreadyIn = (vehicleSession.mode === 'IN' && String(p.currentStatus || 'OUT').trim().toUpperCase() === 'IN');
+
+        return `
+        <div class="p-4 ${isDriver?'bg-amber-50/50 border-amber-300':'bg-white border-slate-100'} border-2 rounded-[2rem] shadow-sm animate-fadeIn mb-3 transition-all">
+            <div class="grid grid-cols-[80px_1fr_200px_100px_150px_110px] items-center gap-4">
+                <div class="relative shrink-0">
+                    <img src="${imgUrl}" crossorigin="anonymous" class="w-16 h-16 rounded-2xl object-cover border-4 border-white shadow-md">
+                    <span class="absolute -bottom-2 -right-1 text-[8px] font-black ${isDriver?'bg-amber-500':'bg-slate-500'} text-white px-2 py-0.5 rounded-full uppercase border-2 border-white shadow-sm">${isDriver?'Driver':'Pax'}</span>
+                </div>
+
+                <div class="overflow-hidden">
+                    <p class="text-xl font-black text-gray-800 leading-tight truncate">${p.firstName} ${p.lastName}</p>
+                    <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
+                        <p class="text-base font-bold text-blue-600">${p.cardId}</p>
+                        ${needsEscort ? `<span class="text-[10px] font-black bg-orange-100 text-orange-700 px-2 py-0.5 rounded-lg border border-orange-200">⚠️ ต้องมีผู้ติดตาม (1:${ratio===0?'ไม่จำกัด':ratio})</span>` : ''}
+                        ${alreadyIn ? `<span class="text-[10px] font-black bg-sky-100 text-sky-700 px-2 py-0.5 rounded-lg border border-sky-200">ℹ️ IN อยู่แล้ว (ไม่ลง Log IN ซ้ำ)</span>` : ''}
+                    </div>
+                </div>
+
+                <div class="shrink-0 overflow-hidden pr-2">
+                    <span class="text-[9px] font-black text-gray-400 uppercase block mb-1">หน่วยงาน / ตำแหน่ง</span>
+                    <p class="text-base font-bold text-gray-700 truncate leading-tight">${p.organization || '-'}</p>
+                    <p class="text-xs font-medium text-gray-500 truncate">${p.position || '-'}</p>
+                </div>
+
+                <div class="shrink-0 text-center">
+                    <span class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Zone</span>
+                    <div class="flex gap-1 justify-center">
+                        ${areaIds.map(num => {
+                            const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
+                            const color = areaSetting ? areaSetting.colorCode : '#4f46e5';
+                            const textColor = getContrastYIQ(color);
+                            return `<div style="background-color: ${color}; color: ${textColor}; border-color: ${color}" class="w-10 h-10 rounded-xl flex flex-col items-center justify-center shadow-md border-2 filter brightness-95"><span class="text-lg font-black leading-none">${num}</span></div>`;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <div class="shrink-0 text-right pr-4">
+                    <span class="text-[9px] font-black text-gray-400 uppercase block mb-1">วันหมดอายุ</span>
+                    <p class="text-base font-black ${isExp?'text-red-600':'text-slate-800'}">${formatDateOnly(p.expiryDate)}</p>
+                </div>
+
+                <div class="flex gap-1 justify-end shrink-0">
+                    ${(isDriver === false && vehicleSession.mode === 'IN') ? `
+                        <button onclick="swapToDriver(${index})" class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-50" title="สลับเป็นคนขับ">
+                            <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                        </button>` : ''}
+                    <button onclick="${isDriver?'removeDriver()':'removePassenger('+index+')'}" class="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition shadow-sm border border-red-50" title="ลบออก">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    };
+
+    if (vehicleSession.driver) html += drawItem(vehicleSession.driver, true);
+    vehicleSession.passengers.forEach((p, i) => html += drawItem(p, false, i));
+
+    list.innerHTML = html || '<div class="py-20 text-center text-gray-300 italic flex flex-col items-center gap-2"><i data-lucide="scan-line" class="w-16 h-16 opacity-10"></i><p class="font-bold">รอการแสกนบัตรพนักงาน...</p></div>';
+    document.getElementById('stgCount').textContent = (vehicleSession.driver ? 1 : 0) + vehicleSession.passengers.length + ' คน';
+    
+    btnSave.disabled = (vehicleSession.mode === 'IN' && !vehicleSession.driver);
+    updateVehicleInterruptBtnUI();
+    lucide.createIcons();
+}
+
+function cancelVehicleSession() {
+    vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
+    vehicleInterruptNext = false;
+
+    document.getElementById('scanResultData').classList.add('hidden');
+    if (cachedVehicleHTML) {
+        const staging = document.getElementById('vehicleStagingArea');
+        staging.innerHTML = cachedVehicleHTML;
+        staging.classList.remove('hidden');
+        document.getElementById('scanResultEmpty').classList.add('hidden');
+    } else {
+        document.getElementById('vehicleStagingArea').classList.add('hidden');
+        document.getElementById('scanResultEmpty').classList.remove('hidden');
+    }
+
+    const input = document.getElementById('scanInput');
+    input.placeholder = currentScanTarget === 'vehicle' ? "แสกนรหัสบัตรรถ..." : "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
+    input.classList.remove('border-orange-500', 'border-purple-500', 'border-indigo-500');
+    input.classList.add(currentScanTarget === 'vehicle' ? 'border-blue-400' : 'border-green-400');
+    input.value = ''; input.focus();
+    if (window.lucide) lucide.createIcons();
+}
+
+// บันทึกรถแบบ Non-blocking Background Queue (0 วินาทีเหมือนบัตรคน!)
 async function executeSaveVehicleToServer(peopleToSave) {
     const gateId = document.getElementById('scanGateSelect').value;
     const gate = allGates.find(g => String(g.id) === String(gateId));
+    const gateName = gate ? gate.name : "System";
+    const nowIso = new Date().toISOString();
 
-    showLoader('กำลังบันทึกข้อมูลและอัปเดตสถานะ...');
-    try {
-        const res = await apiCall('processBulkVehicleScan', {
-            gateId: gateId,
-            vehicleCardId: vehicleSession.vehicle.cardId,
-            ioType: vehicleSession.mode,
-            people: peopleToSave,
-            recordedBy: `${currentUser.firstName} ${currentUser.lastName}`
-        });
+    const payload = {
+        gateId: gateId,
+        vehicleCardId: vehicleSession.vehicle.cardId,
+        ioType: vehicleSession.mode,
+        people: peopleToSave,
+        recordedBy: `${currentUser.firstName} ${currentUser.lastName}`
+    };
 
-        if (res.success) {
-            const nowIso = new Date().toISOString();
-            const vIdx = allVehicles.findIndex(v => v.cardId === vehicleSession.vehicle.cardId);
-            if (vIdx !== -1) allVehicles[vIdx].currentStatus = vehicleSession.mode;
-            
-            peopleToSave.forEach(p => {
-                const pIdx = allCards.findIndex(c => c.cardId === p.cardId);
-                if (pIdx !== -1) {
-                    allCards[pIdx].currentStatus = vehicleSession.mode;
-                    allCards[pIdx].lastLogTime = nowIso;
-                    allCards[pIdx].currentCompanionId = (vehicleSession.mode === 'IN' && p.companionCardId) ? p.companionCardId : '';
-                }
-                if (vehicleSession.mode === 'IN' && p.companionCardId) {
-                    const cIdx = allCards.findIndex(c => c.cardId === p.companionCardId);
-                    if (cIdx !== -1 && String(allCards[cIdx].currentStatus || 'OUT').trim().toUpperCase() !== 'IN') {
-                        allCards[cIdx].currentStatus = 'IN';
-                        allCards[cIdx].lastLogTime = nowIso;
-                        allCards[cIdx].currentCompanionId = '';
-                    }
-                }
-            });
-
-            showVehicleSuccessSummary(vehicleSession, peopleToSave, gate ? gate.name : "System");
-            showToast(`บันทึก ${vehicleSession.mode} สำเร็จ ${res.count} รายการ`, 'success');
-            refreshHomeData(true); 
-        }
-    } catch (e) {
-        console.error("Save Vehicle Session Error:", e);
-        showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
-    } finally {
-        hideLoader();
+    // 1. Optimistic UI: อัปเดตความจำในเครื่องทันที!
+    const vIdx = allVehicles.findIndex(v => v.cardId === payload.vehicleCardId);
+    if (vIdx !== -1) {
+        allVehicles[vIdx].currentStatus = payload.ioType;
+        allVehicles[vIdx].lastLogTime = nowIso;
     }
+    
+    peopleToSave.forEach(p => {
+        const pIdx = allCards.findIndex(c => c.cardId === p.cardId);
+        if (pIdx !== -1) {
+            const wasAlreadyIn = String(allCards[pIdx].currentStatus || 'OUT').trim().toUpperCase() === 'IN';
+            allCards[pIdx].currentStatus = payload.ioType;
+            if (!(payload.ioType === 'IN' && wasAlreadyIn)) {
+                allCards[pIdx].lastLogTime = nowIso;
+            }
+            if (payload.ioType === 'IN') {
+                allCards[pIdx].currentVehicleId = payload.vehicleCardId;
+                allCards[pIdx].currentIsDriver = p.isDriver === true;
+                if (p.companionCardId) allCards[pIdx].currentCompanionId = p.companionCardId;
+            } else {
+                allCards[pIdx].currentVehicleId = '';
+                allCards[pIdx].currentIsDriver = false;
+                allCards[pIdx].currentCompanionId = '';
+            }
+        }
+        if (payload.ioType === 'IN' && p.companionCardId) {
+            const cIdx = allCards.findIndex(c => c.cardId === p.companionCardId);
+            if (cIdx !== -1 && String(allCards[cIdx].currentStatus || 'OUT').trim().toUpperCase() !== 'IN') {
+                allCards[cIdx].currentStatus = 'IN';
+                allCards[cIdx].lastLogTime = nowIso;
+                allCards[cIdx].currentCompanionId = '';
+            }
+        }
+    });
+
+    const vehicleSnapshot = vehicleSession.vehicle;
+    const modeSnapshot = vehicleSession.mode;
+
+    // 2. แสดงหน้าจอสรุปผลแบบกะทัดรัด (คลิกดูรายคนได้ + ซ่อนปุ่มแทรกคิว) ทันที 0 วินาที!
+    showVehicleSuccessSummary(vehicleSnapshot, modeSnapshot, peopleToSave, gateName, nowIso);
+    try { new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3').play(); } catch(e){}
+
+    // 3. โชว์ Widget มุมขวาล่าง + ส่งเข้าคิวกลาง onlineScanQueue
+    const taskId = 'bgVeh_' + Date.now();
+    showBackgroundSaveWidget(taskId, peopleToSave.length);
+    let fakePct = 10;
+    const fakeProgress = setInterval(() => {
+        if (fakePct < 90) {
+            fakePct += Math.floor(Math.random() * 15) + 5;
+            if (fakePct > 90) fakePct = 90;
+            const prog = document.getElementById(`${taskId}_progress`);
+            const txt = document.getElementById(`${taskId}_text`);
+            if (prog) prog.style.width = fakePct + '%';
+            if (txt) txt.textContent = `กำลังบันทึกข้อมูลรถ ${fakePct}%...`;
+        }
+    }, 500);
+
+    onlineScanQueue.push({
+        isVehicle: true,
+        payload: payload,
+        vehicleReg: vehicleSnapshot.vehicleReg,
+        taskId: taskId,
+        fakeProgress: fakeProgress
+    });
+    processScanQueue();
 }
 
-function showVehicleSuccessSummary(session, people, gateName) {
-    const list = document.getElementById('stgPeopleList');
-    const btnSave = document.getElementById('btnSaveVehicle');
-    const ioColor = session.mode === 'IN' ? 'bg-green-500' : 'bg-orange-500';
-
-    btnSave.textContent = "บันทึกแล้ว (แสกนคันต่อไปได้ทันที)";
-    btnSave.classList.remove('bg-blue-600', 'bg-emerald-600');
-    btnSave.classList.add('bg-gray-400');
-    btnSave.disabled = true;
-
+// หน้าจอสรุปผลรถแบบกะทัดรัด (พอดีหน้าจอ ไม่ล้น + คลิกดูข้อมูลรายคนได้!)
+function showVehicleSuccessSummary(vehicle, mode, people, gateName, logTimeIso) {
+    const area = document.getElementById('vehicleStagingArea');
     vehicleInterruptNext = false;
-    updateVehicleInterruptBtnUI();
 
     const input = document.getElementById('scanInput');
     if (input) {
         input.placeholder = "แสกนรหัสบัตรรถ...";
+        input.classList.remove('border-orange-500');
+        input.classList.add('border-blue-400');
         input.value = '';
         input.focus();
     }
 
-    let summaryHtml = `
-        <div class="p-4 bg-white border-2 border-emerald-100 rounded-3xl shadow-sm animate-fadeIn">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-8 h-8 ${ioColor} text-white rounded-full flex items-center justify-center shrink-0"><i data-lucide="check" class="w-5 h-5"></i></div>
-                <h3 class="font-black text-emerald-600 text-lg">บันทึกสำเร็จ</h3>
-                <span class="ml-auto text-[10px] font-bold text-gray-400 uppercase tracking-widest">${gateName}</span>
+    const isOut = mode === 'OUT';
+    const bannerBg = isOut ? 'bg-orange-600' : 'bg-green-600';
+    const boxBg = isOut ? 'bg-orange-50 border-orange-100' : 'bg-emerald-50 border-emerald-100';
+    const titleTxt = isOut ? 'text-orange-700' : 'text-emerald-700';
+    const iconBg = isOut ? 'bg-orange-500' : 'bg-emerald-500';
+
+    const areaIds = String(vehicle.areaAccessIds || '').split(',').filter(x => x !== "");
+    const areaBadges = areaIds.map(num => {
+        const aSet = allAreas.find(a => String(a.areaNumber) === String(num));
+        const c = aSet ? aSet.colorCode : '#4f46e5';
+        return `<span style="background-color: ${c}; color: ${getContrastYIQ(c)}" class="w-6 h-6 rounded-md inline-flex items-center justify-center text-xs font-black shadow-sm">${num}</span>`;
+    }).join(' ');
+
+    const peopleHtml = people.map(p => {
+        const imgUrl = getFastImageUrl(p.imageUrl);
+        return `
+        <div onclick="openPersonDetailModal('${p.cardId}')" class="p-2.5 bg-white hover:bg-blue-50/60 border border-gray-200 hover:border-blue-300 rounded-xl flex items-center gap-3 cursor-pointer transition shadow-sm">
+            <div class="relative shrink-0">
+                <img src="${imgUrl}" crossorigin="anonymous" class="w-10 h-10 rounded-lg object-cover border border-gray-200">
+                <span class="absolute -bottom-1 -right-1 text-[7px] font-black ${p.isDriver ? 'bg-amber-500' : 'bg-slate-500'} text-white px-1.5 rounded-full border border-white">${p.isDriver ? 'Driver' : 'Pax'}</span>
             </div>
-            <div class="grid grid-cols-2 gap-2 bg-gray-50 p-3 rounded-2xl border border-gray-100">
-                <div><p class="text-[9px] font-black text-gray-400 uppercase">ยานพาหนะ</p><p class="text-sm font-bold text-gray-700">${session.vehicle.vehicleReg}</p></div>
-                <div><p class="text-[9px] font-black text-gray-400 uppercase">จำนวน</p><p class="text-sm font-bold text-blue-600">${people.length} คน</p></div>
-                <div class="col-span-2 border-t pt-1 mt-1"><p class="text-[9px] font-black text-gray-400 uppercase">รายชื่อพนักงาน</p><p class="text-[11px] font-medium text-gray-600 truncate">${people.map(p => p.firstName).join(', ')}</p></div>
+            <div class="flex-1 min-w-0">
+                <p class="font-black text-sm text-gray-800 truncate">${p.firstName} ${p.lastName}</p>
+                <p class="text-[10px] font-bold text-gray-500 truncate">${p.cardId} | ${p.organization || '-'} ${p.companionName ? `<span class="text-indigo-600">• ผู้ติดตาม: ${p.companionName}</span>` : ''}</p>
             </div>
-            <div class="mt-3 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-center text-[10px] font-bold animate-pulse">พร้อมสำหรับการแสกนคันต่อไป...</div>
+            <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg shrink-0">ดูข้อมูล</span>
         </div>`;
+    }).join('');
 
-    list.innerHTML = summaryHtml;
+    const summaryHtml = `
+    <div class="bg-white rounded-[2.5rem] border border-blue-50 shadow-2xl overflow-hidden flex flex-col animate-fadeIn">
+        <!-- แถบ IN / OUT -->
+        <div class="w-full text-center py-3 font-black text-4xl text-white shadow-md tracking-[0.15em] ${bannerBg} uppercase">${mode}</div>
+
+        <div class="p-5 space-y-4">
+            <!-- แถบสรุปสถานะ + ข้อมูลรถแบบกะทัดรัด -->
+            <div class="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl border ${boxBg}">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 ${iconBg} text-white rounded-xl flex items-center justify-center shrink-0 shadow">
+                        <i data-lucide="truck" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xl font-black text-slate-800 leading-none">${vehicle.vehicleReg}</h4>
+                        <p class="text-xs font-bold ${titleTxt} mt-1">${mode === 'IN' ? 'บันทึกเข้าพื้นที่สำเร็จ' : 'บันทึกออกพื้นที่สำเร็จ'} • ${gateName}</p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-3 text-xs font-bold">
+                    <div class="bg-white px-3 py-1.5 rounded-xl border border-gray-200"><span class="text-gray-400 mr-1">ID:</span><span class="text-blue-700 font-black">${vehicle.cardId}</span></div>
+                    <div class="bg-white px-3 py-1.5 rounded-xl border border-gray-200"><span class="text-gray-400 mr-1">สังกัด:</span><span class="text-gray-800">${vehicle.organization || '-'}</span></div>
+                    <div class="bg-white px-3 py-1.5 rounded-xl border border-gray-200 flex items-center gap-1"><span class="text-gray-400 mr-1">ZONE:</span>${areaBadges || '-'}</div>
+                    <div class="bg-red-50 px-3 py-1.5 rounded-xl border border-red-200"><span class="text-red-400 mr-1">หมดอายุ:</span><span class="text-red-600 font-black">${formatDateOnly(vehicle.expiryDate)}</span></div>
+                </div>
+            </div>
+
+            <!-- รายชื่อคนในรถ (คลิกดูรายละเอียดรายคนได้) -->
+            <div>
+                <div class="flex justify-between items-center mb-2 px-1">
+                    <span class="text-xs font-black text-gray-500 uppercase tracking-wider">รายชื่อพนักงานในพาหนะ (คลิกที่รายชื่อเพื่อดูข้อมูล)</span>
+                    <span class="bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full text-xs font-black">${people.length} คน</span>
+                </div>
+                <div class="space-y-2 max-h-[240px] overflow-y-auto pr-1 custom-scrollbar">
+                    ${peopleHtml || '<p class="text-xs text-gray-400 text-center py-4">ไม่มีรายชื่อพนักงานในรถคันนี้</p>'}
+                </div>
+            </div>
+
+            <div class="py-2 bg-emerald-50 text-emerald-700 rounded-xl text-center text-[10px] font-bold animate-pulse">
+                บันทึกแล้ว — พร้อมสำหรับการแสกนรถคันต่อไป...
+            </div>
+        </div>
+    </div>`;
+
+    area.innerHTML = summaryHtml;
     lucide.createIcons();
-    cachedVehicleHTML = document.getElementById('vehicleStagingArea').innerHTML;
+    cachedVehicleHTML = summaryHtml;
 
-    // สำคัญ: รีเซ็ต vehicleSession หลังบันทึกเสร็จ เพื่อไม่ให้ Auto-Pause ทำงานซ้ำตอนสลับแท็บ!
+    // รีเซ็ต vehicleSession หลังบันทึกเสร็จ
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
 }
+
+
 
 /////////////////////////////////////
 ////////////////////////////////////
@@ -5389,10 +5497,18 @@ async function processScanQueue() {
 
         try {
             if (scanData.isGroup) {
-                // --- กรณีเป็นคิวบันทึกกลุ่ม ---
                 const res = await apiCall('processBulkGroupScan', scanData.payload, false);
                 if (scanData.fakeProgress) clearInterval(scanData.fakeProgress);
-
+                if (res.success) {
+                    onlineScanQueue.shift();
+                    queueRetryCount = 0;
+                    updateBackgroundSaveWidget(scanData.taskId, true);
+                    if (onlineScanQueue.length === 0) refreshHomeData(true);
+                }
+            } else if (scanData.isVehicle) {
+                // --- กรณีเป็นคิวบันทึกรถ ---
+                const res = await apiCall('processBulkVehicleScan', scanData.payload, false);
+                if (scanData.fakeProgress) clearInterval(scanData.fakeProgress);
                 if (res.success) {
                     onlineScanQueue.shift();
                     queueRetryCount = 0;
@@ -5420,10 +5536,10 @@ async function processScanQueue() {
             queueRetryCount++;
             
             if (queueRetryCount >= 3) {
-                if (scanData.isGroup) {
+                if (scanData.isGroup || scanData.isVehicle) {
                     if (scanData.fakeProgress) clearInterval(scanData.fakeProgress);
                     updateBackgroundSaveWidget(scanData.taskId, false);
-                    addToFailedQueue('GROUP', `กลุ่ม ${scanData.payload.members.length} คน`);
+                    addToFailedQueue(scanData.isVehicle ? scanData.payload.vehicleCardId : 'GROUP', scanData.isVehicle ? `รถ ${scanData.vehicleReg}` : `กลุ่ม ${scanData.payload.members.length} คน`);
                 } else {
                     addToFailedQueue(scanData.cardId, scanData.fullName);
                 }
