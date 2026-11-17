@@ -3246,11 +3246,19 @@ function saveVehicleSession() {
     executeSaveVehicleToServer(allInCar);
 }
 
+// ฟังก์ชันเปิด Modal ผู้ติดตามรถ (อัปเกรด: จำรายชื่อเดิมไว้ ไม่ล้างทิ้งเมื่อกดย้อนกลับ)
 function openVehicleCompanionModal(allInCar) {
-    vehicleSelectedCompanions = [];
+    // กรองตรวจสอบ: ถ้ามีผู้ติดตามคนไหนที่เคยเลือกจากคนในรถ แต่ตอนกดย้อนกลับไปดันไปกด "ลบคนนั้นออกจากรถ" ให้ตัดชื่อออกจากผู้ติดตามด้วย
+    vehicleSelectedCompanions = vehicleSelectedCompanions.filter(comp => {
+        // ถ้าเป็นบัตรที่สแกนเพิ่มจากข้างนอก เก็บไว้เหมือนเดิม
+        const wasInCar = allInCar.some(p => p.cardId === comp.cardId);
+        return wasInCar || comp.isExternal; 
+    });
+
     document.getElementById('vCompSubtitle').textContent = `มีคนในรถที่ต้องใช้ผู้ติดตาม: ${vehiclePeopleNeedingEscort.length} คน`;
     document.getElementById('vCompBarcode').value = '';
     document.getElementById('vehicleCompanionModal').classList.remove('hidden');
+    
     renderVehicleCompanionModal(allInCar);
     setTimeout(() => document.getElementById('vCompBarcode').focus(), 100);
 }
@@ -3431,6 +3439,7 @@ function addExternalVehicleCompanion() {
         return showAlert('ผู้ติดตามโควตาเต็มแล้ว!', `คุณ ${compCard.firstName} ${compCard.lastName}\nปัจจุบันดูแลอยู่แล้ว ${q.currentLoad}/${q.limit} คน กรุณาใช้รหัสอื่น`, 'error');
     }
 
+    compCard.isExternal = true; // มาร์คไว้ว่าเป็นผู้ติดตามที่สแกนเพิ่มจากภายนอก
     vehicleSelectedCompanions.push(compCard);
     inp.value = ''; inp.focus();
     try { new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3').play(); } catch(e){}
