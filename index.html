@@ -556,9 +556,15 @@ gap: 1px !important;
                     <p class="text-purple-200 text-xs font-bold mt-1" id="grpRatioText">สัดส่วนผู้ติดตาม -</p>
                 </div>
             </div>
-            <button onclick="pauseGroupSession()" class="w-full sm:w-auto px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs shadow-md border border-orange-400 transition flex items-center justify-center gap-1.5 shrink-0">
-                <i data-lucide="pause" class="w-4 h-4"></i> พักกลุ่มชั่วคราว (แสกนเจ้าหน้าที่แทรก)
-            </button>
+            <!-- ปุ่มแทรกคิว และ พักกลุ่ม -->
+            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <button id="btnGroupQuickInterrupt" onclick="toggleGroupInterruptMode()" class="flex-1 sm:flex-none px-3.5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs shadow-md transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="zap" class="w-4 h-4"></i> <span id="lblGroupInterruptBtn">แทรกคิว 1 คน (F2)</span>
+                </button>
+                <button onclick="pauseGroupSession()" class="flex-1 sm:flex-none px-3.5 py-2 bg-purple-800 hover:bg-purple-900 text-purple-100 rounded-xl font-black text-xs shadow-md border border-purple-400 transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="pause" class="w-4 h-4"></i> พักกลุ่มนี้ไว้
+                </button>
+            </div>
         </div>
 
         <div class="p-5 sm:p-6 space-y-4">
@@ -3072,8 +3078,56 @@ saveGateToLocal = function() {
 // ==========================================
 let pausedVehicleSession = null;
 let vehicleInterruptNext = false;
+let groupInterruptNext = false;
 let vehicleSelectedCompanions = [];
 let vehiclePeopleNeedingEscort = [];
+
+function updateInterruptButtonsUI() {
+    const key = systemSettings.vehicleInterruptKey || 'F2';
+    
+    // ฝั่งรถ
+    const vBtn = document.getElementById('btnVehicleQuickInterrupt');
+    const vLbl = document.getElementById('lblVehicleInterruptBtn');
+    const vBanner = document.getElementById('vehicleInterruptBanner');
+    const input = document.getElementById('scanInput');
+
+    if (vBtn && vLbl) {
+        if (vehicleInterruptNext) {
+            vBtn.className = 'px-3.5 py-2 bg-red-600 text-white rounded-xl font-black text-xs shadow-md ring-2 ring-red-300';
+            vLbl.textContent = `ยกเลิกแทรก (${key})`;
+            if (vBanner) vBanner.classList.remove('hidden');
+            if (currentScanTarget === 'vehicle') {
+                input.placeholder = "⚡ แทรกคิว 1 คน: สแกนบัตรพนักงาน...";
+                input.classList.add('border-orange-500');
+            }
+        } else {
+            vBtn.className = 'px-3.5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs shadow-md';
+            vLbl.textContent = `แทรกคิว 1 คน (${key})`;
+            if (vBanner) vBanner.classList.add('hidden');
+        }
+    }
+
+    // ฝั่งกลุ่ม
+    const gBtn = document.getElementById('btnGroupQuickInterrupt');
+    const gLbl = document.getElementById('lblGroupInterruptBtn');
+    if (gBtn && gLbl) {
+        if (groupInterruptNext) {
+            gBtn.className = 'flex-1 sm:flex-none px-3.5 py-2 bg-red-600 text-white rounded-xl font-black text-xs shadow-md ring-2 ring-red-300';
+            gLbl.textContent = `ยกเลิกแทรก (${key})`;
+            input.placeholder = "⚡ แทรกคิว 1 คน: สแกนบัตรพนักงาน...";
+            input.classList.add('border-orange-500');
+        } else {
+            gBtn.className = 'flex-1 sm:flex-none px-3.5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs shadow-md';
+            gLbl.textContent = `แทรกคิว 1 คน (${key})`;
+            if (groupSession.active) {
+                input.placeholder = "แสกนบัตรผู้เข้าพื้นที่คนต่อไป...";
+                input.classList.remove('border-orange-500');
+                input.classList.add('border-purple-500');
+            }
+        }
+    }
+    if (window.lucide) lucide.createIcons();
+}
 
 function updateVehicleInterruptBtnUI() {
     const key = systemSettings.vehicleInterruptKey || 'F2';
@@ -3109,23 +3163,32 @@ function updateVehicleInterruptBtnUI() {
 function toggleVehicleInterruptMode() {
     if (currentScanTarget !== 'vehicle' || !vehicleSession.vehicle) return;
     vehicleInterruptNext = !vehicleInterruptNext;
-    updateVehicleInterruptBtnUI();
+    updateInterruptButtonsUI();
     document.getElementById('scanInput').focus();
 }
 
-// ดักจับปุ่มคีย์ลัด (ค่าเริ่มต้น F2) บนหน้าสแกนรถ
+function toggleGroupInterruptMode() {
+    if (!groupSession.active) return;
+    groupInterruptNext = !groupInterruptNext;
+    updateInterruptButtonsUI();
+    document.getElementById('scanInput').focus();
+}
+
+// ผูกปุ่ม F2 ใช้ร่วมกันทั้งรถและกลุ่ม
 window.addEventListener('keydown', function(e) {
-    if (currentPage !== 'home' || currentScanTarget !== 'vehicle' || !vehicleSession.vehicle) return;
+    if (currentPage !== 'home') return;
     const isAnyModalOpen = !document.getElementById('customAlertModal').classList.contains('hidden') ||
                            !document.getElementById('customConfirmModal').classList.contains('hidden') ||
                            !document.getElementById('companionModal').classList.contains('hidden') ||
-                           !document.getElementById('vehicleCompanionModal').classList.contains('hidden');
+                           !document.getElementById('vehicleCompanionModal').classList.contains('hidden') ||
+                           !document.getElementById('groupCompanionModal').classList.contains('hidden');
     if (isAnyModalOpen) return;
 
     const targetKey = systemSettings.vehicleInterruptKey || 'F2';
     if (e.key === targetKey) {
         e.preventDefault();
-        toggleVehicleInterruptMode();
+        if (currentScanTarget === 'vehicle' && vehicleSession.vehicle) toggleVehicleInterruptMode();
+        else if (groupSession.active) toggleGroupInterruptMode();
     }
 });
 
@@ -3563,6 +3626,7 @@ function drawVehicleStagingHeader(v, mode) {
 
 async function handleVehicleScan(cardId) {
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
+    vehicleSelectedCompanions = []; // <--- ล้างค่าผู้ติดตามรถทิ้งเสมอเมื่อเริ่มคันใหม่!
     vehicleInterruptNext = false;
     pausedVehicleSession = null;
     renderPausedVehicleBar();
@@ -3762,6 +3826,7 @@ function renderStagingList() {
 
 function cancelVehicleSession() {
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
+	vehicleSelectedCompanions = []; // <--- ล้างค่าผู้ติดตามรถทิ้งเสมอเมื่อเริ่มคันใหม่!
     vehicleInterruptNext = false;
 
     document.getElementById('scanResultData').classList.add('hidden');
@@ -3804,7 +3869,9 @@ async function executeSaveVehicleToServer(peopleToSave) {
         allVehicles[vIdx].currentStatus = payload.ioType;
         allVehicles[vIdx].lastLogTime = nowIso;
     }
-    
+
+	
+	
     peopleToSave.forEach(p => {
         const pIdx = allCards.findIndex(c => c.cardId === p.cardId);
         if (pIdx !== -1) {
@@ -3831,6 +3898,14 @@ async function executeSaveVehicleToServer(peopleToSave) {
                 allCards[cIdx].currentCompanionId = '';
             }
         }
+		// ใน executeSaveVehicleToServer ตอนที่บันทึกสำเร็จ:
+            if (vehicleSession.mode === 'IN' && p.companionCardId) {
+                const cIdx = allCards.findIndex(c => c.cardId === p.companionCardId);
+                if (cIdx !== -1) {
+                    allCards[cIdx].currentVehicleId = payload.vehicleCardId; // <--- ผูกติดกับรถคันนี้ทันที!
+                    allCards[cIdx].currentIsDriver = false;
+                }
+            }
     });
 
     const vehicleSnapshot = vehicleSession.vehicle;
@@ -12489,7 +12564,7 @@ function executeInterruptScan(gateId, card, typeInfo, predictedStatus, compCard 
 // ==========================================
 // 3. ฟังก์ชันสแกนหลัก (รองรับแทรกคิวช่างแบบเดี่ยว + ขาออกทุกประเภท + Multi-Basket)
 // ==========================================
-async function processMainScan() {
+function processMainScan() {
     const gateId = document.getElementById('scanGateSelect').value;
     const mainInput = document.getElementById('scanInput');
     const cardId = String(mainInput.value).trim().toUpperCase();
@@ -12497,76 +12572,41 @@ async function processMainScan() {
     if (!gateId) return showAlert('ข้อมูลไม่ครบ', 'กรุณาเลือกจุดเข้าออกพื้นที่ก่อน', 'warning');
     if (!cardId) return mainInput.focus();
 
-    // --- 1. โหมดยานพาหนะ ---
+    // 1. โหมดยานพาหนะ
     if (currentScanTarget === 'vehicle') {
         const isVehicleCard = allVehicles.some(x => String(x.cardId).toUpperCase() === cardId);
 
-        // กรณี A: กดปุ่มแทรกคิว 1 คน (F2) ค้างไว้ -> บังคับประมวลผลเป็นบัตรคน!
         if (vehicleInterruptNext) {
             vehicleInterruptNext = false;
-            updateVehicleInterruptBtnUI();
+            updateInterruptButtonsUI();
             if (isVehicleCard) {
                 mainInput.value = ''; mainInput.focus();
-                return showAlert('ไม่พบข้อมูลบุคคล', `รหัส ${cardId} เป็นบัตรรถ (โหมดแทรกคิวใช้ได้เฉพาะบัตรบุคคล)`, 'warning');
+                return showAlert('ไม่ถูกต้อง', 'โหมดแทรกคิวใช้ได้เฉพาะบัตรบุคคล', 'warning');
             }
-            // ประมวลผลแทรกคิวบุคคล
             const personCard = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
-            if (!personCard) { mainInput.value = ''; mainInput.focus(); return showAlert('ไม่พบข้อมูลบัตร', `บัตรหมายเลข ${cardId} ไม่พบในระบบ`, 'error'); }
-            if (personCard.status !== 'active') { mainInput.value = ''; mainInput.focus(); return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error'); }
-            if (new Date() > new Date(personCard.expiryDate).setHours(23, 59, 59)) { mainInput.value = ''; mainInput.focus(); return showAlert('บัตรหมดอายุ', `บัตรหมดอายุแล้ว`, 'error'); }
-
+            if (!personCard) { mainInput.value = ''; mainInput.focus(); return showAlert('ไม่พบข้อมูลบัตร', `ไม่พบบัตร ${cardId}`, 'error'); }
             const pTypeInfo = typeCards.find(t => String(t.id) === String(personCard.typeId)) || {};
             const pStatus = (String(personCard.currentStatus || 'OUT').trim().toUpperCase() === 'IN') ? 'OUT' : 'IN';
-            const nowT = Date.now();
-            if (globalScanTracker[cardId] && (nowT - globalScanTracker[cardId]) < 5000) {
-                mainInput.value = ''; mainInput.focus(); return showToast(`รหัส ${cardId} เพิ่งทำรายการไป (รอ 5 วินาที)`, 'warning');
-            }
-            globalScanTracker[cardId] = nowT;
-
-            if (pStatus === 'IN' && isTrue(pTypeInfo.requireCompanion) && !isTrue(pTypeInfo.isGroup)) {
-                delete globalScanTracker[cardId];
-                window.isInterruptCompanionScan = true;
-                window.pendingInterruptCard = { gateId, card: personCard, typeInfo: pTypeInfo };
-                const ctxEl = document.getElementById('compModalContextInfo');
-                if (ctxEl) { ctxEl.textContent = `⚡ แทรกคิวเร่งด่วน: ${personCard.firstName} ${personCard.lastName} (${personCard.cardId})`; ctxEl.classList.remove('hidden'); }
-                document.getElementById('companionModalMainCardId').value = personCard.cardId;
-                document.getElementById('compBarcode').value = '';
-                document.getElementById('companionModal').classList.remove('hidden');
-                setTimeout(() => document.getElementById('compBarcode').focus(), 100);
-            } else {
-                if (systemSettings.ttsTimingMode === 'immediate') speakImmediateGreeting(personCard.firstName, personCard.lastName);
-                executeInterruptScan(gateId, personCard, pTypeInfo, pStatus);
-            }
+            executeInterruptScan(gateId, personCard, pTypeInfo, pStatus);
             mainInput.value = ''; mainInput.focus();
             return;
         }
 
-        // กรณี B: ยิงบัตรรถ -> เปิด/สลับไปรถคันนั้น
         if (isVehicleCard) {
             handleVehicleScan(cardId);
             mainInput.value = ''; mainInput.focus();
             return;
         }
 
-        // กรณี C: รถอยู่ในโหมดขาออก (OUT) และยิงบัตรคนอื่นที่ไม่ได้อยู่ในรถ -> แทรกคิวอัตโนมัติ!
+        // รถขาออก (OUT) สแกนคนอื่นแทรกอัตโนมัติ
         if (vehicleSession.vehicle && vehicleSession.mode === 'OUT') {
             const isInThisCar = (vehicleSession.driver && vehicleSession.driver.cardId === cardId) ||
                                 vehicleSession.passengers.some(p => p.cardId === cardId);
-            if (isInThisCar) {
-                mainInput.value = ''; mainInput.focus();
-                return showToast('บุคคลนี้อยู่ในรายการรถคันนี้แล้ว', 'info');
-            }
-            const personCard = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
-            if (personCard && personCard.status === 'active' && new Date() <= new Date(personCard.expiryDate).setHours(23, 59, 59)) {
-                const pTypeInfo = typeCards.find(t => String(t.id) === String(personCard.typeId)) || {};
-                const pStatus = (String(personCard.currentStatus || 'OUT').trim().toUpperCase() === 'IN') ? 'OUT' : 'IN';
-                if (!isTrue(pTypeInfo.requireCompanion) || pStatus === 'OUT') {
-                    const nowT = Date.now();
-                    if (globalScanTracker[cardId] && (nowT - globalScanTracker[cardId]) < 5000) {
-                        mainInput.value = ''; mainInput.focus(); return showToast(`รหัส ${cardId} เพิ่งทำรายการไป (รอ 5 วินาที)`, 'warning');
-                    }
-                    globalScanTracker[cardId] = nowT;
-                    if (systemSettings.ttsTimingMode === 'immediate') speakImmediateGreeting(personCard.firstName, personCard.lastName);
+            if (!isInThisCar) {
+                const personCard = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
+                if (personCard && personCard.status === 'active') {
+                    const pTypeInfo = typeCards.find(t => String(t.id) === String(personCard.typeId)) || {};
+                    const pStatus = (String(personCard.currentStatus || 'OUT').trim().toUpperCase() === 'IN') ? 'OUT' : 'IN';
                     executeInterruptScan(gateId, personCard, pTypeInfo, pStatus);
                     mainInput.value = ''; mainInput.focus();
                     return;
@@ -12574,15 +12614,7 @@ async function processMainScan() {
             }
         }
 
-        // กรณี D: เพิ่มคนเข้าตะกร้ารถปกติ (IN)
         if (vehicleSession.vehicle) {
-            const nowTime = Date.now();
-            if (globalScanTracker[cardId] && (nowTime - globalScanTracker[cardId]) < 5000) {
-                mainInput.value = ''; mainInput.focus();
-                try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
-                return showToast(`รหัส ${cardId} เพิ่งทำรายการไป (รอ 5 วินาที)`, 'warning');
-            }
-            globalScanTracker[cardId] = nowTime;
             handlePersonForVehicle(cardId);
         } else {
             showAlert('กรุณาแสกนรถก่อน', 'กรุณาแสกนบัตรรถก่อนที่จะแสกนบัตรพนักงาน', 'warning');
@@ -12591,7 +12623,7 @@ async function processMainScan() {
         return;
     }
 
-    // --- 2. โหมดบุคคล ---
+    // 2. โหมดบุคคล
     const nowTime = Date.now();
     if (globalScanTracker[cardId] && (nowTime - globalScanTracker[cardId]) < 5000) {
         mainInput.value = ''; mainInput.focus();
@@ -12612,6 +12644,7 @@ async function processMainScan() {
     const typeInfo = typeCards.find(t => String(t.id) === String(card.typeId));
     const predictedStatus = (String(card.currentStatus || 'OUT').trim().toUpperCase() === 'IN') ? 'OUT' : 'IN';
 
+    // เช็คสิทธิ์ประตู
     if (gate && gate.status === 'active' && gate.allowedAreas && predictedStatus === 'IN') {
         const allowedStr = String(gate.allowedAreas || "");
         if (allowedStr.trim() !== "") {
@@ -12631,106 +12664,45 @@ async function processMainScan() {
     if (groupSession.active) {
         mainInput.value = ''; mainInput.focus();
 
-        if (groupSession.state === 'members') {
-            // 3.1 เช็คว่าคนนี้ซ้ำอยู่ในตะกร้าที่พักไว้ใบอื่นหรือไม่
-            const isInPaused = pausedGroupSessions.some(b =>
-                b.members.some(m => m.cardId === card.cardId) || b.companions.some(c => c.cardId === card.cardId)
-            );
-            if (isInPaused) {
-                delete globalScanTracker[cardId];
-                return showAlert('บุคคลนี้ค้างอยู่ในตะกร้าที่พักไว้', 'กรุณาคลิกกลับไปทำรายการในกลุ่มที่พักไว้ก่อน หรือกดเอาออกจากรายการครับ', 'warning');
-            }
+        // 3.1 กรณีขาออก (OUT) ของทุกคน หรือ กดปุ่ม F2 แทรกคิว 1 คน -> แทรกคิวอัตโนมัติ (Pop-up 10 วิ)!
+        if (predictedStatus === 'OUT' || groupInterruptNext) {
+            groupInterruptNext = false;
+            updateInterruptButtonsUI();
+            if (systemSettings.ttsTimingMode === 'immediate') speakImmediateGreeting(card.firstName, card.lastName);
+            executeInterruptScan(gateId, card, typeInfo, predictedStatus);
+            return;
+        }
 
-            // 3.2 ขาออก (OUT) ของทุกประเภทบัตร -> ยิงแทรกอัตโนมัติได้ทันที!
-            if (predictedStatus === 'OUT') {
-                if (systemSettings.ttsTimingMode === 'immediate') speakImmediateGreeting(card.firstName, card.lastName);
-                executeInterruptScan(gateId, card, typeInfo, 'OUT');
-                return;
-            }
-
-            // 3.3 ขาเข้า (IN) ประเภทเดียวกับกลุ่มปัจจุบัน -> ใส่ลงตะกร้า!
-            if (String(card.typeId) === String(groupSession.typeInfo.id)) {
-                handleGroupSessionScan(card);
-                return;
-            }
-
-            // 3.4 ขาเข้า (IN) ประเภทอื่น:
-            if (!isTrue(typeInfo.requireCompanion)) {
-                // พนักงานปกติ/ลูกเรือ (ไม่ต้องมีผู้ติดตาม) -> แทรกคิวอัตโนมัติ!
-                if (systemSettings.ttsTimingMode === 'immediate') speakImmediateGreeting(card.firstName, card.lastName);
-                executeInterruptScan(gateId, card, typeInfo, 'IN');
-                return;
-            } else if (!isTrue(typeInfo.isGroup)) {
-                // บัตรซ่อมบำรุง/ผู้รับเหมาแบบเดี่ยว (ต้องมีผู้ติดตาม 1-1) -> แทรกคิวทันทีโดยเปิด Modal ถามผู้ติดตาม!
-                delete globalScanTracker[cardId];
-                window.isInterruptCompanionScan = true;
-                window.pendingInterruptCard = { gateId, card, typeInfo };
-
-                const ctxEl = document.getElementById('compModalContextInfo');
-                if (ctxEl) {
-                    ctxEl.textContent = `⚡ แทรกคิวเร่งด่วน: ${card.firstName} ${card.lastName} (${card.cardId}) — กำลังพักกลุ่มไว้ชั่วคราว`;
-                    ctxEl.classList.remove('hidden');
-                }
-                document.getElementById('companionModalMainCardId').value = card.cardId;
-                document.getElementById('compBarcode').value = '';
-                document.getElementById('companionModal').classList.remove('hidden');
-                setTimeout(() => document.getElementById('compBarcode').focus(), 100);
-                return;
-            } else {
-                // บัตรแบบกลุ่มอีกประเภทหนึ่ง! แสดง Custom Confirm Modal สวยๆ
-                delete globalScanTracker[cardId];
-                const ok = await showCustomConfirm({
-                    title: 'พบกลุ่มประเภทใหม่',
-                    message: `บัตรของ <b class="text-gray-900">${card.firstName} ${card.lastName}</b> (${card.cardId})<br>อยู่ในกลุ่ม <span class="inline-block bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-lg font-bold mt-1.5 mb-2">${typeInfo.typeName}</span><br>ต้องการพักตะกร้าปัจจุบัน (<span class="text-orange-600 font-bold">${groupSession.typeInfo.typeName}</span>) ไว้ชั่วคราว เพื่อเปิดตะกร้ากลุ่มใหม่เลยหรือไม่?`,
-                    confirmText: 'เปิดกลุ่มใหม่',
-                    cancelText: 'ยกเลิก',
-                    theme: 'purple',
-                    icon: 'layers'
-                });
-
+        // 3.2 บัตรกลุ่มประเภทอื่น -> เด้งถามเปิดกลุ่มใหม่ / พักกลุ่มเดิม
+        if (isTrue(typeInfo.isGroup) && String(card.typeId) !== String(groupSession.typeInfo.id)) {
+            delete globalScanTracker[cardId];
+            showCustomConfirm({
+                title: 'พบกลุ่มประเภทใหม่',
+                message: `บัตรของ <b class="text-gray-900">${card.firstName} ${card.lastName}</b> อยู่ในกลุ่ม <b>${typeInfo.typeName}</b><br>ต้องการพักกลุ่มปัจจุบัน (${groupSession.typeInfo.typeName}) เพื่อเปิดกลุ่มใหม่เลยหรือไม่?`,
+                confirmText: 'เปิดกลุ่มใหม่', cancelText: 'ยกเลิก', theme: 'purple', icon: 'layers'
+            }).then(ok => {
                 if (ok) {
-                    if (pausedGroupSessions.length >= 3) {
-                        return showAlert('พักตะกร้าเต็มโควตาแล้ว', 'สามารถพักกลุ่มค้างไว้ได้สูงสุด 3 กลุ่ม กรุณาบันทึกหรือยกเลิกกลุ่มที่พักไว้ก่อนครับ', 'warning');
-                    }
                     pauseGroupSession(true);
                     initGroupSession(card, typeInfo, gateId);
                 }
-                return;
-            }
-
-        } else if (groupSession.state === 'companions') {
-            // ขั้นที่ 2: สแกนบัตรผู้ติดตาม
-            handleGroupSessionScan(card);
+            });
             return;
         }
+
+        // 3.3 แสกนคนเข้ากลุ่ม (ทั้งนักเรียน และอาจารย์/หัวหน้ากลุ่ม ยิงลงตะกร้าได้หมดเลย!)
+        handleGroupSessionScan(card);
+        return;
     }
 
-    // --- 4. โหมดสแกนปกติ (ไม่มีตะกร้ากลุ่มเปิดอยู่บนจอ — อาจมีตะกร้าพักไว้ด้านบนได้) ---
-    // เช็คว่าคนนี้ค้างอยู่ในตะกร้าที่พักไว้ไหม (ป้องกันสแกนซ้ำ)
-    if (predictedStatus === 'IN') {
-        const isInPaused = pausedGroupSessions.some(b => b.members.some(m => m.cardId === card.cardId));
-        if (isInPaused) {
-            delete globalScanTracker[cardId];
-            mainInput.value = ''; mainInput.focus();
-            return showAlert('บุคคลนี้ค้างอยู่ในตะกร้าที่พักไว้', 'กรุณาคลิกที่แถบกลุ่มที่พักไว้ด้านบนเพื่อทำรายการต่อครับ', 'warning');
-        }
-    }
-
+    // --- 4. โหมดสแกนปกติ (ไม่มีตะกร้ากลุ่มบนจอ) ---
     if (systemSettings.ttsTimingMode === 'immediate') speakImmediateGreeting(card.firstName, card.lastName);
 
     if (isTrue(typeInfo.requireCompanion) && predictedStatus === 'IN') {
         if (isTrue(typeInfo.isGroup)) {
-            if (pausedGroupSessions.length >= 3) {
-                delete globalScanTracker[cardId];
-                mainInput.value = ''; mainInput.focus();
-                return showAlert('พักตะกร้าเต็มโควตาแล้ว', 'มีกลุ่มที่พักรอการบันทึกอยู่ 3 กลุ่มแล้ว กรุณาทำรายการกลุ่มที่ค้างอยู่ให้เสร็จก่อนครับ', 'warning');
-            }
             initGroupSession(card, typeInfo, gateId);
             return;
         } else {
             delete globalScanTracker[cardId];
-            const ctxEl = document.getElementById('compModalContextInfo');
-            if (ctxEl) ctxEl.classList.add('hidden');
             document.getElementById('companionModalMainCardId').value = card.cardId;
             document.getElementById('compBarcode').value = '';
             document.getElementById('companionModal').classList.remove('hidden');
@@ -12741,7 +12713,6 @@ async function processMainScan() {
 
     currentDisplayCardId = card.cardId;
     mainInput.value = ''; mainInput.focus();
-
     showInstantUI(card, typeInfo, predictedStatus);
     executeScanFinal(gateId, card.cardId, null, predictedStatus, `${card.firstName} ${card.lastName}`);
 }
