@@ -3537,6 +3537,7 @@ function drawVehicleStagingHeader(v, mode) {
 
 async function handleVehicleScan(cardId) {
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
+	vehicleSelectedCompanions = []; // <--- ล้างค่าผู้ติดตามรถทิ้งเสมอเมื่อเริ่มคันใหม่!
     vehicleInterruptNext = false;
     pausedVehicleSession = null;
     renderPausedVehicleBar();
@@ -3736,6 +3737,7 @@ function renderStagingList() {
 
 function cancelVehicleSession() {
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
+	vehicleSelectedCompanions = []; // <--- ล้างค่าผู้ติดตามรถทิ้งเสมอเมื่อเริ่มคันใหม่!
     vehicleInterruptNext = false;
 
     document.getElementById('scanResultData').classList.add('hidden');
@@ -3805,6 +3807,14 @@ async function executeSaveVehicleToServer(peopleToSave) {
                 allCards[cIdx].currentCompanionId = '';
             }
         }
+		// ใน executeSaveVehicleToServer ตอนที่บันทึกสำเร็จ:
+            if (vehicleSession.mode === 'IN' && p.companionCardId) {
+                const cIdx = allCards.findIndex(c => c.cardId === p.companionCardId);
+                if (cIdx !== -1) {
+                    allCards[cIdx].currentVehicleId = payload.vehicleCardId; // <--- ผูกติดกับรถคันนี้ทันที!
+                    allCards[cIdx].currentIsDriver = false;
+                }
+            }
     });
 
     const vehicleSnapshot = vehicleSession.vehicle;
@@ -10662,6 +10672,8 @@ let groupSession = {
     state: 'members'
 };
 
+let groupSelectedCompanions = []; // จำค่าผู้ติดตามไว้ แม้กดย้อนกลับ!
+
 function renderPausedBasketsBar() {
     const bar = document.getElementById('pausedBasketsBar');
     if (!bar) return;
@@ -10725,6 +10737,7 @@ function initGroupSession(firstCard, typeInfo, gateId) {
     }
 
     groupSession = { active: true, basketId: 'grp_' + Date.now(), gateId: gateId, typeInfo: typeInfo, members: [firstCard], companions: [], state: 'members' };
+	groupSelectedCompanions = []; // รีเซ็ตเฉพาะตอนเปิดกลุ่มใหม่
     
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.add('hidden');
@@ -11078,6 +11091,7 @@ function backToGroupMembers() {
 
 function cancelGroupSession() {
     groupSession = { active: false, basketId: null, gateId: '', typeInfo: null, members: [], companions: [], state: 'members' };
+	groupSelectedCompanions = [];
     cachedGroupHTML = null;
 
     document.getElementById('groupStagingArea').classList.add('hidden');
@@ -11242,6 +11256,7 @@ function showGroupSuccessSummary(session, totalCount) {
     const tempTypeName = session.typeInfo.typeName;
     
     groupSession = { active: false, basketId: null, gateId: '', typeInfo: null, members: [], companions: [], state: 'members' };
+	groupSelectedCompanions = [];
 
     renderPausedBasketsBar();
 
