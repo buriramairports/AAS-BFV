@@ -461,65 +461,74 @@ gap: 1px !important;
 </div>
 	<!-- ส่วนแสกนรถ -->
 <!-- ส่วนแสดงผลการจัดการรถ (Vehicle Staging) -->
+<!-- ========================================== -->
+<!-- ส่วนแสดงผลการจัดการรถ (Compact Step Wizard UI) -->
+<!-- ========================================== -->
 <div id="vehicleStagingArea" class="hidden min-h-full">
-    <div class="bg-white rounded-[2.5rem] border border-blue-50 shadow-2xl overflow-hidden flex flex-col">
+    <div class="bg-white rounded-[2.5rem] border border-blue-100 shadow-2xl overflow-hidden flex flex-col">
         
-        <!-- แถบ Badge IN/OUT: แบบยาวด้านบนเหมือนบัตรบุคคล -->
-        <div id="stgIoBadge" class="w-full text-center py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.1em] transition-colors duration-500 uppercase">
-            -
+        <!-- แถบ IN / OUT ด้านบนสุด -->
+        <div id="stgIoBadge" class="w-full text-center py-3.5 font-black text-3xl sm:text-4xl text-white shadow-md z-10 tracking-[0.15em] bg-green-600 uppercase transition-colors duration-500">
+            IN
         </div>
 
-        <div class="p-6">
-			<!-- แถบเครื่องมือแทรกคิวและพักรถ -->
-            <div id="vehicleActionToolbar" class="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-blue-100">
-                <div id="vehicleInterruptBanner" class="hidden flex-1 bg-orange-100 border border-orange-300 text-orange-800 px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2 animate-pulse">
+        <div class="p-5 sm:p-6">
+            <!-- 1. แถบเครื่องมือแทรกคิวและพักรถ (ซ่อนอัตโนมัติตอนสรุปผล) -->
+            <div id="vehicleActionToolbar" class="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-blue-50">
+                <div id="vehicleInterruptBanner" class="hidden flex-1 bg-orange-100 border border-orange-300 text-orange-800 px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-2 animate-pulse">
                     <i data-lucide="zap" class="w-4 h-4 text-orange-600 shrink-0"></i>
-                    <span>โหมดแทรกคิว 1 คน: กรุณาสแกนบัตรพนักงานเดินเท้า (กดคีย์ลัดซ้ำเพื่อยกเลิก)</span>
+                    <span>โหมดแทรกคิว 1 คน: กรุณาสแกนบัตรพนักงานเดินเท้า (กด F2 ซ้ำเพื่อยกเลิก)</span>
                 </div>
                 <div class="flex items-center gap-2 ml-auto">
-                    <button id="btnVehicleQuickInterrupt" onclick="toggleVehicleInterruptMode()" class="px-3.5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs shadow-md transition flex items-center gap-1.5">
-                        <i data-lucide="zap" class="w-4 h-4"></i> <span id="lblVehicleInterruptBtn">แทรกคิว 1 คน (F2)</span>
+                    <button id="btnVehicleQuickInterrupt" onclick="toggleVehicleInterruptMode()" class="px-3.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs shadow-md transition flex items-center gap-1.5">
+                        <i data-lucide="zap" class="w-3.5 h-3.5"></i> <span id="lblVehicleInterruptBtn">คลิกเพื่อแทรกคิว 1 คน หรือกดคีย์ลัด (F2)</span>
                     </button>
-                    <button onclick="pauseVehicleSession()" class="px-3.5 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 rounded-xl font-black text-xs shadow-sm transition flex items-center gap-1.5">
-                        <i data-lucide="pause" class="w-4 h-4"></i> พักรถชั่วคราว
+                    <button onclick="pauseVehicleSession()" class="px-3.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 rounded-xl font-black text-xs shadow-sm transition flex items-center gap-1.5">
+                        <i data-lucide="pause" class="w-3.5 h-3.5"></i> พักรถชั่วคราว
                     </button>
-                </div>
-            </div>
-            <!-- Header Section -->
-            <div class="flex items-center gap-5 mb-6 bg-slate-50/50 p-4 rounded-[2rem] border border-slate-100">
-                <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 shrink-0">
-                    <i data-lucide="truck" class="w-9 h-9"></i>
-                </div>
-                <div class="flex-1 overflow-hidden">
-                    <h4 id="stgVehicleReg" class="text-3xl font-black text-slate-800 leading-none truncate">-</h4>
-                    <div class="flex items-center gap-2 mt-2">
-                        <span class="bg-blue-100 text-blue-700 px-3 py-0.5 rounded-lg text-xs font-black tracking-widest uppercase shrink-0">Vehicle ID</span>
-                        <p id="stgVehicleId" class="text-blue-600 font-bold text-lg leading-none truncate">-</p>
-                    </div>
                 </div>
             </div>
 
-            <!-- รายละเอียดรถ -->
-            <div id="stgVehicleDetails" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <!-- ข้อมูลการ์ด 4 ใบจะถูกวาดที่นี่ -->
+            <!-- 2. แถบสรุปข้อมูลรถแบบกะทัดรัด (Single-Row Bar ไม่ล้นจอ) -->
+            <div id="stgVehicleDetails" class="mb-3">
+                <!-- JS จะวาดแถบข้อมูลรถตรงนี้ -->
             </div>
 
-            <!-- รายการคนในรถ -->
-            <div class="space-y-3">
-                <div class="flex justify-between items-center border-b pb-2">
-                    <h5 class="font-black text-gray-400 uppercase text-[18px] tracking-[0.2em]">รายชื่อพนักงานในพาหนะ</h5>
-                    <span id="stgCount" class="bg-blue-100 px-3 py-1 rounded-full text-xs font-black text-blue-700">0 คน</span>
+            <!-- 3. แถบขั้นตอน 1 -> 2 -> 3 (Step Wizard เหมือนบัตรคน) -->
+            <div id="vStepWizardContainer" class="grid grid-cols-3 gap-2 mb-3 bg-gray-100 p-1.5 rounded-2xl text-center">
+                <div id="vStepBadge1" class="py-1.5 px-2 rounded-xl font-black text-xs bg-blue-600 text-white shadow-sm transition-all">
+                    1. สแกนคนขับ
+                </div>
+                <div id="vStepBadge2" class="py-1.5 px-2 rounded-xl font-bold text-xs text-gray-400 transition-all">
+                    2. สแกนผู้โดยสาร
+                </div>
+                <div id="vStepBadge3" class="py-1.5 px-2 rounded-xl font-bold text-xs text-gray-400 transition-all">
+                    3. ผู้ติดตาม / บันทึก
+                </div>
+            </div>
+
+            <!-- 4. แถบคำแนะนำขั้นตอนปัจจุบัน (Action Hint) -->
+            <div id="vInstructionBanner" class="mb-3 p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-bold flex items-center gap-2">
+                <i data-lucide="info" class="w-4 h-4 text-blue-600 shrink-0"></i>
+                <span id="vInstructionText">ขั้นตอนที่ 1: กรุณาสแกนบัตรคนขับรถ (พนักงานต้องมีสิทธิ์ DRIVE)</span>
+            </div>
+
+            <!-- 5. รายชื่อพนักงานในรถ (กำหนดความสูงล็อกไว้ มี Scrollbar ไม่ล้นจอ) -->
+            <div class="space-y-2">
+                <div class="flex justify-between items-center px-1">
+                    <span class="font-black text-gray-500 uppercase text-xs tracking-wider">รายชื่อพนักงานในพาหนะ</span>
+                    <span id="stgCount" class="bg-blue-100 px-3 py-0.5 rounded-full text-xs font-black text-blue-700">0 คน</span>
                 </div>
                 
-                <!-- ปรับความสูงรายการให้พอดีหน้าจอ -->
-                <div id="stgPeopleList" class="space-y-3 max-h-[calc(100vh-550px)] overflow-y-auto pr-1 custom-scrollbar">
-                    <!-- รายชื่อพนักงาน -->
-                </div>
+                <!-- กล่องรายชื่อจำกัดความสูงไว้ที่ 250px ไม่ดันปุ่มตกขอบ -->
+                <div id="stgPeopleList" class="space-y-2.5 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar"></div>
 
-                <!-- ปุ่มบันทึก -->
-                <div class="pt-4 flex gap-3">
-                    <button onclick="cancelVehicleSession()" class="flex-1 py-3 bg-gray-100 text-gray-500 font-bold rounded-2xl hover:bg-gray-200 transition text-sm">ยกเลิก</button>
-                    <button onclick="saveVehicleSession()" id="btnSaveVehicle" disabled class="flex-[2] py-3 bg-blue-600 text-white font-black rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed">บันทึกข้อมูล</button>
+                <!-- 6. ปุ่มบันทึกและยกเลิก -->
+                <div class="pt-3 flex gap-3 border-t border-gray-100">
+                    <button onclick="cancelVehicleSession()" class="flex-1 py-3 bg-gray-100 text-gray-600 font-black rounded-2xl hover:bg-gray-200 transition text-sm">ยกเลิก</button>
+                    <button onclick="saveVehicleSession()" id="btnSaveVehicle" disabled class="flex-[2] py-3 bg-gray-300 text-white font-black rounded-2xl shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm">
+                        <i data-lucide="save" class="w-4 h-4"></i> <span>บันทึกข้อมูล</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -3051,7 +3060,7 @@ function updateVehicleInterruptBtnUI() {
 
     if (vehicleInterruptNext) {
         btn.className = 'px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-xs shadow-md transition flex items-center gap-1.5 ring-2 ring-red-300';
-        lbl.textContent = `ยกเลิกแทรกคิว (${key})`;
+        lbl.textContent = `คลิกเพื่อยกเลิกแทรกคิว หรือกดคีย์ลัด (${key})`;
         if (banner) banner.classList.remove('hidden');
         if (currentScanTarget === 'vehicle') {
             input.placeholder = "⚡ แทรกคิว 1 คน: สแกนบัตรพนักงาน...";
@@ -3060,7 +3069,7 @@ function updateVehicleInterruptBtnUI() {
         }
     } else {
         btn.className = 'px-3.5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs shadow-md transition flex items-center gap-1.5';
-        lbl.textContent = `แทรกคิว 1 คน (${key})`;
+        lbl.textContent = `คลิกเพื่อแทรกคิว 1 คน หรือกดคีย์ลัด (${key})`;
         if (banner) banner.classList.add('hidden');
         if (currentScanTarget === 'vehicle') {
             input.classList.remove('border-orange-500', 'border-green-400');
@@ -3449,6 +3458,7 @@ function confirmVehicleCompanionsAndSave() {
     executeSaveVehicleToServer(peopleToSave);
 }
 
+// 1. วาดแถบข้อมูลรถแบบกะทัดรัด (Single-Row Bar)
 function drawVehicleStagingHeader(v, mode) {
     const area = document.getElementById('vehicleStagingArea');
     if (!originalVehicleStagingHTML) {
@@ -3466,46 +3476,54 @@ function drawVehicleStagingHeader(v, mode) {
     const toolbar = document.getElementById('vehicleActionToolbar');
     if (toolbar) toolbar.classList.remove('hidden');
 
-    document.getElementById('stgVehicleReg').textContent = v.vehicleReg;
-    document.getElementById('stgVehicleId').textContent = v.cardId;
-
     const areaIds = String(v.areaAccessIds || '').split(',').filter(x => x !== "");
     const gateIds = String(v.allowedGateIds || '').split(',').filter(x => x !== "");
     const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
 
+    // ป้ายโซนแบบกะทัดรัด
+    const areaBadges = areaIds.map(num => {
+        const aSet = allAreas.find(a => String(a.areaNumber) === String(num));
+        const c = aSet ? aSet.colorCode : '#4f46e5';
+        return `<span style="background-color: ${c}; color: ${getContrastYIQ(c)}" class="w-6 h-6 rounded-md inline-flex items-center justify-center text-xs font-black shadow-sm">${num}</span>`;
+    }).join(' ');
+
+    // แทนที่ 4 การ์ดยักษ์ ด้วยแถบแนวนอนอันเดียว กะทัดรัด สวยงาม!
     document.getElementById('stgVehicleDetails').innerHTML = `
-        <div class="bg-white border-2 border-slate-100 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
-            <div class="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center mb-2"><i data-lucide="building-2" class="w-5 h-5"></i></div>
-            <span class="text-[9px] font-black text-slate-400 uppercase mb-1">หน่วยงาน / สังกัด</span>
-            <p class="text-base font-black text-slate-700 leading-tight">${v.organization || 'ไม่ระบุ'}</p>
-        </div>
-        <div class="bg-white border-2 border-blue-50 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
-            <div class="w-10 h-10 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-2"><i data-lucide="map-pin" class="w-5 h-5"></i></div>
-            <span class="text-[9px] font-black text-blue-400 uppercase mb-1">จุดเข้าออกที่อนุญาต</span>
-            <p class="text-sm font-bold text-blue-800 leading-tight">${gateNames || 'ทุกจุดเข้า-ออก'}</p>
-        </div>
-        <div class="bg-white border-2 border-indigo-50 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
-            <div class="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mb-2"><i data-lucide="shield-check" class="w-5 h-5"></i></div>
-            <span class="text-[9px] font-black text-indigo-400 uppercase mb-2">พื้นที่ (Zone Access)</span>
-            <div class="flex flex-wrap justify-center gap-1.5">
-                ${areaIds.length > 0 ? areaIds.map(num => {
-                    const area = allAreas.find(a => String(a.areaNumber) === String(num));
-                    const color = area ? area.colorCode : '#4f46e5';
-                    return `<span style="background-color: ${color}; color: ${getContrastYIQ(color)}" class="w-8 h-8 rounded-lg flex items-center justify-center text-lg font-black shadow-sm">${num}</span>`;
-                }).join('') : '<span class="text-xs font-bold text-slate-300 italic">ไม่มีสิทธิ์</span>'}
+        <div class="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50/80 rounded-2xl border border-slate-200">
+            <!-- ฝั่งซ้าย: ไอคอนรถ + ทะเบียน + รหัส -->
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-xl flex items-center justify-center shadow-md shrink-0">
+                    <i data-lucide="truck" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h4 id="stgVehicleReg" class="text-xl font-black text-slate-800 leading-tight">${v.vehicleReg}</h4>
+                    <div class="flex flex-wrap items-center gap-2 mt-0.5">
+                        <span id="stgVehicleId" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">ID: ${v.cardId}</span>
+                        <span class="text-xs font-bold text-slate-600">${v.organization || '-'}</span>
+                    </div>
+                </div>
             </div>
-        </div>
-        <div class="bg-red-50 border-2 border-red-100 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center relative overflow-hidden">
-            <div class="absolute -right-2 -bottom-2 opacity-10 rotate-12 text-red-600"><i data-lucide="calendar-off" class="w-16 h-16"></i></div>
-            <div class="w-10 h-10 bg-white text-red-500 rounded-full flex items-center justify-center mb-2 shadow-sm"><i data-lucide="calendar" class="w-5 h-5"></i></div>
-            <span class="text-[9px] font-black text-red-400 uppercase mb-1">วันหมดอายุบัตรรถ</span>
-            <p class="text-lg font-black text-red-600 leading-none">${formatDateOnly(v.expiryDate)}</p>
+            <!-- ฝั่งขวา: ป้ายประตู + ZONE + วันหมดอายุ -->
+            <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
+                <div class="bg-white px-2.5 py-1 rounded-xl border border-slate-200 shadow-sm flex items-center gap-1">
+                    <span class="text-[10px] text-slate-400">ประตู:</span>
+                    <span class="text-blue-800 font-bold truncate max-w-[130px]">${gateNames || 'ทุกประตู'}</span>
+                </div>
+                <div class="bg-white px-2.5 py-1 rounded-xl border border-slate-200 shadow-sm flex items-center gap-1">
+                    <span class="text-[10px] text-indigo-400">ZONE:</span>
+                    <div class="flex gap-1">${areaBadges || '-'}</div>
+                </div>
+                <div class="bg-red-50 px-2.5 py-1 rounded-xl border border-red-200 shadow-sm flex items-center gap-1">
+                    <span class="text-[10px] text-red-400">หมดอายุ:</span>
+                    <span class="text-red-600 font-black">${formatDateOnly(v.expiryDate)}</span>
+                </div>
+            </div>
         </div>
     `;
 
     const badge = document.getElementById('stgIoBadge');
     badge.textContent = mode;
-    badge.className = `w-full text-center py-4 font-black text-4xl sm:text-5xl text-white shadow-md z-10 tracking-[0.15em] transition-colors duration-500 uppercase ${mode === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+    badge.className = `w-full text-center py-3.5 font-black text-3xl sm:text-4xl text-white shadow-md z-10 tracking-[0.15em] transition-colors duration-500 uppercase ${mode === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
 }
 
 async function handleVehicleScan(cardId) {
@@ -3564,15 +3582,16 @@ async function handleVehicleScan(cardId) {
     if(window.lucide) lucide.createIcons();
 }
 
+// 2. วาดรายชื่อคนในรถ + คุมแถบขั้นตอน Step Wizard แบบ Real-time
 function renderStagingList() {
     const list = document.getElementById('stgPeopleList');
     const btnSave = document.getElementById('btnSaveVehicle');
     let html = '';
 
     const drawItem = (p, isDriver, index) => {
-        const areaIds = String(p.areaAccessIds || '').split(',').filter(x=>x);
+        const areaIds = String(p.areaAccessIds || '').split(',').filter(x => x);
         const expDate = new Date(p.expiryDate);
-        const isExp = expDate.setHours(23,59,59) < new Date();
+        const isExp = expDate.setHours(23, 59, 59) < new Date();
         const imgUrl = getFastImageUrl(p.imageUrl);
         const tInfo = typeCards.find(t => String(t.id) === String(p.typeId)) || {};
         const needsEscort = (vehicleSession.mode === 'IN' && isTrue(tInfo.requireCompanion));
@@ -3580,52 +3599,49 @@ function renderStagingList() {
         const alreadyIn = (vehicleSession.mode === 'IN' && String(p.currentStatus || 'OUT').trim().toUpperCase() === 'IN');
 
         return `
-        <div class="p-4 ${isDriver?'bg-amber-50/50 border-amber-300':'bg-white border-slate-100'} border-2 rounded-[2rem] shadow-sm animate-fadeIn mb-3 transition-all">
-            <div class="grid grid-cols-[80px_1fr_200px_100px_150px_110px] items-center gap-4">
+        <div class="p-3 ${isDriver ? 'bg-amber-50/60 border-amber-300' : 'bg-white border-slate-100'} border-2 rounded-2xl shadow-sm animate-fadeIn transition-all">
+            <div class="grid grid-cols-[60px_1fr_170px_80px_110px_90px] items-center gap-3">
                 <div class="relative shrink-0">
-                    <img src="${imgUrl}" crossorigin="anonymous" class="w-16 h-16 rounded-2xl object-cover border-4 border-white shadow-md">
-                    <span class="absolute -bottom-2 -right-1 text-[8px] font-black ${isDriver?'bg-amber-500':'bg-slate-500'} text-white px-2 py-0.5 rounded-full uppercase border-2 border-white shadow-sm">${isDriver?'Driver':'Pax'}</span>
+                    <img src="${imgUrl}" crossorigin="anonymous" class="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-sm">
+                    <span class="absolute -bottom-1.5 -right-1 text-[7px] font-black ${isDriver ? 'bg-amber-500' : 'bg-slate-500'} text-white px-1.5 py-0.5 rounded-full uppercase border border-white">${isDriver ? 'Driver' : 'Pax'}</span>
                 </div>
 
                 <div class="overflow-hidden">
-                    <p class="text-xl font-black text-gray-800 leading-tight truncate">${p.firstName} ${p.lastName}</p>
-                    <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
-                        <p class="text-base font-bold text-blue-600">${p.cardId}</p>
-                        ${needsEscort ? `<span class="text-[10px] font-black bg-orange-100 text-orange-700 px-2 py-0.5 rounded-lg border border-orange-200">⚠️ ต้องมีผู้ติดตาม (1:${ratio===0?'ไม่จำกัด':ratio})</span>` : ''}
-                        ${alreadyIn ? `<span class="text-[10px] font-black bg-sky-100 text-sky-700 px-2 py-0.5 rounded-lg border border-sky-200">ℹ️ IN อยู่แล้ว (ไม่ลง Log IN ซ้ำ)</span>` : ''}
+                    <p class="text-base font-black text-gray-800 leading-tight truncate">${p.firstName} ${p.lastName}</p>
+                    <div class="flex flex-wrap items-center gap-1 mt-0.5">
+                        <p class="text-xs font-bold text-blue-600">${p.cardId}</p>
+                        ${needsEscort ? `<span class="text-[9px] font-black bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded border border-orange-200">⚠️ ผู้ติดตาม (1:${ratio === 0 ? 'ไม่จำกัด' : ratio})</span>` : ''}
+                        ${alreadyIn ? `<span class="text-[9px] font-black bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded border border-sky-200">ℹ️ IN อยู่แล้ว</span>` : ''}
                     </div>
                 </div>
 
                 <div class="shrink-0 overflow-hidden pr-2">
-                    <span class="text-[9px] font-black text-gray-400 uppercase block mb-1">หน่วยงาน / ตำแหน่ง</span>
-                    <p class="text-base font-bold text-gray-700 truncate leading-tight">${p.organization || '-'}</p>
-                    <p class="text-xs font-medium text-gray-500 truncate">${p.position || '-'}</p>
+                    <p class="text-xs font-bold text-gray-700 truncate leading-tight">${p.organization || '-'}</p>
+                    <p class="text-[10px] font-medium text-gray-500 truncate">${p.position || '-'}</p>
                 </div>
 
                 <div class="shrink-0 text-center">
-                    <span class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Zone</span>
                     <div class="flex gap-1 justify-center">
                         ${areaIds.map(num => {
                             const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
                             const color = areaSetting ? areaSetting.colorCode : '#4f46e5';
-                            const textColor = getContrastYIQ(color);
-                            return `<div style="background-color: ${color}; color: ${textColor}; border-color: ${color}" class="w-10 h-10 rounded-xl flex flex-col items-center justify-center shadow-md border-2 filter brightness-95"><span class="text-lg font-black leading-none">${num}</span></div>`;
+                            return `<div style="background-color: ${color}; color: ${getContrastYIQ(color)}" class="w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs shadow-sm">${num}</div>`;
                         }).join('')}
                     </div>
                 </div>
 
-                <div class="shrink-0 text-right pr-4">
-                    <span class="text-[9px] font-black text-gray-400 uppercase block mb-1">วันหมดอายุ</span>
-                    <p class="text-base font-black ${isExp?'text-red-600':'text-slate-800'}">${formatDateOnly(p.expiryDate)}</p>
+                <div class="shrink-0 text-right pr-2">
+                    <span class="text-[8px] font-black text-gray-400 uppercase block">หมดอายุ</span>
+                    <p class="text-xs font-black ${isExp ? 'text-red-600' : 'text-slate-800'}">${formatDateOnly(p.expiryDate)}</p>
                 </div>
 
                 <div class="flex gap-1 justify-end shrink-0">
                     ${(isDriver === false && vehicleSession.mode === 'IN') ? `
-                        <button onclick="swapToDriver(${index})" class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-50" title="สลับเป็นคนขับ">
-                            <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                        <button onclick="swapToDriver(${index})" class="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-100" title="สลับเป็นคนขับ">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                         </button>` : ''}
-                    <button onclick="${isDriver?'removeDriver()':'removePassenger('+index+')'}" class="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition shadow-sm border border-red-50" title="ลบออก">
-                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    <button onclick="${isDriver ? 'removeDriver()' : 'removePassenger(' + index + ')'}" class="p-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition shadow-sm border border-red-100" title="ลบออก">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
             </div>
@@ -3635,12 +3651,78 @@ function renderStagingList() {
     if (vehicleSession.driver) html += drawItem(vehicleSession.driver, true);
     vehicleSession.passengers.forEach((p, i) => html += drawItem(p, false, i));
 
-    list.innerHTML = html || '<div class="py-20 text-center text-gray-300 italic flex flex-col items-center gap-2"><i data-lucide="scan-line" class="w-16 h-16 opacity-10"></i><p class="font-bold">รอการแสกนบัตรพนักงาน...</p></div>';
+    list.innerHTML = html || '<div class="py-12 text-center text-gray-300 italic flex flex-col items-center gap-2"><i data-lucide="scan-line" class="w-12 h-12 opacity-20"></i><p class="font-bold text-xs">รอการแสกนบัตรพนักงาน...</p></div>';
     document.getElementById('stgCount').textContent = (vehicleSession.driver ? 1 : 0) + vehicleSession.passengers.length + ' คน';
-    
-    btnSave.disabled = (vehicleSession.mode === 'IN' && !vehicleSession.driver);
+
+    // ==========================================
+    // อัปเดตแถบขั้นตอน Step Wizard อัตโนมัติ (Step 1 -> 2 -> 3)
+    // ==========================================
+    const s1 = document.getElementById('vStepBadge1');
+    const s2 = document.getElementById('vStepBadge2');
+    const s3 = document.getElementById('vStepBadge3');
+    const banner = document.getElementById('vInstructionBanner');
+    const bannerTxt = document.getElementById('vInstructionText');
+
+    if (vehicleSession.mode === 'OUT') {
+        // ขาออก (OUT): ขั้นตอนง่าย ไม่ต้องเลือกคนขับ
+        document.getElementById('vStepWizardContainer').classList.add('hidden');
+        banner.className = 'mb-3 p-2.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-900 text-xs font-bold flex items-center gap-2';
+        bannerTxt.innerHTML = 'ตรวจสอบรายชื่อพนักงานที่นั่งมากับรถคันนี้ แล้วกดปุ่ม <b>"บันทึกข้อมูล"</b> ด้านล่างได้เลยครับ';
+        btnSave.disabled = false;
+        btnSave.className = 'flex-[2] py-3 bg-orange-600 hover:bg-orange-700 text-white font-black rounded-2xl shadow-lg transition flex items-center justify-center gap-2 text-sm';
+    } else {
+        // ขาเข้า (IN): มี 3 สเต็ปชัดเจน
+        document.getElementById('vStepWizardContainer').classList.remove('hidden');
+
+        const allInCar = (vehicleSession.driver ? [vehicleSession.driver] : []).concat(vehicleSession.passengers);
+        const needingEscort = allInCar.filter(p => {
+            const t = typeCards.find(tc => String(tc.id) === String(p.typeId));
+            return t && isTrue(t.requireCompanion);
+        });
+
+        if (!vehicleSession.driver) {
+            // สเต็ปที่ 1: รอคนขับ
+            s1.className = 'py-1.5 px-2 rounded-xl font-black text-xs bg-blue-600 text-white shadow-sm transition-all animate-pulse';
+            s1.innerHTML = '1. สแกนคนขับ (DRIVE)';
+            s2.className = 'py-1.5 px-2 rounded-xl font-bold text-xs text-gray-400 transition-all';
+            s3.className = 'py-1.5 px-2 rounded-xl font-bold text-xs text-gray-400 transition-all';
+
+            banner.className = 'mb-3 p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-bold flex items-center gap-2';
+            bannerTxt.innerHTML = 'ขั้นตอนที่ 1: กรุณาสแกนบัตร <b>"คนขับรถ"</b> เป็นคนแรก (พนักงานต้องมีสิทธิ์ DRIVE)';
+
+            btnSave.disabled = true;
+            btnSave.className = 'flex-[2] py-3 bg-gray-300 text-white font-black rounded-2xl shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm';
+        } else {
+            // สเต็ปที่ 2: มีคนขับแล้ว -> สแกนผู้โดยสารเพิ่มได้
+            s1.className = 'py-1.5 px-2 rounded-xl font-bold text-xs bg-emerald-100 text-emerald-700 transition-all';
+            s1.innerHTML = '✓ 1. คนขับพร้อม';
+
+            s2.className = 'py-1.5 px-2 rounded-xl font-black text-xs bg-indigo-600 text-white shadow-sm transition-all';
+            s2.innerHTML = `2. สแกนผู้โดยสาร (${vehicleSession.passengers.length} คน)`;
+
+            if (needingEscort.length > 0) {
+                // ต้องมีผู้ติดตาม
+                s3.className = 'py-1.5 px-2 rounded-xl font-bold text-xs text-orange-600 bg-orange-50 border border-orange-200 transition-all';
+                s3.innerHTML = `3. รอผูกผู้ติดตาม (${needingEscort.length} คน)`;
+
+                banner.className = 'mb-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold flex items-center gap-2';
+                bannerTxt.innerHTML = `ขั้นตอนที่ 2: สแกนผู้โดยสารเพิ่มได้เรื่อยๆ หรือกดปุ่ม <b>"บันทึกข้อมูล"</b> เพื่อไประบุผู้ติดตาม (${needingEscort.length} คน)`;
+            } else {
+                // ไม่มีใครต้องใช้ผู้ติดตาม พร้อมบันทึกเลย!
+                s3.className = 'py-1.5 px-2 rounded-xl font-black text-xs bg-emerald-600 text-white shadow-sm animate-pulse transition-all';
+                s3.innerHTML = '3. พร้อมบันทึก';
+
+                banner.className = 'mb-3 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center gap-2';
+                bannerTxt.innerHTML = 'สแกนผู้โดยสารเพิ่มได้เรื่อยๆ หรือกดปุ่มสีเขียว <b>"บันทึกข้อมูล"</b> ด้านล่างได้ทันทีครับ';
+            }
+
+            btnSave.disabled = false;
+            btnSave.className = 'flex-[2] py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-lg shadow-emerald-200 transition flex items-center justify-center gap-2 text-sm';
+        }
+    }
+
     updateVehicleInterruptBtnUI();
-    lucide.createIcons();
+    if (window.lucide) lucide.createIcons();
 }
 
 function cancelVehicleSession() {
