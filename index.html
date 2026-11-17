@@ -540,56 +540,82 @@ gap: 1px !important;
 <!-- ส่วนแสดงผลการเข้าพื้นที่แบบกลุ่ม (Group Staging) -->
 <!-- ========================================== -->
 <!-- ========================================== -->
-<!-- ส่วนแสดงผลการเข้าพื้นที่แบบกลุ่ม (Unified Group Staging UI) -->
+<!-- ส่วนแสดงผลการเข้าพื้นที่แบบกลุ่ม (Step Wizard UI) -->
 <!-- ========================================== -->
 <div id="groupStagingArea" class="hidden min-h-full">
     <div class="bg-white rounded-[2.5rem] border border-purple-100 shadow-2xl overflow-hidden flex flex-col">
         
-        <!-- แถบหัวข้อ + สัดส่วน + ปุ่มพักกลุ่ม -->
+        <!-- แถบหัวข้อ + ปุ่มพักกลุ่มชั่วคราว -->
         <div class="w-full px-6 py-4 bg-purple-600 text-white shadow-md z-10 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-                    <i data-lucide="users" class="w-6 h-6"></i>
-                </div>
+                <i data-lucide="users" class="w-7 h-7"></i>
                 <div>
-                    <h4 class="font-black text-xl tracking-wide leading-none" id="grpTypeName">เข้าพื้นที่แบบกลุ่ม</h4>
-                    <p class="text-purple-200 text-xs font-bold mt-1" id="grpRatioText">สัดส่วนผู้ติดตาม -</p>
+                    <h4 class="font-black text-xl sm:text-2xl tracking-wide leading-none">เข้าพื้นที่แบบกลุ่ม</h4>
+                    <p class="text-purple-200 text-xs font-bold mt-1"><span id="grpTypeName">-</span> (<span id="grpRatioText">-</span>)</p>
                 </div>
             </div>
-            <!-- ปุ่มแทรกคิว และ พักกลุ่ม -->
-            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                <button id="btnGroupQuickInterrupt" onclick="toggleGroupInterruptMode()" class="flex-1 sm:flex-none px-3.5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs shadow-md transition flex items-center justify-center gap-1.5">
-                    <i data-lucide="zap" class="w-4 h-4"></i> <span id="lblGroupInterruptBtn">แทรกคิว 1 คน (F2)</span>
-                </button>
-                <button onclick="pauseGroupSession()" class="flex-1 sm:flex-none px-3.5 py-2 bg-purple-800 hover:bg-purple-900 text-purple-100 rounded-xl font-black text-xs shadow-md border border-purple-400 transition flex items-center justify-center gap-1.5">
-                    <i data-lucide="pause" class="w-4 h-4"></i> พักกลุ่มนี้ไว้
-                </button>
-            </div>
+            <button onclick="pauseGroupSession()" class="w-full sm:w-auto px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs shadow-lg border border-orange-400 transition flex items-center justify-center gap-1.5 shrink-0">
+                <i data-lucide="pause" class="w-4 h-4"></i> พักกลุ่มชั่วคราว (แสกนเจ้าหน้าที่แทรก)
+            </button>
         </div>
 
-        <div class="p-5 sm:p-6 space-y-4">
-            <!-- แถบคำแนะนำ -->
-            <div class="p-3 rounded-2xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-bold flex items-center justify-between gap-2">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="scan-line" class="w-4 h-4 text-purple-600 shrink-0"></i>
-                    <span>สแกนบัตรผู้เข้าพื้นที่ได้เรื่อยๆ (ยิงแทรกคิวลูกเรือ/พนักงานได้ทันที) เมื่อครบแล้วกดปุ่มบันทึกด้านล่าง</span>
+        <div class="p-5 sm:p-6">
+            <!-- แถบแสดงขั้นตอน 1 -> 2 -> 3 (Step Wizard) -->
+            <div class="grid grid-cols-3 gap-2 mb-4 bg-gray-100 p-1.5 rounded-2xl text-center">
+                <div id="grpStepBadge1" class="py-2 px-2 rounded-xl font-black text-xs bg-purple-600 text-white shadow-sm transition-all">
+                    1. แสกนผู้เข้าพื้นที่
                 </div>
-                <span id="grpMemberCountBadge" class="bg-purple-600 text-white px-3 py-1 rounded-full text-xs font-black shadow-sm shrink-0">0 คน</span>
+                <div id="grpStepBadge2" class="py-2 px-2 rounded-xl font-bold text-xs text-gray-400 transition-all">
+                    2. แสกนผู้ติดตาม
+                </div>
+                <div id="grpStepBadge3" class="py-2 px-2 rounded-xl font-bold text-xs text-gray-400 transition-all">
+                    3. กดบันทึก
+                </div>
             </div>
 
-            <!-- รายชื่อผู้เข้าพื้นที่ (ตารางเดี่ยว กว้างเต็มจอ เลื่อนได้ ไม่ล้น) -->
-            <div class="space-y-2">
-                <div id="grpMembersList" class="space-y-2.5 max-h-[340px] overflow-y-auto pr-1 custom-scrollbar"></div>
+            <!-- แถบคำแนะนำขั้นตอนปัจจุบัน (Action Hint) -->
+            <div id="grpInstructionBanner" class="mb-4 p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-bold flex items-center gap-2">
+                <i data-lucide="info" class="w-4 h-4 text-purple-600 shrink-0"></i>
+                <span>ขั้นตอนที่ 1: ยิงบาร์โค้ดผู้เข้าพื้นที่ได้เรื่อยๆ (หากมีลูกเรือ/พนักงานเข้าด่วน ยิงแทรกได้ทันที!) เมื่อครบแล้วกดปุ่มด้านล่าง</span>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <!-- ฝั่งซ้าย: รายชื่อลูกทัวร์ -->
+                <div id="grpMemberSection" class="flex flex-col border-2 border-purple-300 rounded-2xl bg-purple-50/20 overflow-hidden h-[380px] transition-all">
+                    <div class="bg-purple-100 p-3 flex justify-between items-center border-b border-purple-200">
+                        <span class="font-black text-purple-900 text-sm">1. รายชื่อผู้เข้าพื้นที่</span>
+                        <span id="grpMemberCount" class="bg-purple-600 px-3 py-1 rounded-full text-xs font-black text-white shadow-sm">0 คน</span>
+                    </div>
+                    <div id="grpMembersList" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar"></div>
+                    <div class="p-3 bg-white border-t border-purple-100" id="grpBtnContainerStep1">
+                        <button onclick="transitionToCompanions()" id="btnToStep2" class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl shadow-md transition text-sm flex items-center justify-center gap-2">
+                            <span>เสร็จสิ้นขั้นที่ 1 ➔ ไปสแกนผู้ติดตาม</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ฝั่งขวา: รายชื่อผู้ติดตาม -->
+                <div id="grpCompanionSection" class="flex flex-col border-2 border-gray-200 rounded-2xl bg-gray-50 overflow-hidden h-[380px] opacity-50 pointer-events-none transition-all duration-300">
+                    <div class="bg-gray-200 p-3 flex justify-between items-center border-b border-gray-200" id="grpCompanionHeader">
+                        <span class="font-black text-gray-600 text-sm">2. ผู้ติดตาม (Escort)</span>
+                        <span id="grpCompanionCount" class="bg-gray-500 px-3 py-1 rounded-full text-xs font-black text-white shadow-sm">รับได้ 0 / 0 คน</span>
+                    </div>
+                    <div id="grpQuotaAlert" class="hidden px-3 py-2 text-[11px] font-bold text-center border-b"></div>
+                    <div id="grpCompanionsList" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar"></div>
+                    <div id="grpBtnBackStep1" class="hidden p-3 bg-white border-t border-indigo-100">
+                        <button onclick="backToGroupMembers()" class="w-full py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-700 font-black rounded-xl border border-purple-200 transition text-xs flex items-center justify-center gap-2">
+                            <i data-lucide="arrow-left" class="w-4 h-4"></i> ย้อนกลับไปเพิ่ม/แก้ไขผู้เข้าพื้นที่
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- ปุ่มด้านล่างสุด -->
-            <div class="pt-3 flex gap-3 border-t border-gray-100">
-                <button onclick="cancelGroupSession()" class="flex-1 py-3.5 bg-gray-100 text-gray-600 font-black rounded-2xl hover:bg-gray-200 transition text-sm">
-                    ยกเลิกทั้งหมด
-                </button>
-                <button onclick="openGroupCompanionModal()" id="btnSaveGroup" disabled class="flex-[2] py-3.5 bg-gray-300 text-white font-black rounded-2xl shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm">
-                    <i data-lucide="user-check" class="w-4 h-4"></i>
-                    <span>ระบุผู้ติดตาม / บันทึกข้อมูล</span>
+            <div class="pt-5 flex gap-3 mt-4 border-t border-gray-100">
+                <button onclick="cancelGroupSession()" class="flex-1 py-3.5 bg-gray-100 text-gray-600 font-black rounded-2xl hover:bg-gray-200 transition shadow-sm border border-gray-200">ยกเลิกทั้งหมด</button>
+                <button onclick="saveGroupSession()" id="btnSaveGroup" disabled class="flex-[2] py-3.5 bg-gray-300 text-white font-black rounded-2xl shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                    <i data-lucide="save" class="w-5 h-5"></i> <span>บันทึกข้อมูลเข้าพื้นที่</span>
                 </button>
             </div>
         </div>
@@ -2595,64 +2621,6 @@ gap: 1px !important;
     </div>
 </div>
 
-<!-- Modal: เลือก/สแกนผู้ติดตามสำหรับกลุ่ม (Group Companion Modal) -->
-<div id="groupCompanionModal" class="fixed inset-0 z-[115] hidden flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="closeGroupCompanionModal()"></div>
-    <div class="relative bg-white rounded-3xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-fadeIn border-t-8 border-purple-600 overflow-hidden">
-        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-purple-50/50">
-            <div class="flex items-center gap-3">
-                <div class="w-11 h-11 bg-purple-600 text-white rounded-2xl flex items-center justify-center shadow-md">
-                    <i data-lucide="user-check" class="w-6 h-6"></i>
-                </div>
-                <div>
-                    <h3 class="text-lg font-black text-gray-800">ระบุผู้ติดตามสำหรับกลุ่ม</h3>
-                    <p class="text-xs font-bold text-purple-600" id="grpCompSubtitle">ผู้เข้าพื้นที่: 0 คน</p>
-                </div>
-            </div>
-            <button onclick="closeGroupCompanionModal()" class="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
-        </div>
-
-        <div class="p-5 overflow-y-auto space-y-4 custom-scrollbar flex-1">
-            <!-- แถบสถานะโควต้า -->
-            <div id="grpCompQuotaStatus" class="p-3 rounded-xl text-xs font-black text-center border"></div>
-
-            <!-- ส่วนที่ 1: เลือกจากคนในกลุ่มที่สามารถเป็นผู้ติดตามได้ -->
-            <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                <p class="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <i data-lucide="users" class="w-4 h-4 text-purple-600"></i> 1. คลิกเลือกจากสมาชิกในกลุ่ม (อาจารย์/หัวหน้าทีม)
-                </p>
-                <div id="grpCompInGroupCandidates" class="space-y-2"></div>
-            </div>
-
-            <!-- ส่วนที่ 2: สแกนบัตรผู้ติดตามเพิ่มเติมจากภายนอก -->
-            <div class="bg-indigo-50/60 p-3.5 rounded-2xl border border-indigo-200">
-                <p class="text-xs font-black text-indigo-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <i data-lucide="barcode" class="w-4 h-4"></i> 2. หรือสแกนบัตรผู้ติดตามเพิ่มเติม (เจ้าหน้าที่นำทาง/มารับที่ประตู)
-                </p>
-                <div class="flex gap-2">
-                    <input type="text" id="grpCompBarcode" class="flex-1 px-4 py-2.5 text-base font-bold text-center border-2 border-indigo-300 rounded-xl bg-white focus:border-indigo-500 outline-none uppercase" placeholder="สแกนรหัสบัตรผู้ติดตาม..." onkeypress="if(event.key==='Enter') addExternalGroupCompanion()" oninput="this.value = this.value.toUpperCase()">
-                    <button onclick="addExternalGroupCompanion()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow">เพิ่ม</button>
-                </div>
-            </div>
-
-            <!-- ส่วนที่ 3: รายชื่อผู้ติดตามที่เลือกแล้ว -->
-            <div>
-                <p class="text-xs font-black text-gray-500 uppercase tracking-wider mb-2">ผู้ติดตามที่ระบุสำหรับกลุ่มนี้:</p>
-                <div id="grpCompSelectedList" class="space-y-2"></div>
-            </div>
-        </div>
-
-        <div class="p-4 border-t bg-gray-50 flex gap-3">
-            <button onclick="closeGroupCompanionModal()" class="flex-1 py-3 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 font-bold rounded-xl transition">
-                ย้อนกลับไปเพิ่มคน
-            </button>
-            <button id="btnConfirmGroupCompanions" onclick="confirmGroupCompanionsAndSave()" disabled class="flex-[2] py-3 bg-gray-300 text-white font-black rounded-xl shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed">
-                ยืนยันและบันทึกข้อมูลเข้าพื้นที่
-            </button>
-        </div>
-    </div>
-</div>
-
 <!-- Modal: เปลี่ยนสถานะหลายรายการ (บัตรรถ) -->
 <div id="vehicleStatusModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/60 backdrop-blur-sm modal-overlay" onclick="closeVehicleStatusModal()"></div>
@@ -3078,56 +3046,8 @@ saveGateToLocal = function() {
 // ==========================================
 let pausedVehicleSession = null;
 let vehicleInterruptNext = false;
-let groupInterruptNext = false;
 let vehicleSelectedCompanions = [];
 let vehiclePeopleNeedingEscort = [];
-
-function updateInterruptButtonsUI() {
-    const key = systemSettings.vehicleInterruptKey || 'F2';
-    
-    // ฝั่งรถ
-    const vBtn = document.getElementById('btnVehicleQuickInterrupt');
-    const vLbl = document.getElementById('lblVehicleInterruptBtn');
-    const vBanner = document.getElementById('vehicleInterruptBanner');
-    const input = document.getElementById('scanInput');
-
-    if (vBtn && vLbl) {
-        if (vehicleInterruptNext) {
-            vBtn.className = 'px-3.5 py-2 bg-red-600 text-white rounded-xl font-black text-xs shadow-md ring-2 ring-red-300';
-            vLbl.textContent = `ยกเลิกแทรก (${key})`;
-            if (vBanner) vBanner.classList.remove('hidden');
-            if (currentScanTarget === 'vehicle') {
-                input.placeholder = "⚡ แทรกคิว 1 คน: สแกนบัตรพนักงาน...";
-                input.classList.add('border-orange-500');
-            }
-        } else {
-            vBtn.className = 'px-3.5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs shadow-md';
-            vLbl.textContent = `แทรกคิว 1 คน (${key})`;
-            if (vBanner) vBanner.classList.add('hidden');
-        }
-    }
-
-    // ฝั่งกลุ่ม
-    const gBtn = document.getElementById('btnGroupQuickInterrupt');
-    const gLbl = document.getElementById('lblGroupInterruptBtn');
-    if (gBtn && gLbl) {
-        if (groupInterruptNext) {
-            gBtn.className = 'flex-1 sm:flex-none px-3.5 py-2 bg-red-600 text-white rounded-xl font-black text-xs shadow-md ring-2 ring-red-300';
-            gLbl.textContent = `ยกเลิกแทรก (${key})`;
-            input.placeholder = "⚡ แทรกคิว 1 คน: สแกนบัตรพนักงาน...";
-            input.classList.add('border-orange-500');
-        } else {
-            gBtn.className = 'flex-1 sm:flex-none px-3.5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs shadow-md';
-            gLbl.textContent = `แทรกคิว 1 คน (${key})`;
-            if (groupSession.active) {
-                input.placeholder = "แสกนบัตรผู้เข้าพื้นที่คนต่อไป...";
-                input.classList.remove('border-orange-500');
-                input.classList.add('border-purple-500');
-            }
-        }
-    }
-    if (window.lucide) lucide.createIcons();
-}
 
 function updateVehicleInterruptBtnUI() {
     const key = systemSettings.vehicleInterruptKey || 'F2';
@@ -3163,32 +3083,23 @@ function updateVehicleInterruptBtnUI() {
 function toggleVehicleInterruptMode() {
     if (currentScanTarget !== 'vehicle' || !vehicleSession.vehicle) return;
     vehicleInterruptNext = !vehicleInterruptNext;
-    updateInterruptButtonsUI();
+    updateVehicleInterruptBtnUI();
     document.getElementById('scanInput').focus();
 }
 
-function toggleGroupInterruptMode() {
-    if (!groupSession.active) return;
-    groupInterruptNext = !groupInterruptNext;
-    updateInterruptButtonsUI();
-    document.getElementById('scanInput').focus();
-}
-
-// ผูกปุ่ม F2 ใช้ร่วมกันทั้งรถและกลุ่ม
+// ดักจับปุ่มคีย์ลัด (ค่าเริ่มต้น F2) บนหน้าสแกนรถ
 window.addEventListener('keydown', function(e) {
-    if (currentPage !== 'home') return;
+    if (currentPage !== 'home' || currentScanTarget !== 'vehicle' || !vehicleSession.vehicle) return;
     const isAnyModalOpen = !document.getElementById('customAlertModal').classList.contains('hidden') ||
                            !document.getElementById('customConfirmModal').classList.contains('hidden') ||
                            !document.getElementById('companionModal').classList.contains('hidden') ||
-                           !document.getElementById('vehicleCompanionModal').classList.contains('hidden') ||
-                           !document.getElementById('groupCompanionModal').classList.contains('hidden');
+                           !document.getElementById('vehicleCompanionModal').classList.contains('hidden');
     if (isAnyModalOpen) return;
 
     const targetKey = systemSettings.vehicleInterruptKey || 'F2';
     if (e.key === targetKey) {
         e.preventDefault();
-        if (currentScanTarget === 'vehicle' && vehicleSession.vehicle) toggleVehicleInterruptMode();
-        else if (groupSession.active) toggleGroupInterruptMode();
+        toggleVehicleInterruptMode();
     }
 });
 
@@ -3626,7 +3537,6 @@ function drawVehicleStagingHeader(v, mode) {
 
 async function handleVehicleScan(cardId) {
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
-    vehicleSelectedCompanions = []; // <--- ล้างค่าผู้ติดตามรถทิ้งเสมอเมื่อเริ่มคันใหม่!
     vehicleInterruptNext = false;
     pausedVehicleSession = null;
     renderPausedVehicleBar();
@@ -3826,7 +3736,6 @@ function renderStagingList() {
 
 function cancelVehicleSession() {
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
-	vehicleSelectedCompanions = []; // <--- ล้างค่าผู้ติดตามรถทิ้งเสมอเมื่อเริ่มคันใหม่!
     vehicleInterruptNext = false;
 
     document.getElementById('scanResultData').classList.add('hidden');
@@ -3869,9 +3778,7 @@ async function executeSaveVehicleToServer(peopleToSave) {
         allVehicles[vIdx].currentStatus = payload.ioType;
         allVehicles[vIdx].lastLogTime = nowIso;
     }
-
-	
-	
+    
     peopleToSave.forEach(p => {
         const pIdx = allCards.findIndex(c => c.cardId === p.cardId);
         if (pIdx !== -1) {
@@ -3898,14 +3805,6 @@ async function executeSaveVehicleToServer(peopleToSave) {
                 allCards[cIdx].currentCompanionId = '';
             }
         }
-		// ใน executeSaveVehicleToServer ตอนที่บันทึกสำเร็จ:
-            if (vehicleSession.mode === 'IN' && p.companionCardId) {
-                const cIdx = allCards.findIndex(c => c.cardId === p.companionCardId);
-                if (cIdx !== -1) {
-                    allCards[cIdx].currentVehicleId = payload.vehicleCardId; // <--- ผูกติดกับรถคันนี้ทันที!
-                    allCards[cIdx].currentIsDriver = false;
-                }
-            }
     });
 
     const vehicleSnapshot = vehicleSession.vehicle;
@@ -5111,22 +5010,19 @@ function resolveCustomConfirm(result) {
             const isCompOpen = !document.getElementById('companionModal').classList.contains('hidden');
 			const isCustomConfirmOpen = !document.getElementById('customConfirmModal').classList.contains('hidden');
 			const isVehicleCompOpen = !document.getElementById('vehicleCompanionModal').classList.contains('hidden');
-         	const isGroupCompOpen = !document.getElementById('groupCompanionModal').classList.contains('hidden');
             if (isCustomConfirmOpen) return; // ถ้าป๊อปอัปยืนยันเปิดอยู่ ห้ามแย่ง Focus
 			
             const activeEl = document.activeElement;
             // ถ้ากำลังกรอกอะไรอย่างอื่นอยู่ (เช่น dropdown เลือกประตู) ให้ข้ามไปก่อน
             if(activeEl.tagName === 'SELECT' || activeEl.tagName === 'BUTTON') return;
-
-			if (isGroupCompOpen) {
-             if (activeEl.id !== 'grpCompBarcode') document.getElementById('grpCompBarcode').focus();
-         } else if (isVehicleCompOpen) {
-             if (activeEl.id !== 'vCompBarcode') document.getElementById('vCompBarcode').focus();
-         } else if (isCompOpen) {
-             if (activeEl.id !== 'compBarcode') document.getElementById('compBarcode').focus();
-         } else {
-             if (activeEl.id !== 'scanInput') document.getElementById('scanInput').focus();
-         }
+            
+            if (isVehicleCompOpen) {
+            if (activeEl.id !== 'vCompBarcode') document.getElementById('vCompBarcode').focus();
+        	} else if (isCompOpen) {
+            if (activeEl.id !== 'compBarcode') document.getElementById('compBarcode').focus();
+        	} else {
+            if (activeEl.id !== 'scanInput') document.getElementById('scanInput').focus();
+        	}
         }
     }, 1000);
 
@@ -10754,18 +10650,17 @@ async function processBulkSuspend() {
 }
 
 // ==========================================
-// ระบบตะกร้ากลุ่ม V3 (Unified Single List + Companion Modal)
+// ระบบตะกร้ากลุ่ม V2 (Step Wizard + พักกลุ่ม + นับโควต้า Real-time)
 // ==========================================
 let groupSession = {
     active: false,
-    paused: false,
     basketId: null,
     gateId: '',
     typeInfo: null,
-    members: []
+    members: [],
+    companions: [],
+    state: 'members'
 };
-let groupSelectedCompanions = []; // จำค่าผู้ติดตามไว้ แม้กดย้อนกลับ!
-	  
 
 function renderPausedBasketsBar() {
     const bar = document.getElementById('pausedBasketsBar');
@@ -10829,24 +10724,23 @@ function initGroupSession(firstCard, typeInfo, gateId) {
         area.innerHTML = originalGroupStagingHTML;
     }
 
-    groupSession = { active: true, paused: false, basketId: 'grp_' + Date.now(), gateId: gateId, typeInfo: typeInfo, members: [firstCard] };
-    groupSelectedCompanions = []; // รีเซ็ตเฉพาะตอนเปิดกลุ่มใหม่
-
+    groupSession = { active: true, basketId: 'grp_' + Date.now(), gateId: gateId, typeInfo: typeInfo, members: [firstCard], companions: [], state: 'members' };
+    
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.add('hidden');
     document.getElementById('vehicleStagingArea').classList.add('hidden');
     area.classList.remove('hidden');
-
+    
     document.getElementById('grpTypeName').textContent = typeInfo.typeName;
     const ratio = parseInt(typeInfo.escortRatio) || 0;
     document.getElementById('grpRatioText').textContent = ratio === 0 ? 'สัดส่วน 1 : ไม่จำกัด' : `สัดส่วน 1 : ${ratio} คน`;
-
+    
     const mainInput = document.getElementById('scanInput');
-    mainInput.value = '';
+    mainInput.value = ''; 
     mainInput.placeholder = "แสกนบัตรผู้เข้าพื้นที่คนต่อไป...";
     mainInput.classList.remove('border-green-400', 'border-orange-500', 'border-indigo-500');
     mainInput.classList.add('border-purple-500');
-
+    
     renderPausedBasketsBar();
     renderGroupStagingUI();
     try { new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3').play(); } catch(e){}
@@ -10947,13 +10841,42 @@ async function cancelPausedGroup(basketId) {
 
 // 4. จัดการเวลาคนแสกนเข้าตะกร้า
 function handleGroupSessionScan(card) {
-    if (groupSession.members.some(m => m.cardId === card.cardId)) {
+    if (groupSession.members.some(m => m.cardId === card.cardId) || groupSession.companions.some(c => c.cardId === card.cardId)) {
         delete globalScanTracker[card.cardId];
         return showToast('บุคคลนี้อยู่ในรายการแล้ว', 'warning');
     }
-    groupSession.members.push(card);
-    try { new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3').play(); } catch(e){}
-    renderGroupStagingUI();
+
+    if (groupSession.state === 'members') {
+        groupSession.members.push(card);
+        try { new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3').play(); } catch(e){}
+        renderGroupStagingUI();
+
+    } else if (groupSession.state === 'companions') {
+        // คำนวณว่ายังขาดผู้ติดตามสำหรับอีกกี่คน
+        let coveredSoFar = 0;
+        groupSession.companions.forEach(c => {
+            const q = getEscortQuotaStatus(c.cardId, groupSession.typeInfo);
+            coveredSoFar = (coveredSoFar === Infinity || q.remaining === Infinity) ? Infinity : coveredSoFar + q.remaining;
+        });
+
+        if (coveredSoFar >= groupSession.members.length) {
+            delete globalScanTracker[card.cardId];
+            try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
+            return showToast('ผู้ติดตามครบครอบคลุมทุกคนแล้ว! สามารถกดบันทึกได้เลย', 'success');
+        }
+
+        // เช็คโควตาคงเหลือของผู้ติดตามคนนี้
+        const quota = getEscortQuotaStatus(card.cardId, groupSession.typeInfo);
+        if (!quota.allowed) {
+            delete globalScanTracker[card.cardId];
+            try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
+            return showAlert('ผู้ติดตามโควตาเต็มแล้ว!', `คุณ ${card.firstName} ${card.lastName}\nปัจจุบันดูแลอยู่แล้ว ${quota.currentLoad} คน (เพดานสูงสุด ${quota.limit} คน)\nไม่สามารถรับเพิ่มได้ กรุณาใช้รหัสผู้ติดตามท่านอื่น`, 'error');
+        }
+
+        groupSession.companions.push(card);
+        try { new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3').play(); } catch(e){}
+        renderGroupStagingUI();
+    }
 }
 
 // 5. เปลี่ยนโหมดจากลูกทัวร์ -> แสกนผู้ติดตาม
@@ -10970,56 +10893,175 @@ function transitionToCompanions() {
 // 6. วาด UI รายชื่อ
 function renderGroupStagingUI() {
     const memList = document.getElementById('grpMembersList');
+    const compList = document.getElementById('grpCompanionsList');
     const btnSave = document.getElementById('btnSaveGroup');
-    const badge = document.getElementById('grpMemberCountBadge');
 
+    const step1Badge = document.getElementById('grpStepBadge1');
+    const step2Badge = document.getElementById('grpStepBadge2');
+    const step3Badge = document.getElementById('grpStepBadge3');
+    const banner = document.getElementById('grpInstructionBanner');
+    const memSec = document.getElementById('grpMemberSection');
+    const compSec = document.getElementById('grpCompanionSection');
+    const compHeader = document.getElementById('grpCompanionHeader');
+    const btnStep1Box = document.getElementById('grpBtnContainerStep1');
+    const btnBackBox = document.getElementById('grpBtnBackStep1');
+    const quotaAlert = document.getElementById('grpQuotaAlert');
+
+    const ratio = parseInt(groupSession.typeInfo.escortRatio) || 0;
+    const minNeededEst = ratio === 0 ? 1 : Math.ceil(groupSession.members.length / ratio);
+
+    // 1. วาดรายชื่อผู้เข้าพื้นที่
     memList.innerHTML = groupSession.members.map((m, i) => {
-        const areaIds = String(m.areaAccessIds || '').split(',').map(s => s.trim()).filter(x => x);
-        const isExp = new Date(m.expiryDate).setHours(23, 59, 59) < new Date();
+        const areaIds = String(m.areaAccessIds || '').split(',').map(s=>s.trim()).filter(x=>x);
+        const isExp = new Date(m.expiryDate).setHours(23,59,59) < new Date();
         const imgUrl = getFastImageUrl(m.imageUrl);
 
         let areaHtml = areaIds.map(num => {
             const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
             const color = areaSetting ? areaSetting.colorCode : '#4f46e5';
-            return `<div style="background-color: ${color}; color: ${getContrastYIQ(color)}" class="w-6 h-6 rounded flex items-center justify-center text-[10px] font-black shadow-sm">${num}</div>`;
+            return `<div style="background-color: ${color}; color: ${getContrastYIQ(color)}" class="w-5 h-5 rounded flex items-center justify-center text-[9px] font-black shadow-sm">${num}</div>`;
         }).join('');
-        if (!areaHtml) areaHtml = '<span class="text-[10px] text-gray-400">ไม่มีสิทธิ์</span>';
+        if (!areaHtml) areaHtml = '<span class="text-[9px] text-gray-400">ไม่มีสิทธิ์</span>';
 
         return `
-        <div class="flex items-start gap-3 p-3 bg-white rounded-2xl border border-gray-100 shadow-sm animate-fadeIn">
-            <div class="w-6 text-center font-black text-gray-300 text-xs mt-2 shrink-0">${i + 1}</div>
-            <img src="${imgUrl}" class="w-12 h-12 rounded-xl object-cover border border-gray-200 shrink-0" crossorigin="anonymous">
+        <div class="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-100 shadow-sm animate-fadeIn">
+            <div class="w-5 text-center font-black text-gray-300 text-xs mt-2 shrink-0">${i+1}</div>
+            <img src="${imgUrl}" class="w-10 h-10 rounded-lg object-cover border border-gray-200 shrink-0" crossorigin="anonymous">
             <div class="flex-1 overflow-hidden">
                 <div class="flex flex-col sm:flex-row sm:justify-between gap-1 mb-1">
                     <div class="truncate">
                         <p class="font-bold text-sm text-gray-800 truncate">${m.firstName} ${m.lastName}</p>
-                        <p class="text-xs font-black text-purple-600">${m.cardId}</p>
+                        <p class="text-[10px] font-black text-purple-500">${m.cardId}</p>
                     </div>
-                    <div class="flex flex-col gap-0.5 shrink-0 text-left sm:text-right">
-                        <p class="text-[10px] font-bold text-gray-600 truncate"><i data-lucide="briefcase" class="w-3 h-3 inline"></i> ${m.organization || '-'} ${m.position ? `(${m.position})` : ''}</p>
-                        <p class="text-[10px] font-bold ${isExp ? 'text-red-500' : 'text-gray-500'}"><i data-lucide="calendar" class="w-3 h-3 inline"></i> หมดอายุ: ${formatDateOnly(m.expiryDate)}</p>
+                    <div class="flex flex-col gap-0.5 shrink-0">
+                        <p class="text-[9px] font-bold text-gray-600 truncate"><i data-lucide="briefcase" class="w-3 h-3 inline"></i> ${m.organization || '-'} ${m.position ? `(${m.position})` : ''}</p>
+                        <p class="text-[9px] font-bold ${isExp ? 'text-red-500' : 'text-gray-500'}"><i data-lucide="calendar" class="w-3 h-3 inline"></i> หมดอายุ: ${formatDateOnly(m.expiryDate)}</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-1.5 mt-1 bg-gray-50 px-2 py-1 rounded-md border border-gray-100 w-fit">
-                    <span class="text-[8px] font-black text-gray-400 uppercase tracking-widest">ZONE</span>
+                <div class="flex items-center gap-1.5 mt-1 bg-gray-50 p-1 rounded-md border border-gray-100 w-fit">
+                    <span class="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">ZONE</span>
                     <div class="flex gap-1">${areaHtml}</div>
                 </div>
             </div>
-            <button onclick="groupSession.members.splice(${i},1); renderGroupStagingUI();" class="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition shrink-0" title="ลบออก">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
+            ${groupSession.state === 'members' ? `<button onclick="groupSession.members.splice(${i},1); renderGroupStagingUI();" class="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition shrink-0"><i data-lucide="x" class="w-4 h-4"></i></button>` : ''}
+        </div>`;
+    }).join('');
+    document.getElementById('grpMemberCount').textContent = `${groupSession.members.length} คน`;
+
+    // 2. คำนวณการกระจายโควต้าทีละคนแบบ Real-time
+    let remainingMembersToCover = groupSession.members.length;
+    compList.innerHTML = groupSession.companions.map((c, i) => {
+        const imgUrl = getFastImageUrl(c.imageUrl);
+        const isExp = new Date(c.expiryDate).setHours(23,59,59) < new Date();
+        const quota = getEscortQuotaStatus(c.cardId, groupSession.typeInfo);
+
+        const canTake = (quota.remaining === Infinity) ? remainingMembersToCover : Math.min(remainingMembersToCover, quota.remaining);
+        remainingMembersToCover = Math.max(0, remainingMembersToCover - canTake);
+
+        const areaIds = String(c.areaAccessIds || '').split(',').map(s=>s.trim()).filter(x=>x);
+        let areaHtml = areaIds.map(num => {
+            const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
+            const color = areaSetting ? areaSetting.colorCode : '#4f46e5';
+            return `<div style="background-color: ${color}; color: ${getContrastYIQ(color)}" class="w-5 h-5 rounded flex items-center justify-center text-[9px] font-black shadow-sm">${num}</div>`;
+        }).join('');
+        if (!areaHtml) areaHtml = '<span class="text-[9px] text-indigo-300">ไม่มีสิทธิ์</span>';
+
+        const quotaBadgeText = (quota.limit === Infinity)
+            ? `ดูแลอยู่ ${quota.currentLoad} คน | รอบนี้รับ ${canTake} คน (ไม่จำกัด)`
+            : `เดิม ${quota.currentLoad}/${quota.limit} ➔ รอบนี้รับ ${canTake} (ใหม่ ${quota.currentLoad + canTake}/${quota.limit})`;
+
+        return `
+        <div class="flex items-start gap-3 p-2.5 bg-white rounded-xl border-2 border-indigo-200 shadow-sm animate-fadeIn">
+            <img src="${imgUrl}" class="w-10 h-10 rounded-lg object-cover border border-indigo-100 shrink-0" crossorigin="anonymous">
+            <div class="flex-1 overflow-hidden">
+                <div class="flex flex-col xl:flex-row xl:justify-between gap-1 mb-1">
+                    <div class="truncate">
+                        <p class="font-bold text-sm text-indigo-900 truncate">${c.firstName} ${c.lastName}</p>
+                        <p class="text-[10px] font-bold text-indigo-500">${c.cardId}</p>
+                    </div>
+                    <div class="flex flex-col gap-0.5 shrink-0 text-left xl:text-right">
+                        <p class="text-[9px] font-bold text-indigo-400 truncate">${c.organization || '-'} ${c.position ? `(${c.position})` : ''}</p>
+                        <p class="text-[9px] font-bold ${isExp ? 'text-red-500' : 'text-indigo-400'}">หมดอายุ: ${formatDateOnly(c.expiryDate)}</p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-1 mt-1">
+                    <div class="flex items-center gap-1 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
+                        <span class="text-[8px] font-black text-indigo-300">ZONE</span>
+                        <div class="flex gap-1">${areaHtml}</div>
+                    </div>
+                    <span class="text-[9px] font-black px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">${quotaBadgeText}</span>
+                </div>
+            </div>
+            <button onclick="groupSession.companions.splice(${i},1); renderGroupStagingUI();" class="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition shrink-0"><i data-lucide="x" class="w-4 h-4"></i></button>
         </div>`;
     }).join('');
 
-    const count = groupSession.members.length;
-    badge.textContent = `${count} คน`;
-    btnSave.disabled = count === 0;
+    // 3. อัปเดต UI ตาม Step 1 หรือ Step 2
+    const coveredCount = groupSession.members.length - remainingMembersToCover;
 
-    if (count > 0) {
-        btnSave.className = 'flex-[2] py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-2xl shadow-lg shadow-purple-200 transition flex items-center justify-center gap-2 text-sm';
+    if (groupSession.state === 'members') {
+        step1Badge.className = 'py-2 px-2 rounded-xl font-black text-xs bg-purple-600 text-white shadow-sm transition-all';
+        step2Badge.className = 'py-2 px-2 rounded-xl font-bold text-xs text-gray-400 transition-all';
+        step3Badge.className = 'py-2 px-2 rounded-xl font-bold text-xs text-gray-400 transition-all';
+
+        banner.className = 'mb-4 p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-bold flex items-center gap-2';
+        banner.innerHTML = `<i data-lucide="scan-line" class="w-4 h-4 text-purple-600 shrink-0"></i><span>ขั้นตอนที่ 1: ยิงบาร์โค้ดผู้เข้าพื้นที่เรื่อยๆ (หากมีลูกเรือเข้าด่วนยิงแทรกได้ทันที!) เมื่อครบแล้วกดปุ่มสีม่วงด้านล่าง</span>`;
+
+        memSec.className = 'flex flex-col border-2 border-purple-400 rounded-2xl bg-purple-50/20 overflow-hidden h-[380px] transition-all shadow-sm';
+        compSec.className = 'flex flex-col border-2 border-gray-200 rounded-2xl bg-gray-50 overflow-hidden h-[380px] opacity-50 pointer-events-none transition-all';
+        compHeader.className = 'bg-gray-200 p-3 flex justify-between items-center border-b border-gray-200';
+        compHeader.innerHTML = `<span class="font-black text-gray-600 text-sm">2. ผู้ติดตาม (Escort)</span><span class="bg-gray-500 px-3 py-1 rounded-full text-xs font-black text-white">รอขั้นที่ 2</span>`;
+
+        btnStep1Box.classList.remove('hidden');
+        document.getElementById('btnToStep2').innerHTML = `<span>เสร็จสิ้นขั้นที่ 1 ➔ ไปสแกนผู้ติดตาม (อย่างน้อย ${minNeededEst} คน)</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+        btnBackBox.classList.add('hidden');
+        quotaAlert.classList.add('hidden');
+
+        btnSave.disabled = true;
+        btnSave.className = 'flex-[2] py-3.5 bg-gray-300 text-white font-black rounded-2xl shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2';
     } else {
-        btnSave.className = 'flex-[2] py-3.5 bg-gray-300 text-white font-black rounded-2xl shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm';
-        memList.innerHTML = '<div class="py-16 text-center text-gray-300 italic flex flex-col items-center gap-2"><i data-lucide="scan-line" class="w-12 h-12 opacity-20"></i><p class="font-bold text-xs">รอการแสกนบัตรผู้เข้าพื้นที่...</p></div>';
+        const isReadyToSave = (remainingMembersToCover === 0 && groupSession.companions.length > 0);
+
+        step1Badge.className = 'py-2 px-2 rounded-xl font-bold text-xs bg-emerald-100 text-emerald-700 transition-all';
+        step1Badge.innerHTML = '✓ 1. ผู้เข้าพื้นที่ครบแล้ว';
+
+        if (isReadyToSave) {
+            step2Badge.className = 'py-2 px-2 rounded-xl font-bold text-xs bg-emerald-100 text-emerald-700 transition-all';
+            step2Badge.innerHTML = '✓ 2. ผู้ติดตามครบแล้ว';
+            step3Badge.className = 'py-2 px-2 rounded-xl font-black text-xs bg-emerald-600 text-white shadow-sm animate-pulse transition-all';
+            banner.className = 'mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-2';
+            banner.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-600 shrink-0"></i><span>ขั้นตอนที่ 3: โควตาผู้ติดตามครบทุกคนแล้ว! กดปุ่มสีเขียว "บันทึกข้อมูลเข้าพื้นที่" ด้านล่างได้เลยครับ</span>`;
+        } else {
+            step2Badge.className = 'py-2 px-2 rounded-xl font-black text-xs bg-indigo-600 text-white shadow-sm transition-all';
+            step2Badge.innerHTML = '2. แสกนผู้ติดตาม';
+            step3Badge.className = 'py-2 px-2 rounded-xl font-bold text-xs text-gray-400 transition-all';
+            banner.className = 'mb-4 p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs font-bold flex items-center gap-2';
+            banner.innerHTML = `<i data-lucide="user-check" class="w-4 h-4 text-indigo-600 shrink-0"></i><span>ขั้นตอนที่ 2: ยิงบัตรผู้ติดตาม (ต้องดูแลผู้เข้าพื้นที่อีก ${remainingMembersToCover} คน) หรือกดปุ่มย้อนกลับเพื่อเพิ่มคน</span>`;
+        }
+
+        memSec.className = 'flex flex-col border-2 border-gray-200 rounded-2xl bg-gray-50/50 overflow-hidden h-[380px] transition-all';
+        compSec.className = 'flex flex-col border-2 border-indigo-400 rounded-2xl bg-indigo-50/40 overflow-hidden h-[380px] transition-all shadow-sm';
+        compHeader.className = 'bg-indigo-100 p-3 flex justify-between items-center border-b border-indigo-200';
+        compHeader.innerHTML = `<span class="font-black text-indigo-900 text-sm">2. ผู้ติดตาม (Escort)</span><span class="bg-indigo-600 px-3 py-1 rounded-full text-xs font-black text-white">รับดูแล ${coveredCount} / ${groupSession.members.length} คน</span>`;
+
+        quotaAlert.classList.remove('hidden');
+        if (isReadyToSave) {
+            quotaAlert.className = 'px-3 py-2 text-[11px] font-black text-center border-b bg-emerald-100 text-emerald-800 border-emerald-200';
+            quotaAlert.textContent = `✅ โควตาผู้ติดตามเพียงพอสำหรับทุกคนแล้ว (${coveredCount}/${groupSession.members.length} คน)`;
+        } else {
+            quotaAlert.className = 'px-3 py-2 text-[11px] font-black text-center border-b bg-amber-50 text-amber-800 border-amber-200';
+            quotaAlert.textContent = `⚠️ ยังขาดโควตาผู้ติดตามสำหรับอีก ${remainingMembersToCover} คน (สแกนบัตรผู้ติดตามเพิ่ม)`;
+        }
+
+        btnStep1Box.classList.add('hidden');
+        btnBackBox.classList.remove('hidden');
+
+        btnSave.disabled = !isReadyToSave;
+        if (isReadyToSave) {
+            btnSave.className = 'flex-[2] py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-lg shadow-emerald-200 transition animate-pulse flex items-center justify-center gap-2';
+        } else {
+            btnSave.className = 'flex-[2] py-3.5 bg-gray-300 text-white font-black rounded-2xl shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2';
+        }
     }
 
     if (window.lucide) lucide.createIcons();
@@ -11035,19 +11077,23 @@ function backToGroupMembers() {
 }
 
 function cancelGroupSession() {
-    groupSession = { active: false, paused: false, basketId: null, gateId: '', typeInfo: null, members: [] };
-    groupSelectedCompanions = [];
+    groupSession = { active: false, basketId: null, gateId: '', typeInfo: null, members: [], companions: [], state: 'members' };
     cachedGroupHTML = null;
 
-    document.getElementById('pausedBasketsBar').classList.add('hidden');
-    document.getElementById('pausedBasketsBar').classList.remove('flex');
     document.getElementById('groupStagingArea').classList.add('hidden');
-
+    renderPausedBasketsBar();
+    
     const input = document.getElementById('scanInput');
-    input.placeholder = "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
-    input.classList.remove('border-purple-500', 'border-indigo-500', 'border-orange-500');
-    input.classList.add('border-green-400');
-
+    if (pausedGroupSessions.length > 0) {
+        input.placeholder = "โหมดแทรกคิว: แสกนบัตรใดๆ หรือคลิกกลุ่มด้านบน...";
+        input.classList.remove('border-purple-500', 'border-indigo-500', 'border-green-400');
+        input.classList.add('border-orange-500');
+    } else {
+        input.placeholder = "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
+        input.classList.remove('border-purple-500', 'border-indigo-500', 'border-orange-500');
+        input.classList.add('border-green-400');
+    }
+    
     if (cachedPersonHTML) {
         document.getElementById('scanResultData').innerHTML = cachedPersonHTML;
         document.getElementById('scanResultData').classList.remove('hidden');
@@ -11059,274 +11105,6 @@ function cancelGroupSession() {
     }
     input.value = ''; input.focus();
 }
-
-// ==========================================
-// Modal ผู้ติดตามสำหรับกลุ่ม (เหมือนบัตรรถ + จำค่าเมื่อกดย้อนกลับ)
-// ==========================================
-function openGroupCompanionModal() {
-    if (!groupSession.active || groupSession.members.length === 0) return;
-
-    // กรองเอาเฉพาะผู้ติดตามที่ยังถูกต้อง (ถ้าเคยเลือกจากในกลุ่มแล้วคนนั้นโดนลบออก ให้ตัดทิ้ง)
-    groupSelectedCompanions = groupSelectedCompanions.filter(comp => {
-        const wasInGroup = groupSession.members.some(m => m.cardId === comp.cardId);
-        return wasInGroup || comp.isExternal;
-    });
-
-    const ratio = parseInt(groupSession.typeInfo.escortRatio) || 0;
-    const ratioTxt = ratio === 0 ? '1 : ไม่จำกัด' : `1 : ${ratio}`;
-    document.getElementById('grpCompSubtitle').textContent = `ผู้เข้าพื้นที่: ${groupSession.members.length} คน | สัดส่วน ${ratioTxt}`;
-    document.getElementById('grpCompBarcode').value = '';
-    document.getElementById('groupCompanionModal').classList.remove('hidden');
-
-    renderGroupCompanionModal();
-    setTimeout(() => document.getElementById('grpCompBarcode').focus(), 100);
-}
-
-function closeGroupCompanionModal() {
-    document.getElementById('groupCompanionModal').classList.add('hidden');
-    document.getElementById('scanInput').focus();
-}
-
-function simulateGroupEscortAssignments() {
-    const assignments = {}; // memberCardId -> companionObj
-    const compUsage = [];   // [{ comp, assignedList }]
-
-    let ptr = 0;
-    for (let c = 0; c < groupSelectedCompanions.length; c++) {
-        const comp = groupSelectedCompanions[c];
-        const simAssigned = [];
-
-        while (ptr < groupSession.members.length) {
-            const member = groupSession.members[ptr];
-            const q = getEscortQuotaStatus(comp.cardId, groupSession.typeInfo, simAssigned);
-            if (!q.allowed) break;
-
-            assignments[member.cardId] = comp;
-            simAssigned.push({ typeId: member.typeId });
-            ptr++;
-        }
-        compUsage.push({ comp, assignedList: simAssigned });
-    }
-
-    return { assignments, compUsage, coveredCount: ptr, totalNeeded: groupSession.members.length, remainingNeeded: groupSession.members.length - ptr };
-}
-
-function renderGroupCompanionModal() {
-    const sim = simulateGroupEscortAssignments();
-
-    // 1. วาดคนในกลุ่มที่สามารถเป็นผู้ติดตามได้ (!requireCompanion)
-    const candidates = groupSession.members.filter(m => {
-        const tInfo = typeCards.find(t => String(t.id) === String(m.typeId));
-        return !tInfo || !isTrue(tInfo.requireCompanion);
-    });
-
-    const candBox = document.getElementById('grpCompInGroupCandidates');
-    if (candidates.length === 0) {
-        candBox.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-2">ไม่มีผู้เข้าพื้นที่ในกลุ่มนี้ที่สามารถเป็นผู้ติดตามได้ (กรุณาสแกนบัตรเจ้าหน้าที่ด้านล่าง)</p>`;
-    } else {
-        candBox.innerHTML = candidates.map(p => {
-            const isSelected = groupSelectedCompanions.some(c => c.cardId === p.cardId);
-            const q = getEscortQuotaStatus(p.cardId, groupSession.typeInfo);
-            const quotaTxt = q.limit === Infinity ? `ดูแลอยู่ ${q.currentLoad} (ไม่จำกัด)` : `ดูแลอยู่ ${q.currentLoad}/${q.limit} (เหลือ ${q.remaining})`;
-
-            return `
-            <button onclick="toggleInGroupCompanion('${p.cardId}')" ${!isSelected && !q.allowed ? 'disabled' : ''} 
-                class="w-full p-2.5 rounded-xl border-2 text-left flex items-center justify-between transition ${isSelected ? 'bg-purple-600 text-white border-purple-600 shadow-md' : (q.allowed ? 'bg-white border-slate-200 hover:border-purple-400 text-gray-800' : 'bg-gray-100 border-gray-200 text-gray-400 opacity-60 cursor-not-allowed')}">
-                <div class="flex items-center gap-2.5 truncate">
-                    <img src="${getFastImageUrl(p.imageUrl)}" class="w-8 h-8 rounded-lg object-cover bg-white shrink-0">
-                    <div class="truncate">
-                        <p class="font-black text-xs truncate">${p.firstName} ${p.lastName}</p>
-                        <p class="text-[10px] ${isSelected ? 'text-purple-100' : 'text-gray-500'} font-bold">${p.cardId} | ${quotaTxt}</p>
-                    </div>
-                </div>
-                <span class="text-xs font-black px-2 py-1 rounded-lg ${isSelected ? 'bg-white/20 text-white' : 'bg-purple-50 text-purple-600'} shrink-0">
-                    ${isSelected ? '✓ เลือกแล้ว' : '+ เลือก'}
-                </span>
-            </button>`;
-        }).join('');
-    }
-
-    // 2. วาดรายชื่อผู้ติดตามที่เลือกแล้วทั้งหมด
-    const selBox = document.getElementById('grpCompSelectedList');
-    if (groupSelectedCompanions.length === 0) {
-        selBox.innerHTML = `<p class="text-xs text-gray-400 italic text-center py-3 border border-dashed rounded-xl">ยังไม่ได้ระบุผู้ติดตาม</p>`;
-    } else {
-        selBox.innerHTML = sim.compUsage.map((u, idx) => `
-            <div class="flex items-center justify-between p-2.5 bg-purple-50 border border-purple-200 rounded-xl">
-                <div class="flex items-center gap-2.5 truncate">
-                    <img src="${getFastImageUrl(u.comp.imageUrl)}" class="w-8 h-8 rounded-lg object-cover shrink-0">
-                    <div class="truncate">
-                        <p class="font-black text-xs text-purple-900 truncate">${u.comp.firstName} ${u.comp.lastName} (${u.comp.cardId})</p>
-                        <p class="text-[10px] font-bold text-emerald-700">รับดูแลในกลุ่มนี้: ${u.assignedList.length} คน</p>
-                    </div>
-                </div>
-                <button onclick="removeGroupCompanion(${idx})" class="p-1.5 text-red-500 hover:bg-red-100 rounded-lg"><i data-lucide="x" class="w-4 h-4"></i></button>
-            </div>
-        `).join('');
-    }
-
-    // 3. อัปเดตสถานะปุ่มและแถบโควต้า
-    const statusBox = document.getElementById('grpCompQuotaStatus');
-    const btnConfirm = document.getElementById('btnConfirmGroupCompanions');
-    const isReady = sim.remainingNeeded === 0;
-
-    if (isReady) {
-        statusBox.className = 'p-3 rounded-xl text-xs font-black text-center border bg-emerald-100 text-emerald-800 border-emerald-200';
-        statusBox.textContent = `✅ ผู้ติดตามครบครอบคลุมทุกคนในกลุ่มแล้ว (${sim.coveredCount}/${sim.totalNeeded} คน)`;
-        btnConfirm.disabled = false;
-        btnConfirm.className = 'flex-[2] py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-lg transition animate-pulse';
-    } else {
-        statusBox.className = 'p-3 rounded-xl text-xs font-black text-center border bg-amber-50 text-amber-800 border-amber-200';
-        statusBox.textContent = `⚠️ ยังขาดผู้ติดตามสำหรับอีก ${sim.remainingNeeded} คน (เลือกจากสมาชิก หรือสแกนบัตรเจ้าหน้าที่เพิ่ม)`;
-        btnConfirm.disabled = true;
-        btnConfirm.className = 'flex-[2] py-3 bg-gray-300 text-white font-black rounded-xl shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed';
-    }
-    if (window.lucide) lucide.createIcons();
-}
-
-function toggleInGroupCompanion(cardId) {
-    const idx = groupSelectedCompanions.findIndex(c => c.cardId === cardId);
-    if (idx !== -1) {
-        groupSelectedCompanions.splice(idx, 1);
-    } else {
-        const simBefore = simulateGroupEscortAssignments();
-        if (simBefore.remainingNeeded <= 0) return showToast('เลือกผู้ติดตามครบทุกคนแล้ว', 'info');
-        const person = groupSession.members.find(m => m.cardId === cardId);
-        if (person) groupSelectedCompanions.push(person);
-    }
-    renderGroupCompanionModal();
-}
-
-function removeGroupCompanion(idx) {
-    groupSelectedCompanions.splice(idx, 1);
-    renderGroupCompanionModal();
-}
-
-function addExternalGroupCompanion() {
-    const inp = document.getElementById('grpCompBarcode');
-    const code = inp.value.trim().toUpperCase();
-    if (!code) { inp.focus(); return; }
-
-    const simBefore = simulateGroupEscortAssignments();
-    if (simBefore.remainingNeeded <= 0) {
-        inp.value = '';
-        return showToast('เลือกผู้ติดตามครบทุกคนแล้ว กดยืนยันได้เลย', 'success');
-    }
-
-    const compCard = allCards.find(c => String(c.cardId).toUpperCase() === code);
-    if (!compCard) { inp.value = ''; return showAlert('ไม่พบข้อมูล', `ไม่พบบัตรหมายเลข ${code}`, 'error'); }
-    if (compCard.status !== 'active') { inp.value = ''; return showAlert('ถูกระงับ', 'บัตรผู้ติดตามถูกระงับการใช้งาน', 'error'); }
-    if (new Date() > new Date(compCard.expiryDate).setHours(23, 59, 59)) {
-        inp.value = '';
-        return showAlert('บัตรหมดอายุ', `บัตรผู้ติดตามคุณ ${compCard.firstName} หมดอายุแล้ว`, 'error');
-    }
-    if (groupSession.members.some(m => m.cardId === compCard.cardId)) {
-        const tInfo = typeCards.find(t => String(t.id) === String(compCard.typeId));
-        if (tInfo && isTrue(tInfo.requireCompanion)) {
-            inp.value = '';
-            return showAlert('ไม่ถูกต้อง', 'บุคคลที่ต้องมีผู้ติดตาม ไม่สามารถเป็นผู้ติดตามให้กลุ่มได้', 'warning');
-        }
-    }
-    if (groupSelectedCompanions.some(c => c.cardId === compCard.cardId)) {
-        inp.value = '';
-        return showToast('ผู้ติดตามคนนี้อยู่ในรายการแล้ว', 'warning');
-    }
-
-    const q = getEscortQuotaStatus(compCard.cardId, groupSession.typeInfo);
-    if (!q.allowed) {
-        inp.value = ''; inp.focus();
-        return showAlert('ผู้ติดตามโควตาเต็มแล้ว!', `คุณ ${compCard.firstName} ${compCard.lastName}\nปัจจุบันดูแลอยู่แล้ว ${q.currentLoad}/${q.limit} คน กรุณาใช้รหัสอื่น`, 'error');
-    }
-
-    compCard.isExternal = true;
-    groupSelectedCompanions.push(compCard);
-    inp.value = ''; inp.focus();
-    try { new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3').play(); } catch(e){}
-    renderGroupCompanionModal();
-}
-
-function confirmGroupCompanionsAndSave() {
-    const sim = simulateGroupEscortAssignments();
-    if (sim.remainingNeeded > 0) return showToast('ยังระบุผู้ติดตามไม่ครบ', 'warning');
-
-    const membersToSave = [];
-    groupSession.members.forEach(m => {
-        const assignedComp = sim.assignments[m.cardId];
-        membersToSave.push({
-            cardId: m.cardId,
-            companionCardId: assignedComp ? assignedComp.cardId : '',
-            companionName: assignedComp ? `${assignedComp.firstName} ${assignedComp.lastName}` : '',
-            companionOrg: assignedComp ? (assignedComp.organization || '') : ''
-        });
-    });
-
-    const companionsToSave = groupSelectedCompanions.map(c => ({
-        cardId: c.cardId, companionCardId: '', companionName: '', companionOrg: ''
-    }));
-
-    closeGroupCompanionModal();
-    executeSaveGroupToServer(membersToSave, companionsToSave);
-}
-
-// บันทึกกลุ่มแบบ Non-blocking Background Queue (0 วินาที)
-async function executeSaveGroupToServer(membersToSave, companionsToSave) {
-    const payload = {
-        gateId: groupSession.gateId,
-        ioType: 'IN',
-        recordedBy: `${currentUser.firstName} ${currentUser.lastName}`,
-        members: membersToSave,
-        companions: companionsToSave
-    };
-
-    const newCompanions = companionsToSave.filter(c => {
-        const cardObj = allCards.find(x => x.cardId === c.cardId);
-        return String(cardObj?.currentStatus || 'OUT').trim().toUpperCase() !== 'IN';
-    });
-    const totalCount = membersToSave.length + newCompanions.length;
-    const timestampStr = new Date().toISOString();
-
-    // 1. Optimistic UI
-    payload.members.forEach(m => {
-        const idx = allCards.findIndex(c => c.cardId === m.cardId);
-        if (idx !== -1) {
-            allCards[idx].currentStatus = 'IN';
-            allCards[idx].lastLogTime = timestampStr;
-            allCards[idx].currentCompanionId = m.companionCardId;
-        }
-    });
-    companionsToSave.forEach(c => {
-        const idx = allCards.findIndex(x => x.cardId === c.cardId);
-        if (idx !== -1 && String(allCards[idx].currentStatus || 'OUT').trim().toUpperCase() !== 'IN') {
-            allCards[idx].currentStatus = 'IN';
-            allCards[idx].lastLogTime = timestampStr;
-            allCards[idx].currentCompanionId = '';
-        }
-    });
-
-    // 2. แสดงหน้าสรุปผลทันที 0 วินาที
-    showGroupSuccessSummary(groupSession, groupSelectedCompanions, totalCount);
-
-    // 3. โชว์ Widget + ส่งเข้าคิวกลาง
-    const taskId = 'bgTask_' + Date.now();
-    showBackgroundSaveWidget(taskId, totalCount);
-
-    let fakePct = 10;
-    const fakeProgress = setInterval(() => {
-        if (fakePct < 90) {
-            fakePct += Math.floor(Math.random() * 15) + 5;
-            if (fakePct > 90) fakePct = 90;
-            const prog = document.getElementById(`${taskId}_progress`);
-            const txt = document.getElementById(`${taskId}_text`);
-            if (prog) prog.style.width = fakePct + '%';
-            if (txt) txt.textContent = `กำลังอัปเดตฐานข้อมูล ${fakePct}%...`;
-        }
-    }, 500);
-
-    onlineScanQueue.push({ isGroup: true, payload: payload, taskId: taskId, fakeProgress: fakeProgress });
-    processScanQueue();
-}
-
-
 
 // 7. บันทึกเข้า Server แบบเบื้องหลัง (Background Batch Process)
 // ==========================================
@@ -11457,24 +11235,29 @@ async function saveGroupSession() {
 }
 
 // 8. ฟังก์ชันแสดงสรุปผลแบบย่อ (มีปุ่มกดกางออกได้)
-function showGroupSuccessSummary(session, companions, totalCount) {
-    const mainOrg = session.members[0]?.organization || 'ไม่ระบุหน่วยงาน';
+function showGroupSuccessSummary(session, totalCount) {
+    const mainOrg = session.members[0].organization || 'ไม่ระบุหน่วยงาน';
     const tempMembers = [...session.members];
-    const tempCompanions = [...companions];
+    const tempCompanions = [...session.companions];
     const tempTypeName = session.typeInfo.typeName;
-
-    groupSession = { active: false, paused: false, basketId: null, gateId: '', typeInfo: null, members: [] };
-    groupSelectedCompanions = [];
+    
+    groupSession = { active: false, basketId: null, gateId: '', typeInfo: null, members: [], companions: [], state: 'members' };
 
     renderPausedBasketsBar();
 
     const area = document.getElementById('groupStagingArea');
     const input = document.getElementById('scanInput');
-
+    
     input.value = '';
-    input.placeholder = "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
-    input.classList.remove('border-purple-500', 'border-indigo-500', 'border-orange-500');
-    input.classList.add('border-green-400');
+    if (pausedGroupSessions.length > 0) {
+        input.placeholder = "มีกลุ่มพักค้างอยู่ด้านบน (คลิกเพื่อทำต่อ หรือสแกนอื่น)...";
+        input.classList.remove('border-purple-500', 'border-indigo-500', 'border-green-400');
+        input.classList.add('border-orange-500');
+    } else {
+        input.placeholder = "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
+        input.classList.remove('border-purple-500', 'border-indigo-500', 'border-orange-500');
+        input.classList.add('border-green-400');
+    }
     input.focus();
 
     const compsHtml = tempCompanions.map(c => `
@@ -12564,7 +12347,7 @@ function executeInterruptScan(gateId, card, typeInfo, predictedStatus, compCard 
 // ==========================================
 // 3. ฟังก์ชันสแกนหลัก (รองรับแทรกคิวช่างแบบเดี่ยว + ขาออกทุกประเภท + Multi-Basket)
 // ==========================================
-function processMainScan() {
+async function processMainScan() {
     const gateId = document.getElementById('scanGateSelect').value;
     const mainInput = document.getElementById('scanInput');
     const cardId = String(mainInput.value).trim().toUpperCase();
@@ -12572,41 +12355,76 @@ function processMainScan() {
     if (!gateId) return showAlert('ข้อมูลไม่ครบ', 'กรุณาเลือกจุดเข้าออกพื้นที่ก่อน', 'warning');
     if (!cardId) return mainInput.focus();
 
-    // 1. โหมดยานพาหนะ
+    // --- 1. โหมดยานพาหนะ ---
     if (currentScanTarget === 'vehicle') {
         const isVehicleCard = allVehicles.some(x => String(x.cardId).toUpperCase() === cardId);
 
+        // กรณี A: กดปุ่มแทรกคิว 1 คน (F2) ค้างไว้ -> บังคับประมวลผลเป็นบัตรคน!
         if (vehicleInterruptNext) {
             vehicleInterruptNext = false;
-            updateInterruptButtonsUI();
+            updateVehicleInterruptBtnUI();
             if (isVehicleCard) {
                 mainInput.value = ''; mainInput.focus();
-                return showAlert('ไม่ถูกต้อง', 'โหมดแทรกคิวใช้ได้เฉพาะบัตรบุคคล', 'warning');
+                return showAlert('ไม่พบข้อมูลบุคคล', `รหัส ${cardId} เป็นบัตรรถ (โหมดแทรกคิวใช้ได้เฉพาะบัตรบุคคล)`, 'warning');
             }
+            // ประมวลผลแทรกคิวบุคคล
             const personCard = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
-            if (!personCard) { mainInput.value = ''; mainInput.focus(); return showAlert('ไม่พบข้อมูลบัตร', `ไม่พบบัตร ${cardId}`, 'error'); }
+            if (!personCard) { mainInput.value = ''; mainInput.focus(); return showAlert('ไม่พบข้อมูลบัตร', `บัตรหมายเลข ${cardId} ไม่พบในระบบ`, 'error'); }
+            if (personCard.status !== 'active') { mainInput.value = ''; mainInput.focus(); return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error'); }
+            if (new Date() > new Date(personCard.expiryDate).setHours(23, 59, 59)) { mainInput.value = ''; mainInput.focus(); return showAlert('บัตรหมดอายุ', `บัตรหมดอายุแล้ว`, 'error'); }
+
             const pTypeInfo = typeCards.find(t => String(t.id) === String(personCard.typeId)) || {};
             const pStatus = (String(personCard.currentStatus || 'OUT').trim().toUpperCase() === 'IN') ? 'OUT' : 'IN';
-            executeInterruptScan(gateId, personCard, pTypeInfo, pStatus);
+            const nowT = Date.now();
+            if (globalScanTracker[cardId] && (nowT - globalScanTracker[cardId]) < 5000) {
+                mainInput.value = ''; mainInput.focus(); return showToast(`รหัส ${cardId} เพิ่งทำรายการไป (รอ 5 วินาที)`, 'warning');
+            }
+            globalScanTracker[cardId] = nowT;
+
+            if (pStatus === 'IN' && isTrue(pTypeInfo.requireCompanion) && !isTrue(pTypeInfo.isGroup)) {
+                delete globalScanTracker[cardId];
+                window.isInterruptCompanionScan = true;
+                window.pendingInterruptCard = { gateId, card: personCard, typeInfo: pTypeInfo };
+                const ctxEl = document.getElementById('compModalContextInfo');
+                if (ctxEl) { ctxEl.textContent = `⚡ แทรกคิวเร่งด่วน: ${personCard.firstName} ${personCard.lastName} (${personCard.cardId})`; ctxEl.classList.remove('hidden'); }
+                document.getElementById('companionModalMainCardId').value = personCard.cardId;
+                document.getElementById('compBarcode').value = '';
+                document.getElementById('companionModal').classList.remove('hidden');
+                setTimeout(() => document.getElementById('compBarcode').focus(), 100);
+            } else {
+                if (systemSettings.ttsTimingMode === 'immediate') speakImmediateGreeting(personCard.firstName, personCard.lastName);
+                executeInterruptScan(gateId, personCard, pTypeInfo, pStatus);
+            }
             mainInput.value = ''; mainInput.focus();
             return;
         }
 
+        // กรณี B: ยิงบัตรรถ -> เปิด/สลับไปรถคันนั้น
         if (isVehicleCard) {
             handleVehicleScan(cardId);
             mainInput.value = ''; mainInput.focus();
             return;
         }
 
-        // รถขาออก (OUT) สแกนคนอื่นแทรกอัตโนมัติ
+        // กรณี C: รถอยู่ในโหมดขาออก (OUT) และยิงบัตรคนอื่นที่ไม่ได้อยู่ในรถ -> แทรกคิวอัตโนมัติ!
         if (vehicleSession.vehicle && vehicleSession.mode === 'OUT') {
             const isInThisCar = (vehicleSession.driver && vehicleSession.driver.cardId === cardId) ||
                                 vehicleSession.passengers.some(p => p.cardId === cardId);
-            if (!isInThisCar) {
-                const personCard = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
-                if (personCard && personCard.status === 'active') {
-                    const pTypeInfo = typeCards.find(t => String(t.id) === String(personCard.typeId)) || {};
-                    const pStatus = (String(personCard.currentStatus || 'OUT').trim().toUpperCase() === 'IN') ? 'OUT' : 'IN';
+            if (isInThisCar) {
+                mainInput.value = ''; mainInput.focus();
+                return showToast('บุคคลนี้อยู่ในรายการรถคันนี้แล้ว', 'info');
+            }
+            const personCard = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
+            if (personCard && personCard.status === 'active' && new Date() <= new Date(personCard.expiryDate).setHours(23, 59, 59)) {
+                const pTypeInfo = typeCards.find(t => String(t.id) === String(personCard.typeId)) || {};
+                const pStatus = (String(personCard.currentStatus || 'OUT').trim().toUpperCase() === 'IN') ? 'OUT' : 'IN';
+                if (!isTrue(pTypeInfo.requireCompanion) || pStatus === 'OUT') {
+                    const nowT = Date.now();
+                    if (globalScanTracker[cardId] && (nowT - globalScanTracker[cardId]) < 5000) {
+                        mainInput.value = ''; mainInput.focus(); return showToast(`รหัส ${cardId} เพิ่งทำรายการไป (รอ 5 วินาที)`, 'warning');
+                    }
+                    globalScanTracker[cardId] = nowT;
+                    if (systemSettings.ttsTimingMode === 'immediate') speakImmediateGreeting(personCard.firstName, personCard.lastName);
                     executeInterruptScan(gateId, personCard, pTypeInfo, pStatus);
                     mainInput.value = ''; mainInput.focus();
                     return;
@@ -12614,7 +12432,15 @@ function processMainScan() {
             }
         }
 
+        // กรณี D: เพิ่มคนเข้าตะกร้ารถปกติ (IN)
         if (vehicleSession.vehicle) {
+            const nowTime = Date.now();
+            if (globalScanTracker[cardId] && (nowTime - globalScanTracker[cardId]) < 5000) {
+                mainInput.value = ''; mainInput.focus();
+                try { new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3').play(); } catch(e){}
+                return showToast(`รหัส ${cardId} เพิ่งทำรายการไป (รอ 5 วินาที)`, 'warning');
+            }
+            globalScanTracker[cardId] = nowTime;
             handlePersonForVehicle(cardId);
         } else {
             showAlert('กรุณาแสกนรถก่อน', 'กรุณาแสกนบัตรรถก่อนที่จะแสกนบัตรพนักงาน', 'warning');
@@ -12623,7 +12449,7 @@ function processMainScan() {
         return;
     }
 
-    // 2. โหมดบุคคล
+    // --- 2. โหมดบุคคล ---
     const nowTime = Date.now();
     if (globalScanTracker[cardId] && (nowTime - globalScanTracker[cardId]) < 5000) {
         mainInput.value = ''; mainInput.focus();
@@ -12644,7 +12470,6 @@ function processMainScan() {
     const typeInfo = typeCards.find(t => String(t.id) === String(card.typeId));
     const predictedStatus = (String(card.currentStatus || 'OUT').trim().toUpperCase() === 'IN') ? 'OUT' : 'IN';
 
-    // เช็คสิทธิ์ประตู
     if (gate && gate.status === 'active' && gate.allowedAreas && predictedStatus === 'IN') {
         const allowedStr = String(gate.allowedAreas || "");
         if (allowedStr.trim() !== "") {
@@ -12664,45 +12489,106 @@ function processMainScan() {
     if (groupSession.active) {
         mainInput.value = ''; mainInput.focus();
 
-        // 3.1 กรณีขาออก (OUT) ของทุกคน หรือ กดปุ่ม F2 แทรกคิว 1 คน -> แทรกคิวอัตโนมัติ (Pop-up 10 วิ)!
-        if (predictedStatus === 'OUT' || groupInterruptNext) {
-            groupInterruptNext = false;
-            updateInterruptButtonsUI();
-            if (systemSettings.ttsTimingMode === 'immediate') speakImmediateGreeting(card.firstName, card.lastName);
-            executeInterruptScan(gateId, card, typeInfo, predictedStatus);
-            return;
-        }
+        if (groupSession.state === 'members') {
+            // 3.1 เช็คว่าคนนี้ซ้ำอยู่ในตะกร้าที่พักไว้ใบอื่นหรือไม่
+            const isInPaused = pausedGroupSessions.some(b =>
+                b.members.some(m => m.cardId === card.cardId) || b.companions.some(c => c.cardId === card.cardId)
+            );
+            if (isInPaused) {
+                delete globalScanTracker[cardId];
+                return showAlert('บุคคลนี้ค้างอยู่ในตะกร้าที่พักไว้', 'กรุณาคลิกกลับไปทำรายการในกลุ่มที่พักไว้ก่อน หรือกดเอาออกจากรายการครับ', 'warning');
+            }
 
-        // 3.2 บัตรกลุ่มประเภทอื่น -> เด้งถามเปิดกลุ่มใหม่ / พักกลุ่มเดิม
-        if (isTrue(typeInfo.isGroup) && String(card.typeId) !== String(groupSession.typeInfo.id)) {
-            delete globalScanTracker[cardId];
-            showCustomConfirm({
-                title: 'พบกลุ่มประเภทใหม่',
-                message: `บัตรของ <b class="text-gray-900">${card.firstName} ${card.lastName}</b> อยู่ในกลุ่ม <b>${typeInfo.typeName}</b><br>ต้องการพักกลุ่มปัจจุบัน (${groupSession.typeInfo.typeName}) เพื่อเปิดกลุ่มใหม่เลยหรือไม่?`,
-                confirmText: 'เปิดกลุ่มใหม่', cancelText: 'ยกเลิก', theme: 'purple', icon: 'layers'
-            }).then(ok => {
+            // 3.2 ขาออก (OUT) ของทุกประเภทบัตร -> ยิงแทรกอัตโนมัติได้ทันที!
+            if (predictedStatus === 'OUT') {
+                if (systemSettings.ttsTimingMode === 'immediate') speakImmediateGreeting(card.firstName, card.lastName);
+                executeInterruptScan(gateId, card, typeInfo, 'OUT');
+                return;
+            }
+
+            // 3.3 ขาเข้า (IN) ประเภทเดียวกับกลุ่มปัจจุบัน -> ใส่ลงตะกร้า!
+            if (String(card.typeId) === String(groupSession.typeInfo.id)) {
+                handleGroupSessionScan(card);
+                return;
+            }
+
+            // 3.4 ขาเข้า (IN) ประเภทอื่น:
+            if (!isTrue(typeInfo.requireCompanion)) {
+                // พนักงานปกติ/ลูกเรือ (ไม่ต้องมีผู้ติดตาม) -> แทรกคิวอัตโนมัติ!
+                if (systemSettings.ttsTimingMode === 'immediate') speakImmediateGreeting(card.firstName, card.lastName);
+                executeInterruptScan(gateId, card, typeInfo, 'IN');
+                return;
+            } else if (!isTrue(typeInfo.isGroup)) {
+                // บัตรซ่อมบำรุง/ผู้รับเหมาแบบเดี่ยว (ต้องมีผู้ติดตาม 1-1) -> แทรกคิวทันทีโดยเปิด Modal ถามผู้ติดตาม!
+                delete globalScanTracker[cardId];
+                window.isInterruptCompanionScan = true;
+                window.pendingInterruptCard = { gateId, card, typeInfo };
+
+                const ctxEl = document.getElementById('compModalContextInfo');
+                if (ctxEl) {
+                    ctxEl.textContent = `⚡ แทรกคิวเร่งด่วน: ${card.firstName} ${card.lastName} (${card.cardId}) — กำลังพักกลุ่มไว้ชั่วคราว`;
+                    ctxEl.classList.remove('hidden');
+                }
+                document.getElementById('companionModalMainCardId').value = card.cardId;
+                document.getElementById('compBarcode').value = '';
+                document.getElementById('companionModal').classList.remove('hidden');
+                setTimeout(() => document.getElementById('compBarcode').focus(), 100);
+                return;
+            } else {
+                // บัตรแบบกลุ่มอีกประเภทหนึ่ง! แสดง Custom Confirm Modal สวยๆ
+                delete globalScanTracker[cardId];
+                const ok = await showCustomConfirm({
+                    title: 'พบกลุ่มประเภทใหม่',
+                    message: `บัตรของ <b class="text-gray-900">${card.firstName} ${card.lastName}</b> (${card.cardId})<br>อยู่ในกลุ่ม <span class="inline-block bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-lg font-bold mt-1.5 mb-2">${typeInfo.typeName}</span><br>ต้องการพักตะกร้าปัจจุบัน (<span class="text-orange-600 font-bold">${groupSession.typeInfo.typeName}</span>) ไว้ชั่วคราว เพื่อเปิดตะกร้ากลุ่มใหม่เลยหรือไม่?`,
+                    confirmText: 'เปิดกลุ่มใหม่',
+                    cancelText: 'ยกเลิก',
+                    theme: 'purple',
+                    icon: 'layers'
+                });
+
                 if (ok) {
+                    if (pausedGroupSessions.length >= 3) {
+                        return showAlert('พักตะกร้าเต็มโควตาแล้ว', 'สามารถพักกลุ่มค้างไว้ได้สูงสุด 3 กลุ่ม กรุณาบันทึกหรือยกเลิกกลุ่มที่พักไว้ก่อนครับ', 'warning');
+                    }
                     pauseGroupSession(true);
                     initGroupSession(card, typeInfo, gateId);
                 }
-            });
+                return;
+            }
+
+        } else if (groupSession.state === 'companions') {
+            // ขั้นที่ 2: สแกนบัตรผู้ติดตาม
+            handleGroupSessionScan(card);
             return;
         }
-
-        // 3.3 แสกนคนเข้ากลุ่ม (ทั้งนักเรียน และอาจารย์/หัวหน้ากลุ่ม ยิงลงตะกร้าได้หมดเลย!)
-        handleGroupSessionScan(card);
-        return;
     }
 
-    // --- 4. โหมดสแกนปกติ (ไม่มีตะกร้ากลุ่มบนจอ) ---
+    // --- 4. โหมดสแกนปกติ (ไม่มีตะกร้ากลุ่มเปิดอยู่บนจอ — อาจมีตะกร้าพักไว้ด้านบนได้) ---
+    // เช็คว่าคนนี้ค้างอยู่ในตะกร้าที่พักไว้ไหม (ป้องกันสแกนซ้ำ)
+    if (predictedStatus === 'IN') {
+        const isInPaused = pausedGroupSessions.some(b => b.members.some(m => m.cardId === card.cardId));
+        if (isInPaused) {
+            delete globalScanTracker[cardId];
+            mainInput.value = ''; mainInput.focus();
+            return showAlert('บุคคลนี้ค้างอยู่ในตะกร้าที่พักไว้', 'กรุณาคลิกที่แถบกลุ่มที่พักไว้ด้านบนเพื่อทำรายการต่อครับ', 'warning');
+        }
+    }
+
     if (systemSettings.ttsTimingMode === 'immediate') speakImmediateGreeting(card.firstName, card.lastName);
 
     if (isTrue(typeInfo.requireCompanion) && predictedStatus === 'IN') {
         if (isTrue(typeInfo.isGroup)) {
+            if (pausedGroupSessions.length >= 3) {
+                delete globalScanTracker[cardId];
+                mainInput.value = ''; mainInput.focus();
+                return showAlert('พักตะกร้าเต็มโควตาแล้ว', 'มีกลุ่มที่พักรอการบันทึกอยู่ 3 กลุ่มแล้ว กรุณาทำรายการกลุ่มที่ค้างอยู่ให้เสร็จก่อนครับ', 'warning');
+            }
             initGroupSession(card, typeInfo, gateId);
             return;
         } else {
             delete globalScanTracker[cardId];
+            const ctxEl = document.getElementById('compModalContextInfo');
+            if (ctxEl) ctxEl.classList.add('hidden');
             document.getElementById('companionModalMainCardId').value = card.cardId;
             document.getElementById('compBarcode').value = '';
             document.getElementById('companionModal').classList.remove('hidden');
@@ -12713,6 +12599,7 @@ function processMainScan() {
 
     currentDisplayCardId = card.cardId;
     mainInput.value = ''; mainInput.focus();
+
     showInstantUI(card, typeInfo, predictedStatus);
     executeScanFinal(gateId, card.cardId, null, predictedStatus, `${card.firstName} ${card.lastName}`);
 }
@@ -12853,9 +12740,8 @@ function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
     const isCaptureModalOpen = !document.getElementById('captureModal').classList.contains('hidden');
 	const isCustomConfirmModal = !document.getElementById('customConfirmModal').classList.contains('hidden');
 	const isVehicleCompanionModal = !document.getElementById('vehicleCompanionModal').classList.contains('hidden');
-	const isGroupCompanionModal = !document.getElementById('groupCompanionModal').classList.contains('hidden');
 	
-    if (isAlertOpen || isCompModalOpen || isCaptureModalOpen || isSystemBusy || isCustomConfirmModal || isVehicleCompanionModal || isGroupCompanionModal) return;
+    if (isAlertOpen || isCompModalOpen || isCaptureModalOpen || isSystemBusy || isCustomConfirmModal || isVehicleCompanionModal) return;
 
     if (lastScannedFaceId === cardId) return;
     lastScannedFaceId = cardId;
