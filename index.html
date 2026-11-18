@@ -3454,12 +3454,32 @@ function confirmVehicleCompanionsAndSave() {
     if (vehicleSession.driver) peopleToSave.push({ ...vehicleSession.driver, isDriver: true });
     vehicleSession.passengers.forEach(p => peopleToSave.push({ ...p, isDriver: false }));
 
+    // 1. ผูกข้อมูลผู้ติดตามให้กับผู้โดยสารที่ต้องการ
     peopleToSave.forEach(p => {
         const assignedComp = sim.assignments[p.cardId];
         if (assignedComp) {
             p.companionCardId = assignedComp.cardId;
             p.companionName = `${assignedComp.firstName} ${assignedComp.lastName}`;
             p.companionOrg = assignedComp.organization || '';
+        }
+    });
+
+    // 2. >>> เพิ่มส่วนนี้: ตรวจหาผู้ติดตามภายนอก (ที่ไม่ได้นั่งมาในรถตั้งแต่แรก) แล้วเพิ่มเข้า peopleToSave <<<
+    sim.compUsage.forEach(u => {
+        if (u.assignedList && u.assignedList.length > 0) {
+            const comp = u.comp;
+            // ตรวจสอบว่าผู้ติดตามคนนี้เป็นคนในรถอยู่แล้วหรือไม่ (เช่น เป็นคนขับ) ถ้าไม่ใช่ = เป็นผู้ติดตามภายนอก
+            const alreadyInCar = peopleToSave.some(p => String(p.cardId).toUpperCase() === String(comp.cardId).toUpperCase());
+            if (!alreadyInCar) {
+                peopleToSave.push({
+                    ...comp,
+                    isDriver: false,
+                    isEscort: true, // มาร์คว่าเป็นผู้ติดตาม
+                    companionCardId: '',
+                    companionName: '',
+                    companionOrg: ''
+                });
+            }
         }
     });
 
@@ -3878,15 +3898,28 @@ function showVehicleSuccessSummary(vehicle, mode, people, gateName, logTimeIso) 
 
     const peopleHtml = people.map(p => {
         const imgUrl = getFastImageUrl(p.imageUrl);
+        
+        // แยกสถานะ Badge: Driver (คนขับ), Escort (ผู้ติดตามภายนอก), Pax (ผู้โดยสาร)
+        const badgeBg = p.isDriver ? 'bg-amber-500' : (p.isEscort ? 'bg-purple-600' : 'bg-slate-500');
+        const badgeLabel = p.isDriver ? 'Driver' : (p.isEscort ? 'Escort' : 'Pax');
+        
+        // ข้อความคำอธิบายเพิ่มเติม
+        let escortNote = '';
+        if (p.companionName) {
+            escortNote = `<span class="text-indigo-600 font-bold">• ผู้ติดตาม: ${p.companionName}</span>`;
+        } else if (p.isEscort) {
+            escortNote = `<span class="text-purple-600 font-bold">• ผู้ติดตามภายนอก</span>`;
+        }
+
         return `
         <div onclick="openPersonDetailModal('${p.cardId}')" class="p-2.5 bg-white hover:bg-blue-50/60 border border-gray-200 hover:border-blue-300 rounded-xl flex items-center gap-3 cursor-pointer transition shadow-sm">
             <div class="relative shrink-0">
                 <img src="${imgUrl}" crossorigin="anonymous" class="w-10 h-10 rounded-lg object-cover border border-gray-200">
-                <span class="absolute -bottom-1 -right-1 text-[7px] font-black ${p.isDriver ? 'bg-amber-500' : 'bg-slate-500'} text-white px-1.5 rounded-full border border-white">${p.isDriver ? 'Driver' : 'Pax'}</span>
+                <span class="absolute -bottom-1 -right-1 text-[7px] font-black ${badgeBg} text-white px-1.5 rounded-full border border-white">${badgeLabel}</span>
             </div>
             <div class="flex-1 min-w-0">
                 <p class="font-black text-sm text-gray-800 truncate">${p.firstName} ${p.lastName}</p>
-                <p class="text-[10px] font-bold text-gray-500 truncate">${p.cardId} | ${p.organization || '-'} ${p.companionName ? `<span class="text-indigo-600">• ผู้ติดตาม: ${p.companionName}</span>` : ''}</p>
+                <p class="text-[10px] font-bold text-gray-500 truncate">${p.cardId} | ${p.organization || '-'} ${escortNote}</p>
             </div>
             <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg shrink-0">ดูข้อมูล</span>
         </div>`;
@@ -3938,8 +3971,9 @@ function showVehicleSuccessSummary(vehicle, mode, people, gateName, logTimeIso) 
     lucide.createIcons();
     cachedVehicleHTML = summaryHtml;
 
-    // รีเซ็ต vehicleSession หลังบันทึกเสร็จ
+    // รีเซ็ต session และผู้ติดตามที่เคยเลือกไว้
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
+    vehicleSelectedCompanions = [];
 }
 
 
